@@ -755,7 +755,7 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
   background: rgba(12, 9, 7, .82);
   border: 1px solid var(--border);
   color: var(--gold-strong);
-  font-size: 12px;
+  font-size: 14px;
   pointer-events: none;
   text-align: center;
   white-space: nowrap;
@@ -775,7 +775,7 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
   align-items: center;
   text-align: center;
 }
-.dz-prompt .prompt { font-size: 13px; }
+.dz-prompt .prompt { font-size: 14px; }
 .dz-prompt .btn-row { justify-content: center; }
 .prompt-line {
   display: flex;
@@ -784,8 +784,8 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
   gap: 10px;
   padding: 2px 0;
 }
-.prompt-line .prompt { font-size: 13px; }
-.prompt-line .btn { padding: 4px 12px; font-size: 12px; }
+.prompt-line .prompt { font-size: 14px; }
+.prompt-line .btn { padding: 4px 12px; font-size: 14px; }
 .bottom-hud {
   position: fixed;
   left: 50%;
