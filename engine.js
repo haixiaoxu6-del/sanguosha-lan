@@ -31,7 +31,7 @@ class Game {
       judge: [],
       equips: { weapon: null, armor: null, horse1: null, horse2: null },
       alive: true,
-      flags: { shaUsed: 0 },
+      flags: { shaUsed: 0, jiuUsed: 0, jiu: false },
     }));
     this.deck = buildDeck();
     this.discard = [];
@@ -211,6 +211,8 @@ class Game {
     const p = this.currentPlayer();
     if (!p || !p.alive) { this.endTurn(); return; }
     p.flags.shaUsed = 0;
+    p.flags.jiuUsed = 0;
+    p.flags.jiu = false;
     this.phase = 'judge';
 
     let skipDraw = false;
@@ -292,6 +294,7 @@ class Game {
   canUseAs(p, card, as) {
     if (as === card.key) return true;
     if (as === 'sha') {
+      if (['sha', 'huosha', 'leisha'].includes(card.key)) return true;
       if (this.hasSkill(p, 'wusheng') && card.color === 'red') return true;
       if (this.hasSkill(p, 'longdan') && card.key === 'shan') return true;
     }
@@ -327,6 +330,18 @@ class Game {
 
     const useAs = action.as || card.key;
     if (!this.canUseAs(p, card, useAs)) return err('这张牌不能这样使用');
+
+    // 酒：出牌阶段限一次，下一张杀伤害+1
+    if (useAs === 'jiu') {
+      if (p.flags.jiuUsed >= 1) return err('本回合已经使用过【酒】');
+      p.hand.splice(p.hand.findIndex(c => c.id === card.id), 1);
+      this.discard.push(card);
+      p.flags.jiu = true;
+      p.flags.jiuUsed = 1;
+      this.pushLog(`${p.name} 使用【酒】，本回合下一张【杀】伤害+1`);
+      return ok();
+    }
+
     const target = action.targetId ? this.findPlayer(action.targetId) : null;
 
     // 目标/使用条件校验
@@ -369,7 +384,7 @@ class Game {
           this.pushLog(`${target.name} 的【仁王盾】使黑色【杀】无效`);
           return ok();
         }
-        if (armor.key === 'tengjia' && !fire) {
+        if (armor.key === 'tengjia' && card.key === 'sha' && !fire) {
           this.discard.push(card);
           this.pushLog(`${target.name} 的【藤甲】使普通【杀】无效`);
           return ok();
@@ -658,11 +673,11 @@ class Game {
         return ok();
       }
       const card = p.hand.find(c => c.id === action.cardId);
-      if (!card || card.key !== 'tao') return err('请选择【桃】');
+      if (!card || (card.key !== 'tao' && card.key !== 'jiu')) return err('请选择【桃】或【酒】');
       p.hand.splice(p.hand.indexOf(card), 1);
       this.discard.push(card);
       dying.hp = Math.min(dying.maxHp, dying.hp + 1);
-      this.pushLog(`${p.name} 对 ${dying.name} 使用【桃】`);
+      this.pushLog(`${p.name} 对 ${dying.name} 使用【${card.key === 'jiu' ? '酒' : '桃'}】`);
       if (dying.hp > 0) {
         this.pending = pend.parent || null;
       } else {
@@ -713,7 +728,12 @@ class Game {
     if (!target.alive) { this.pending = parent; return; }
     if (target.equips && target.equips.armor && target.equips.armor.key === 'baiyin' && amount > 1) amount = 1;
     if (source && source.equips && source.equips.weapon && source.equips.weapon.key === 'guding' && target.hand.length === 0) amount += 1;
-    if (target.equips && target.equips.armor && target.equips.armor.key === 'tengjia' && card && card.fire) amount += 1;
+    if (source && source.flags && source.flags.jiu && card && card.key === 'sha') {
+      amount += 1;
+      source.flags.jiu = false;
+      this.pushLog(`${source.name} 的【酒】使【杀】伤害+1`);
+    }
+    if (target.equips && target.equips.armor && target.equips.armor.key === 'tengjia' && card && (card.fire || card.element === 'fire')) amount += 1;
     target.hp -= amount;
     this.pushLog(`${target.name} 受到${amount}点伤害（${target.hp}/${target.maxHp}）`);
 
@@ -851,6 +871,8 @@ class Game {
         judge: you.judge,
         equips: you.equips,
         shaUsed: you.flags.shaUsed,
+        jiuUsed: you.flags.jiuUsed,
+        jiu: you.flags.jiu,
       } : null,
       pending: this.pending ? (this.pending.playerId === playerId
         ? {

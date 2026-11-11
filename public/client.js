@@ -693,7 +693,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v51</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v53</div>
   </div></div>`;
 }
 
@@ -752,7 +752,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v51</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v53</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -775,7 +775,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v51</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v53</div>
   </div></div>`;
 }
 
@@ -1013,7 +1013,7 @@ function cardHtml(c, s) {
 function canUseAsSha(card) {
   const g = ui.state?.you?.general;
   if (!g) return false;
-  if (card.key === 'sha') return true;
+  if (['sha', 'huosha', 'leisha'].includes(card.key)) return true;
   if (g.skills.includes('wusheng') && card.color === 'red') return true;
   if (g.skills.includes('longdan') && card.key === 'shan') return true;
   return false;
@@ -1036,6 +1036,7 @@ function playActions(card) {
   const shaAllowed = you.general.skills.includes('paoxiao') || zhuge || you.shaUsed < 1;
   if (canSha && shaAllowed) acts.push({ label: '出【杀】', as: 'sha', needsTarget: true });
   if (card.type === 'equip') acts.push({ label: `装备【${card.name}】`, as: card.key, needsTarget: false });
+  if (card.key === 'jiu' && (you.jiuUsed || 0) < 1) acts.push({ label: '使用【酒】', as: 'jiu', needsTarget: false });
   if (card.key === 'tao' && you.hp < you.maxHp) acts.push({ label: '使用【桃】', as: 'tao', needsTarget: false });
   const tricks = ['juedou', 'guohe', 'shunshou', 'wuzhong', 'nanman', 'wanjian', 'bingliang'];
   if (tricks.includes(card.key)) {
@@ -1051,7 +1052,7 @@ function isCardUsable(card, s) {
     if (type === 'discard') return true;
     if (type === 'shan' || type === 'wanjian') return canUseAsShan(card);
     if (type === 'duel' || type === 'nanman') return canUseAsSha(card);
-    if (type === 'tao') return card.key === 'tao';
+    if (type === 'tao') return card.key === 'tao' || card.key === 'jiu';
     if (type === 'wuxie') return card.key === 'wuxie';
     return false;
   }

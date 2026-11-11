@@ -7,9 +7,12 @@ const COLOR = { spade: 'black', club: 'black', heart: 'red', diamond: 'red' };
 
 // ---------- 牌堆（56 张核心牌） ----------
 const CARD_DEFS = [
-  { key: 'sha',       name: '杀',       type: 'basic',   count: 14, art: 'sha.png' },
-  { key: 'shan',      name: '闪',       type: 'basic',   count: 10, art: 'shan.png' },
-  { key: 'tao',       name: '桃',       type: 'basic',   count: 6,  art: 'tao.png' },
+  { key: 'sha',       name: '杀',       type: 'basic',   count: 30, art: 'sha.png' },
+  { key: 'huosha',    name: '火杀',     type: 'basic',   element: 'fire', count: 5, art: 'huogong.png', desc: '火属性【杀】。' },
+  { key: 'leisha',    name: '雷杀',     type: 'basic',   element: 'thunder', count: 9, art: 'shandian.png', desc: '雷属性【杀】。' },
+  { key: 'shan',      name: '闪',       type: 'basic',   count: 24, art: 'shan.png' },
+  { key: 'tao',       name: '桃',       type: 'basic',   count: 12, art: 'tao.png' },
+  { key: 'jiu',       name: '酒',       type: 'basic',   count: 5,  art: 'jiu.png', desc: '出牌阶段，对自己使用，令本回合下一张【杀】伤害+1（每回合限一次）；濒死时对自己使用，回复1点体力。' },
   { key: 'juedou',    name: '决斗',     type: 'trick',   count: 4,  art: 'juedou.png' },
   { key: 'guohe',     name: '过河拆桥', type: 'trick',   count: 4,  art: 'guohe.png' },
   { key: 'shunshou',  name: '顺手牵羊', type: 'trick',   count: 4,  art: 'shunshou.png' },
@@ -110,6 +113,7 @@ function buildDeck() {
         slot: def.slot,
         range: def.range,
         desc: def.desc,
+        element: def.element,
         suit,
         number,
         color: COLOR[suit],
