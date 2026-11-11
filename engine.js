@@ -345,7 +345,10 @@ class Game {
   }
 
   startWuxie(source, card, trick) {
-    const queue = this.othersInSeatOrder(source).filter(x => x.alive).map(x => x.id);
+    // 只询问手里确实有【无懈可击】的其他玩家；没人有就直接结算
+    const queue = this.othersInSeatOrder(source)
+      .filter(x => x.alive && x.hand.some(c => c.key === 'wuxie'))
+      .map(x => x.id);
     if (queue.length === 0) {
       this.resolveTrick({ sourceId: source.id, cardId: card.id, cardRef: card, trick, canceled: false });
       return;

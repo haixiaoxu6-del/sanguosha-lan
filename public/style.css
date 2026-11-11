@@ -888,3 +888,84 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
   .gc-skills { display: none; }
   .gc-turn { top: 24px; font-size: 8px; }
 }
+
+/* ---------------- 竖屏提示 ---------------- */
+.rotate-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: radial-gradient(circle at 50% 30%, #2a1d13, #0d0907 70%);
+  color: var(--gold-strong);
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+}
+@media (orientation: portrait) and (max-width: 900px) and (pointer: coarse) {
+  .rotate-overlay { display: flex; }
+}
+.rotate-card { max-width: 320px; }
+.rotate-icon {
+  font-size: 64px;
+  line-height: 1;
+  transform: rotate(90deg);
+  color: var(--gold);
+  margin-bottom: 10px;
+}
+.rotate-overlay h2 { margin: 6px 0 8px; font-size: 24px; letter-spacing: 4px; }
+.rotate-overlay p { margin: 0 0 18px; color: var(--muted); font-size: 14px; }
+.rotate-overlay .btn { min-width: 140px; }
+
+/* ---------------- 右上角退出 ---------------- */
+.exit-btn {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  right: calc(env(safe-area-inset-right, 0px) + 8px);
+  z-index: 80;
+  padding: 6px 14px;
+  font-size: 13px;
+  color: var(--gold-strong);
+  background: rgba(20, 14, 10, .86);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* ---------------- 手机横屏：PC 式牌桌 ---------------- */
+@media (orientation: landscape) and (max-height: 560px) {
+  .game.dz { padding: 4px 8px 188px; }
+  .topbar { padding: 4px 8px; }
+  .topbar .brand { font-size: 15px; }
+  .top-meta { gap: 4px; font-size: 10px; }
+  .dz-table { gap: 4px; }
+  .dz-opponents { gap: 8px; padding: 2px 0; }
+  .gc { width: 92px; height: 122px; }
+  .gc-name-vertical { font-size: 10px; }
+  .gc-role { min-width: 16px; height: 16px; line-height: 16px; font-size: 9px; }
+  .gc-hp { font-size: 10px; bottom: 10px; }
+  .gc-hand { font-size: 8px; bottom: 10px; }
+  .gc-skills { display: none; }
+  .gc-turn { top: 20px; font-size: 8px; }
+  .dz-self { flex-direction: row; align-items: flex-end; padding: 4px 6px; gap: 8px; }
+  .dz-hand { min-height: 50px; gap: 4px; }
+  .card { width: 78px; height: 109px; }
+  .card .c-name { top: 14px; font-size: 10px; padding: 1px 0; }
+  .card .c-suit { font-size: 10px; }
+  .card .c-num { font-size: 11px; }
+  .card .c-type { font-size: 7px; padding: 0 2px; }
+  .dz-prompt .control-box { padding: 4px 8px; }
+  .dz-prompt .control-box .prompt { font-size: 12px; }
+  .dz-prompt .control-box .sub { display: none; }
+  .dz-prompt .control-box .btn { padding: 4px 8px; font-size: 11px; }
+  .bottom-hud { padding: 0 8px 4px; gap: 4px; }
+  .banner { margin: 2px auto 3px; font-size: 10px; padding: 2px 8px; }
+  .mode-grid, .general-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .general-portrait { height: auto; }
+  .exit-btn {
+    top: calc(env(safe-area-inset-top, 0px) + 6px);
+    right: calc(env(safe-area-inset-right, 0px) + 6px);
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+}
