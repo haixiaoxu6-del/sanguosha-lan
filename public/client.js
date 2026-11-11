@@ -572,6 +572,35 @@ function render() {
   app.innerHTML = gameHtml();
 }
 
+function renderLocal() {
+  const s = ui.state;
+  if (!s || !s.started) { render(); return; }
+  const meId = myId(s);
+  const you = s.you;
+  const selectedCard = you.hand.find(c => c.id === ui.selectedCard);
+  const hasTargetAction = !!(selectedCard && playActions(selectedCard).some(a => a.needsTarget));
+  const canTarget = !!(ui.pendingAction && ui.pendingAction.needsTarget) || hasTargetAction;
+  document.querySelectorAll('.card[data-card-id]').forEach(el => {
+    const id = el.dataset.cardId;
+    el.classList.toggle('selected', id === ui.selectedCard);
+    el.classList.toggle('discard-selected', ui.discardSet.has(id));
+  });
+  document.querySelectorAll('.gc[data-player-id]').forEach(el => {
+    const id = el.dataset.playerId;
+    const p = s.players.find(x => x.id === id);
+    el.classList.toggle('target', ui.selectedTarget === id);
+    el.classList.toggle('targetable', !!(canTarget && p && p.alive && id !== meId));
+  });
+  const prompt = document.querySelector('.dz-prompt');
+  if (prompt) {
+    const current = s.players.find(p => p.id === s.currentPlayer);
+    const pending = s.pending;
+    const myPending = pending && pending.playerId === meId;
+    const isMyTurn = s.currentPlayer === meId;
+    prompt.innerHTML = controlsHtml(s, you, current, pending, myPending, isMyTurn);
+  }
+}
+
 function lobbyHtml() {
   const modes = ui.modes || [];
   return `<div class="lobby"><div class="lobby-card" style="width:min(720px,100%)">
@@ -593,7 +622,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v24</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v25</div>
   </div></div>`;
 }
 
@@ -652,7 +681,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v24</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v25</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -675,7 +704,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v24</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v25</div>
   </div></div>`;
 }
 
@@ -694,6 +723,7 @@ function generalCardHtml(p, s, extra = '') {
     : s.mode === 'duel_pvp'
       ? '对手'
       : (p.role === 'landlord' ? '主' : '农');
+  const showRole = p.id !== meId && s.mode !== 'duel' && s.mode !== 'duel_pvp';
   const displayName = p.name && !['玩家', 'AI'].includes(p.name) ? p.name : '';
   const selected = s.you.hand.find(c => c.id === ui.selectedCard);
   const canTarget = !!(ui.pendingAction && ui.pendingAction.needsTarget)
@@ -703,7 +733,7 @@ function generalCardHtml(p, s, extra = '') {
   return `<div class="gc ${extra} ${p.isCurrent ? 'current' : ''} ${ui.selectedTarget === p.id ? 'target' : ''} ${!p.alive ? 'dead' : ''} ${canTarget && p.alive && p.id !== meId ? 'targetable' : ''}" data-player-id="${p.id}">
     <img class="gc-portrait" src="/assets/generals/${p.general.portrait}" alt="${p.general.name}" draggable="false">
     <div class="gc-name-vertical">${p.general.name}</div>
-    ${p.id === meId ? '' : `<div class="gc-role ${p.role}">${roleText}</div>`}
+    ${showRole ? `<div class="gc-role ${p.role}">${roleText}</div>` : ''}
     ${displayName ? `<div class="gc-banner">${escapeHtml(displayName)}</div>` : ''}
     <div class="gc-hp">${'◆'.repeat(hp)}${'◇'.repeat(empty)}</div>
     <div class="gc-hand">手牌 ${p.handCount}${p.judgeCount ? ` · 判 ${p.judgeCount}` : ''}</div>
@@ -953,29 +983,9 @@ function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
         <div class="sub">点击一张牌${pick.mode === 'guohe' ? '弃置' : '获得'}</div>
       </div>`;
     }
-    const map = {
-      shan: { label: '出【闪】', action: 'respond-shan', card: '闪' },
-      wanjian: { label: '出【闪】', action: 'respond-shan', card: '闪' },
-      duel: { label: '出【杀】', action: 'respond-sha', card: '杀' },
-      nanman: { label: '出【杀】', action: 'respond-sha', card: '杀' },
-      tao: { label: '使用【桃】', action: 'respond-tao', card: '桃' },
-      wuxie: { label: '出【无懈可击】', action: 'respond-wuxie', card: '无懈可击' },
-    };
-    const m = map[pending.type] || { label: '响应', action: 'respond-pass', card: '' };
-    const selected = you.hand.find(c => c.id === ui.selectedCard);
-    const valid = selected && (
-      (pending.type === 'shan' || pending.type === 'wanjian') ? canUseAsShan(selected) :
-      (pending.type === 'duel' || pending.type === 'nanman') ? canUseAsSha(selected) :
-      (pending.type === 'wuxie') ? selected.key === 'wuxie' :
-      (pending.type === 'tao') ? selected.key === 'tao' : false
-    );
-    return `<div class="control-box">
-      <div class="prompt">${pending.prompt}</div>
-      <div class="btn-row">
-        <button class="btn primary" data-action="${m.action}" ${valid ? '' : 'disabled'}>${m.label}</button>
-        <button class="btn ghost" data-action="cancel">取消</button>
-      </div>
-      <div class="sub">${selected ? (valid ? `已选择：${selected.name}` : `这张牌不能当【${m.card}】`) : '请选择一张牌'}（取消 = 放弃不出）</div>
+    return `<div class="prompt-line">
+      <span class="prompt">${escapeHtml(pending.prompt || '')}</span>
+      <button class="btn ghost" data-action="cancel">取消</button>
     </div>`;
   }
   if (pending && !myPending) {
@@ -1079,7 +1089,20 @@ document.addEventListener('click', (e) => {
     if (s.pending && s.pending.playerId === myId(s) && s.pending.type === 'discard') {
       if (ui.discardSet.has(id)) ui.discardSet.delete(id);
       else if (ui.discardSet.size < s.pending.count) ui.discardSet.add(id);
-      render();
+      renderLocal();
+      return;
+    }
+    if (s.pending && s.pending.playerId === myId(s) && s.pending.type !== 'pick') {
+      const responseCard = s.you.hand.find(c => c.id === id);
+      if (responseCard) {
+        const valid = (s.pending.type === 'shan' || s.pending.type === 'wanjian') ? canUseAsShan(responseCard)
+          : (s.pending.type === 'duel' || s.pending.type === 'nanman') ? canUseAsSha(responseCard)
+          : s.pending.type === 'wuxie' ? responseCard.key === 'wuxie'
+          : s.pending.type === 'tao' ? responseCard.key === 'tao' : false;
+        if (valid) { sendAction({ type: 'respond', cardId: id }); return; }
+      }
+      ui.selectedCard = id;
+      renderLocal();
       return;
     }
     const card = s.you.hand.find(c => c.id === id);
@@ -1090,7 +1113,7 @@ document.addEventListener('click', (e) => {
           if (act.needsTarget) {
             ui.pendingAction = { as: act.as, needsTarget: true };
             ui.selectedTarget = null;
-            render();
+            renderLocal();
           } else {
             sendAction({ type: 'play', cardId: id, as: act.as });
             ui.selectedCard = null;
@@ -1102,13 +1125,13 @@ document.addEventListener('click', (e) => {
       ui.selectedCard = id;
       ui.selectedTarget = null;
       ui.pendingAction = null;
-      render();
+      renderLocal();
       return;
     }
     ui.selectedCard = (ui.selectedCard === id ? null : id);
     ui.selectedTarget = null;
     ui.pendingAction = null;
-    render();
+    renderLocal();
     return;
   }
 
@@ -1128,6 +1151,7 @@ document.addEventListener('click', (e) => {
     // 已经进入选目标模式
     if (ui.pendingAction && ui.pendingAction.needsTarget && p && p.alive && id !== myId(ui.state)) {
       ui.selectedTarget = id;
+      renderLocal();
       sendAction({ type: 'play', cardId: ui.selectedCard, as: ui.pendingAction.as, targetId: id });
       return;
     }
@@ -1197,7 +1221,7 @@ document.addEventListener('click', (e) => {
     if (cs && cs.pending && cs.pending.playerId === myId(cs)) {
       if (cs.pending.type === 'discard') {
         ui.discardSet.clear();
-        render();
+        renderLocal();
         return;
       }
       if (cs.pending.type === 'pick') return;
@@ -1207,7 +1231,7 @@ document.addEventListener('click', (e) => {
     ui.selectedCard = null;
     ui.selectedTarget = null;
     ui.pendingAction = null;
-    render();
+    renderLocal();
     return;
   }
   if (action === 'close-judgment') {
@@ -1224,7 +1248,7 @@ document.addEventListener('click', (e) => {
   if (action === 'respond-pass') { sendAction({ type: 'respond', pass: true }); return; }
   if (action === 'respond-cancel') {
     ui.selectedCard = null;
-    render();
+    renderLocal();
     return;
   }
 
@@ -1234,7 +1258,7 @@ document.addEventListener('click', (e) => {
   }
   if (action === 'discard-cancel') {
     ui.discardSet.clear();
-    render();
+    renderLocal();
     return;
   }
 });

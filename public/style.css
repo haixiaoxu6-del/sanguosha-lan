@@ -477,13 +477,20 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
   flex: 0 0 auto;
   border: 2px solid #a98145;
   border-radius: 10px;
-  overflow: hidden;
+  overflow: visible;
   background: #0e0b09;
   box-shadow: inset 0 0 0 1px #e0c07a, 0 6px 18px rgba(0, 0, 0, .55);
   cursor: pointer;
   transition: box-shadow .15s, border-color .15s;
 }
-.gc-portrait { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gc-portrait {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transform: scale(1.07);
+  transform-origin: 50% 15%;
+}
 .gc::after {
   content: '';
   position: absolute; left: 0; right: 0; bottom: 0; height: 48%;
@@ -605,7 +612,28 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 }
 .banner.reconnect { background: rgba(120, 35, 25, .9); color: #ffd9a0; border-color: rgba(255, 180, 100, .4); }
 .dz-prompt { width: 100%; max-width: 900px; margin: 0 auto; }
-.dz-prompt .control-box { margin: 0; }
+.dz-prompt .control-box {
+  margin: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  gap: 4px;
+  align-items: center;
+  text-align: center;
+}
+.dz-prompt .prompt { font-size: 13px; }
+.dz-prompt .btn-row { justify-content: center; }
+.prompt-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 2px 0;
+}
+.prompt-line .prompt { font-size: 13px; }
+.prompt-line .btn { padding: 4px 12px; font-size: 12px; }
 .bottom-hud {
   position: fixed;
   left: 50%;
