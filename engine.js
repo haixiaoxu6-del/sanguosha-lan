@@ -29,6 +29,7 @@ class Game {
       maxHp: 0,
       hand: [],
       judge: [],
+      equips: { weapon: null, armor: null, horse1: null, horse2: null },
       alive: true,
       flags: { shaUsed: 0 },
     }));
@@ -110,8 +111,22 @@ class Game {
   hasSkill(p, s) { return !!(p && p.general && p.general.skills.includes(s)); }
 
   distance(a, b) {
-    const d = Math.abs(a.seat - b.seat);
-    return Math.min(d, this.n - d);
+    let d = Math.abs(a.seat - b.seat);
+    d = Math.min(d, this.n - d);
+    if (b.equips && b.equips.horse1) d += 1;
+    if (a.equips && a.equips.horse2) d -= 1;
+    return Math.max(1, d);
+  }
+
+  cardCount(p) {
+    let n = p.hand.length + p.judge.length;
+    if (p.equips) for (const c of Object.values(p.equips)) if (c) n++;
+    return n;
+  }
+
+  heal(p, n) {
+    p.hp = Math.min(p.maxHp, p.hp + n);
+    this.pushLog(`${p.name} 回复${n}点体力（${p.hp}/${p.maxHp}）`);
   }
 
   othersInSeatOrder(p) {
@@ -150,6 +165,10 @@ class Game {
       if (c) return c;
       c = p.judge.find(x => x.id === id);
       if (c) return c;
+      if (p.equips) {
+        c = Object.values(p.equips).find(x => x && x.id === id);
+        if (c) return c;
+      }
     }
     return this.discard.find(x => x.id === id) || this.deck.find(x => x.id === id) || null;
   }
@@ -159,6 +178,15 @@ class Game {
     if (idx >= 0) return p.hand.splice(idx, 1)[0];
     idx = p.judge.findIndex(c => c.id === card.id);
     if (idx >= 0) return p.judge.splice(idx, 1)[0];
+    if (p.equips) {
+      for (const k of Object.keys(p.equips)) {
+        if (p.equips[k] && p.equips[k].id === card.id) {
+          const c = p.equips[k];
+          p.equips[k] = null;
+          return c;
+        }
+      }
+    }
     return null;
   }
 
@@ -282,6 +310,21 @@ class Game {
 
     const card = p.hand.find(c => c.id === action.cardId);
     if (!card) return err('你没有这张牌');
+
+    // 装备牌：直接进入装备区
+    if (card.type === 'equip') {
+      const slot = card.slot || (card.key === 'bagua' || card.key === 'renwang' || card.key === 'tengjia' || card.key === 'baiyin' ? 'armor' : 'weapon');
+      const old = p.equips[slot];
+      p.hand.splice(p.hand.findIndex(c => c.id === card.id), 1);
+      p.equips[slot] = card;
+      if (old) {
+        this.discard.push(old);
+        if (old.key === 'baiyin') this.heal(p, 1);
+      }
+      this.pushLog(`${p.name} 装备了【${card.name}】`);
+      return ok();
+    }
+
     const useAs = action.as || card.key;
     if (!this.canUseAs(p, card, useAs)) return err('这张牌不能这样使用');
     const target = action.targetId ? this.findPlayer(action.targetId) : null;
@@ -289,17 +332,18 @@ class Game {
     // 目标/使用条件校验
     if (useAs === 'sha') {
       if (!target || !target.alive || target.id === p.id) return err('请选择一名其他角色');
-      if (this.distance(p, target) > 1) return err('目标不在攻击范围内');
-      if (!this.hasSkill(p, 'paoxiao') && p.flags.shaUsed >= 1) return err('本回合已经使用过【杀】');
+      const range = (p.equips && p.equips.weapon && p.equips.weapon.range) || 1;
+      if (this.distance(p, target) > range) return err('目标不在攻击范围内');
+      if (!this.hasSkill(p, 'paoxiao') && !(p.equips && p.equips.weapon && p.equips.weapon.key === 'zhuge') && p.flags.shaUsed >= 1) return err('本回合已经使用过【杀】');
     } else if (useAs === 'juedou') {
       if (!target || !target.alive || target.id === p.id) return err('请选择一名其他角色');
     } else if (useAs === 'guohe') {
       if (!target || !target.alive || target.id === p.id) return err('请选择一名其他角色');
-      if (target.hand.length + target.judge.length === 0) return err('目标没有牌');
+      if (this.cardCount(target) === 0) return err('目标没有牌');
     } else if (useAs === 'shunshou') {
       if (!target || !target.alive || target.id === p.id) return err('请选择一名其他角色');
       if (this.distance(p, target) !== 1) return err('顺手牵羊只能对距离1的角色使用');
-      if (target.hand.length + target.judge.length === 0) return err('目标没有牌');
+      if (this.cardCount(target) === 0) return err('目标没有牌');
     } else if (useAs === 'bingliang') {
       if (!target || !target.alive || target.id === p.id) return err('请选择一名其他角色');
       if (this.distance(p, target) !== 1) return err('兵粮寸断只能对距离1的角色使用');
@@ -315,14 +359,43 @@ class Game {
 
     // 杀 / 桃：直接结算
     if (useAs === 'sha') {
+      const weapon = p.equips && p.equips.weapon;
+      const armor = target.equips && target.equips.armor;
+      const ignoreArmor = weapon && weapon.key === 'qinggang';
+      const fire = weapon && weapon.key === 'zhuque';
+      if (armor && !ignoreArmor) {
+        if (armor.key === 'renwang' && !fire && card.color === 'black') {
+          this.discard.push(card);
+          this.pushLog(`${target.name} 的【仁王盾】使黑色【杀】无效`);
+          return ok();
+        }
+        if (armor.key === 'tengjia' && !fire) {
+          this.discard.push(card);
+          this.pushLog(`${target.name} 的【藤甲】使普通【杀】无效`);
+          return ok();
+        }
+        if (armor.key === 'bagua') {
+          const judge = this.drawCard();
+          if (judge) {
+            this.discard.push(judge);
+            this.lastJudgment = { seq: Date.now(), card: judge, text: `【八卦阵】判定：${judge.name}` };
+            if (judge.color === 'red') {
+              this.discard.push(card);
+              this.pushLog(`${target.name} 的【八卦阵】判定为红色，视为出【闪】`);
+              return ok();
+            }
+          }
+        }
+      }
       this.discard.push(card);
       p.flags.shaUsed++;
-      this.pushLog(`${p.name} 对 ${target.name} 使用【杀】`);
+      this.pushLog(`${p.name} 对 ${target.name} 使用【杀】${fire ? '（火杀）' : ''}`);
       this.pending = {
         type: 'shan',
         playerId: target.id,
         sourceId: p.id,
         cardId: card.id,
+        fire,
         prompt: `${target.name} 请出【闪】`,
       };
       return ok();
@@ -405,7 +478,7 @@ class Game {
     }
     if (trick.useAs === 'guohe' || trick.useAs === 'shunshou') {
       if (!target || !target.alive) return;
-      if (target.hand.length + target.judge.length === 0) return;
+      if (this.cardCount(target) === 0) return;
       this.pending = {
         type: 'pick',
         playerId: source.id,
@@ -446,7 +519,9 @@ class Game {
     const p = this.findPlayer(playerId);
     const target = this.findPlayer(this.pending.targetId);
     if (!p || !target) return err('角色不存在');
-    const card = target.hand.find(c => c.id === cardId) || target.judge.find(c => c.id === cardId);
+    const card = target.hand.find(c => c.id === cardId)
+      || target.judge.find(c => c.id === cardId)
+      || Object.values(target.equips || {}).find(c => c && c.id === cardId);
     if (!card) return err('目标没有这张牌');
     this.removeFromPlayer(target, card);
     if (this.pending.mode === 'guohe') {
@@ -636,6 +711,9 @@ class Game {
   // ---------------- 伤害 / 死亡 ----------------
   damage(target, amount, source, card, parent = null) {
     if (!target.alive) { this.pending = parent; return; }
+    if (target.equips && target.equips.armor && target.equips.armor.key === 'baiyin' && amount > 1) amount = 1;
+    if (source && source.equips && source.equips.weapon && source.equips.weapon.key === 'guding' && target.hand.length === 0) amount += 1;
+    if (target.equips && target.equips.armor && target.equips.armor.key === 'tengjia' && card && card.fire) amount += 1;
     target.hp -= amount;
     this.pushLog(`${target.name} 受到${amount}点伤害（${target.hp}/${target.maxHp}）`);
 
@@ -759,6 +837,7 @@ class Game {
         maxHp: p.maxHp,
         handCount: p.hand.length,
         judgeCount: p.judge.length,
+        equips: p.equips,
         alive: p.alive,
         isCurrent: this.currentPlayer() && this.currentPlayer().id === p.id,
       })),
@@ -770,6 +849,7 @@ class Game {
         maxHp: you.maxHp,
         hand: you.hand,
         judge: you.judge,
+        equips: you.equips,
         shaUsed: you.flags.shaUsed,
       } : null,
       pending: this.pending ? (this.pending.playerId === playerId
@@ -790,6 +870,7 @@ class Game {
               mode: this.pending.mode,
               cards: t ? [
                 ...t.judge.map(c => ({ id: c.id, zone: 'judge', hidden: false, name: c.name, suit: c.suit, number: c.number, color: c.color })),
+                ...Object.values(t.equips || {}).filter(Boolean).map(c => ({ id: c.id, zone: 'equip', hidden: false, name: c.name, suit: c.suit, number: c.number, color: c.color })),
                 ...t.hand.map(c => ({ id: c.id, zone: 'hand', hidden: true })),
               ] : [],
             };

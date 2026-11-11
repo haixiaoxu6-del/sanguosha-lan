@@ -2,7 +2,7 @@
 
 const $ = (sel) => document.querySelector(sel);
 const SUIT_CN = { spade: '♠', heart: '♥', club: '♣', diamond: '♦' };
-const CARD_TYPE_CN = { basic: '基本', trick: '锦囊', delayed: '延时' };
+const CARD_TYPE_CN = { basic: '基本', trick: '锦囊', delayed: '延时', equip: '装备' };
 const ROLE_CN = { landlord: '地主', farmer: '农民', player: '玩家', ai: 'AI' };
 const PHASE_CN = { judge: '判定', draw: '摸牌', play: '出牌', discard: '弃牌', over: '结束' };
 
@@ -679,7 +679,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v47</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v48</div>
   </div></div>`;
 }
 
@@ -738,7 +738,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v47</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v48</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -761,7 +761,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v47</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v48</div>
   </div></div>`;
 }
 
@@ -792,6 +792,15 @@ function generalCardHtml(p, s, extra = '') {
   const canTarget = !!(ui.pendingAction && ui.pendingAction.needsTarget)
     || !!(selected && playActions(selected).some(a => a.needsTarget));
   const hp = Math.max(0, p.hp);
+  const eq = p.equips || {};
+  const eqHtml = (eq.weapon || eq.armor || eq.horse1 || eq.horse2)
+    ? `<div class="gc-equips">
+        ${eq.weapon ? `<div class="gc-equip weapon"><b>${eq.weapon.name}</b><span>${eq.weapon.range}</span></div>` : ''}
+        ${eq.armor ? `<div class="gc-equip armor"><b>${eq.armor.name}</b></div>` : ''}
+        ${eq.horse1 ? `<div class="gc-equip horse"><b>+1 ${eq.horse1.name}</b></div>` : ''}
+        ${eq.horse2 ? `<div class="gc-equip horse"><b>-1 ${eq.horse2.name}</b></div>` : ''}
+      </div>`
+    : '';
   return `<div class="gc-wrap ${extra} ${p.isCurrent ? 'current' : ''} ${ui.selectedTarget === p.id ? 'target' : ''} ${canTarget && p.alive && p.id !== meId ? 'targetable' : ''}" data-player-id="${p.id}">
     <div class="gc-side">
       <div class="gc-side-top">
@@ -810,6 +819,7 @@ function generalCardHtml(p, s, extra = '') {
     <div class="gc ${p.isCurrent ? 'current' : ''} ${!p.alive ? 'dead' : ''}">
       <div class="gc-art"><img class="gc-portrait" src="/assets/generals/${p.general.portrait}" alt="${p.general.name}" draggable="false"></div>
       <div class="gc-hair"><img class="gc-portrait" src="/assets/generals/${p.general.portrait}" alt="" draggable="false"></div>
+      ${eqHtml}
       ${showRole ? `<div class="gc-role ${p.role}">${roleText}</div>` : ''}
       ${p.isCurrent ? '<div class="gc-turn">行动中</div>' : ''}
       ${!p.alive ? '<div class="gc-dead">阵亡</div>' : ''}
@@ -979,7 +989,7 @@ function cardHtml(c, s) {
     <div class="c-top">
       <span class="c-suit">${SUIT_CN[c.suit]}</span>
       <span class="c-num">${c.number}</span>
-      <span class="c-type">${CARD_TYPE_CN[c.type] || ''}</span>
+      <span class="c-type">${c.type === 'equip' ? `装备${c.range ? ' ' + c.range : ''}` : (CARD_TYPE_CN[c.type] || '')}</span>
     </div>
     <div class="c-name">${c.name}</div>
     <div class="c-art"></div>
@@ -1008,8 +1018,10 @@ function playActions(card) {
   if (!you) return [];
   const acts = [];
   const canSha = canUseAsSha(card);
-  const shaAllowed = you.general.skills.includes('paoxiao') || you.shaUsed < 1;
+  const zhuge = you.equips && you.equips.weapon && you.equips.weapon.key === 'zhuge';
+  const shaAllowed = you.general.skills.includes('paoxiao') || zhuge || you.shaUsed < 1;
   if (canSha && shaAllowed) acts.push({ label: '出【杀】', as: 'sha', needsTarget: true });
+  if (card.type === 'equip') acts.push({ label: `装备【${card.name}】`, as: card.key, needsTarget: false });
   if (card.key === 'tao' && you.hp < you.maxHp) acts.push({ label: '使用【桃】', as: 'tao', needsTarget: false });
   const tricks = ['juedou', 'guohe', 'shunshou', 'wuzhong', 'nanman', 'wanjian', 'bingliang'];
   if (tricks.includes(card.key)) {
@@ -1054,7 +1066,7 @@ function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
         <div class="pick-cards">
           ${pick.cards.map(c => c.hidden
             ? `<div class="pick-card back" data-pick-id="${c.id}"><span>?</span><small>手牌</small></div>`
-            : `<div class="pick-card ${c.zone}" data-pick-id="${c.id}"><span class="pick-suit ${c.color === 'red' ? 'red' : ''}">${SUIT_CN[c.suit]}${c.number}</span><b>${c.name}</b><small>${c.zone === 'judge' ? '判定区' : '手牌'}</small></div>`
+            : `<div class="pick-card ${c.zone}" data-pick-id="${c.id}"><span class="pick-suit ${c.color === 'red' ? 'red' : ''}">${SUIT_CN[c.suit]}${c.number}</span><b>${c.name}</b><small>${c.zone === 'judge' ? '判定区' : c.zone === 'equip' ? '装备区' : '手牌'}</small></div>`
           ).join('')}
         </div>
         <div class="sub">点击一张牌${pick.mode === 'guohe' ? '弃置' : '获得'}</div>
