@@ -1,3 +1,9 @@
+@font-face {
+  font-family: 'FZBeiWeiKai';
+  src: url('/assets/fonts/FZBWKSJW.woff2') format('woff2');
+  font-display: swap;
+}
+
 :root {
   --bg: #120e0c;
   --panel: #1e1714;
@@ -20,7 +26,7 @@ html, body {
     url('/assets/ui/bg-10th.jpg') center / cover no-repeat fixed,
     #2a1e14;
   color: var(--text);
-  font-family: "Noto Serif SC", "Songti SC", "STSong", "SimSun", Georgia, serif;
+  font-family: "FZBeiWeiKai", "Noto Serif SC", "Songti SC", "STSong", "SimSun", Georgia, serif;
 }
 
 button { font-family: inherit; }
@@ -477,6 +483,12 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 
 /* ---------------- general card ---------------- */
 .gc-wrap {
+  --gc-w: 190px;
+  --gc-bw: 2px;
+  --gc-inner-w: calc(var(--gc-w) - 2 * var(--gc-bw));
+  --gc-inner-h: calc(var(--gc-inner-w) * 1.5);
+  --gc-h: calc(var(--gc-inner-h) + 2 * var(--gc-bw));
+  --gc-hair: 37px;
   display: flex;
   align-items: stretch;
   flex: 0 0 auto;
@@ -487,10 +499,10 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
   border-bottom-left-radius: 0;
 }
 .gc-side {
-  width: 34px;
+  width: 30px;
   flex: 0 0 auto;
   align-self: stretch;
-  height: auto;
+  height: var(--gc-h);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -503,20 +515,39 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
   background: linear-gradient(180deg, #3a2a1c, #1f140e);
   box-shadow: inset 0 0 0 1px rgba(224, 192, 122, .4);
   z-index: 5;
+  overflow: visible;
+  position: relative;
 }
 .gc-side-top { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.gc-side-faction { font-size: 9px; line-height: 1; color: #e3c47f; }
+.gc-side-faction { font-size: 12px; line-height: 1; color: #e3c47f; }
 .gc-side-name {
   writing-mode: vertical-rl;
   text-orientation: upright;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 900;
   color: #f4e4c4;
   letter-spacing: 2px;
   text-shadow: 0 1px 2px #000;
 }
 .gc-side-hp { display: flex; align-items: center; }
-.gc-side-hand { font-size: 12px; font-weight: 900; color: #f0cf8e; }
+.gc-side-hand { position: relative; z-index: 6; }
+.hand-fan { position: relative; width: 34px; height: 28px; z-index: 6; }
+.fan-card {
+  position: absolute; left: 50%; bottom: 0; width: 14px; height: 19px; margin-left: -7px;
+  background: linear-gradient(160deg, #efe3c6, #c9b184);
+  border: 1px solid #8c6b3f; border-radius: 2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .55);
+  transform-origin: 50% 100%;
+}
+.fan-card.c1 { transform: rotate(-20deg) translateX(-7px); }
+.fan-card.c2 { transform: translateY(-2px); z-index: 2; }
+.fan-card.c3 { transform: rotate(20deg) translateX(7px); }
+.hand-num {
+  position: absolute; left: 50%; top: 2px; transform: translateX(-50%); z-index: 3;
+  font-family: 'FZBeiWeiKai', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  font-size: 18px; font-weight: 900; line-height: 1;
+  color: #2a1c10; text-shadow: 0 1px 0 #fff, 0 0 2px #fff;
+}
 .gc-wrap.target .gc,
 .gc-wrap.target .gc-side {
   border-color: #f0cf8e;
@@ -527,8 +558,8 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 .gc-wrap.gc-hit .gc { box-shadow: 0 0 24px rgba(255, 90, 70, .8); }
 .gc {
   position: relative;
-  width: 190px;
-  height: 253px;
+  width: var(--gc-w);
+  height: var(--gc-h);
   flex: 0 0 auto;
   border: 2px solid #a98145;
   border-radius: 10px;
@@ -540,22 +571,33 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 }
 .gc-art {
   position: absolute;
-  left: 0;
-  top: 50%;
-  width: 100%;
-  height: auto;
-  aspect-ratio: 2 / 3;
-  transform: translateY(-50%);
+  left: var(--gc-bw);
+  bottom: var(--gc-bw);
+  width: var(--gc-inner-w);
+  height: calc(var(--gc-inner-h) + var(--gc-hair));
   z-index: 1;
   overflow: visible;
+  clip-path: inset(var(--gc-hair) 0 0 0);
   pointer-events: none;
+}
+.gc-hair {
+  position: absolute;
+  left: var(--gc-bw);
+  bottom: var(--gc-bw);
+  width: var(--gc-inner-w);
+  height: calc(var(--gc-inner-h) + var(--gc-hair));
+  z-index: 2;
+  pointer-events: none;
+  -webkit-mask-image: radial-gradient(ellipse 36% 14% at 50% 6%, #000 55%, transparent 100%);
+  mask-image: radial-gradient(ellipse 36% 14% at 50% 6%, #000 55%, transparent 100%);
 }
 .gc-portrait {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
+  object-position: 50% 0;
   display: block;
 }
 .gc::after {
@@ -567,8 +609,8 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 }
 .hp-fish-col { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
 .hp-fish {
-  --fish: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 34'%3E%3Cpath fill-rule='evenodd' d='M16 2c9 0 14 7 14 14 0 9-8 16-17 16-5 0-9-3-11-6 6 3 12 2 16-2 5-5 5-13 0-18-2-2-5-3-8-3 2-1 4-1 6-1z'/%3E%3Ccircle cx='15' cy='10' r='2.2'/%3E%3C/svg%3E");
-  width: 16px; height: 18px; display: block;
+  --fish: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 34'%3E%3Cpath fill-rule='evenodd' d='M16 2c8.5 0 14 6.5 14 14 0 9-7 15-16 15-3.5 0-7-1-9.5-3l-5 2 2-5C2 23 2 19 3 15 4.5 7 9.5 2 16 2z'/%3E%3Ccircle cx='15' cy='10' r='2.2'/%3E%3C/svg%3E");
+  width: 18px; height: 20px; display: block;
   background-color: #5cff9a;
   -webkit-mask: var(--fish) center / contain no-repeat;
   mask: var(--fish) center / contain no-repeat;
@@ -1030,7 +1072,7 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 }
 
 @media (max-height: 780px) {
-  .gc { width: 150px; height: 200px; }
+  .gc-wrap { --gc-w: 150px; --gc-hair: 29px; }
   .gc-crest { width: 38px; height: 38px; }
   .gc-name-vertical { font-size: 11px; padding: 3px 2px; }
   .gc-role { min-width: 20px; height: 20px; line-height: 20px; font-size: 10px; }
@@ -1041,7 +1083,7 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
   .gc-turn { top: 30px; font-size: 9px; }
 }
 @media (max-height: 640px) {
-  .gc { width: 120px; height: 160px; }
+  .gc-wrap { --gc-w: 120px; --gc-hair: 23px; }
   .gc-crest { width: 30px; height: 30px; }
   .gc-name-vertical { font-size: 9px; padding: 2px; }
   .gc-role { min-width: 17px; height: 17px; line-height: 17px; font-size: 9px; }
@@ -1097,13 +1139,14 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 
 /* ---------------- 手机横屏：PC 式牌桌 ---------------- */
 @media (orientation: landscape) and (max-height: 560px) {
+  .gc-wrap { --gc-w: 104px; --gc-hair: 20px; }
   .game.dz { padding: 2px 6px 190px; }
   .topbar { padding: 2px 6px; }
   .topbar .brand { font-size: 13px; }
   .top-meta { gap: 3px; font-size: 9px; }
   .dz-table { gap: 2px; }
   .dz-opponents { gap: 10px; padding: 0; }
-  .gc { width: 104px; height: 138px; }
+
   .gc-name-vertical { font-size: 10px; }
   .gc-role { min-width: 16px; height: 16px; line-height: 16px; font-size: 9px; }
   .gc-hp { font-size: 10px; bottom: 10px; }
@@ -1121,7 +1164,7 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
     gap: 8px;
   }
   .dz-hand { order: 1; flex: 1; min-height: 44px; gap: 3px; }
-  .dz-self .gc { order: 2; width: 104px; height: 138px; }
+  .dz-self .gc { order: 2; }
   .dz-self .gc .gc-name-vertical { font-size: 10px; }
   .gc-side { width: 28px; padding: 3px 1px; gap: 3px; }
   .gc-side-name { font-size: 11px; letter-spacing: 1px; }
