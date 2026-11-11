@@ -42,12 +42,21 @@ if (params.get('room')) ui.code = params.get('room').toUpperCase();
 
 // ---------------- 网络 ----------------
 async function post(url, body) {
-  const r = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  return r.json();
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    });
+    return await r.json();
+  } catch (e) {
+    return { ok: false, error: '网络断开，请重试' };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function loadModes() {
@@ -108,30 +117,33 @@ function connect() {
   ui.lastSig = '';
   render();
 
-  let misses = 0;
+  let busy = false;
   const tick = async () => {
+    if (busy) return;
+    busy = true;
+    try {
     if (!ui.room || !ui.playerId) return;
-    const ns = await fetchState();
-    if (!ns) {
-      misses++;
-      if (misses >= 20) {
-        stopPolling();
-        ui.state = null;
-        ui.room = '';
-        ui.playerId = '';
-        localStorage.removeItem('sgs_room');
-        localStorage.removeItem('sgs_player');
-        ui.error = '连接断开，房间可能已失效，请重新创建';
-        render();
-      } else {
-        ui.connecting = true;
-        render();
-      }
+    const res = await fetchState();
+    if (res.fatal) {
+      stopPolling();
+      ui.state = null;
+      ui.room = '';
+      ui.playerId = '';
+      localStorage.removeItem('sgs_room');
+      localStorage.removeItem('sgs_player');
+      ui.connecting = false;
+      ui.error = '房间已失效（服务器可能重启过），请重新建房';
+      render();
       return;
     }
-    misses = 0;
+    if (res.error) {
+      // 手机流量切换/短暂断网：不踢房间，保持手牌和牌桌，只显示重连中
+      if (!ui.connecting) { ui.connecting = true; render(); }
+      return;
+    }
     const wasConnecting = ui.connecting;
     ui.connecting = false;
+    const ns = res.state;
     const sig = stateSignature(ns);
     if (sig === ui.lastSig) {
       if (wasConnecting) render();
@@ -139,10 +151,13 @@ function connect() {
     }
     ui.lastSig = sig;
     applyState(ns);
+    } finally {
+      busy = false;
+    }
   };
   refreshNow = tick;
   tick();
-  pollTimer = setInterval(tick, 300);
+  pollTimer = setInterval(tick, 500);
 }
 
 // ---------------- 音效 / 特效 ----------------
@@ -392,11 +407,22 @@ async function joinRoom() {
 }
 
 async function fetchState() {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
   try {
-    const r = await fetch(`/api/state?room=${encodeURIComponent(ui.room)}&player=${encodeURIComponent(ui.playerId)}&t=${Date.now()}`).then(x => x.json());
-    return r.ok ? r.state : null;
+    const res = await fetch(`/api/state?room=${encodeURIComponent(ui.room)}&player=${encodeURIComponent(ui.playerId)}&t=${Date.now()}`, {
+      signal: ctrl.signal,
+      cache: 'no-store',
+    });
+    if (res.status === 404 || res.status === 403) return { fatal: true };
+    if (!res.ok) return { error: true };
+    const r = await res.json();
+    if (!r.ok) return { fatal: true };
+    return { state: r.state };
   } catch (e) {
-    return null;
+    return { error: true };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -451,8 +477,20 @@ async function startGame(generalId) {
   // 轮询状态，绕过 SSE
   for (let i = 0; i < 12; i++) {
     const st = await fetchState();
-    if (st && st.started) {
-      ui.state = st;
+    if (st.fatal) {
+      ui.starting = false;
+      ui.startStatus = '';
+      ui.state = null;
+      ui.room = '';
+      ui.playerId = '';
+      localStorage.removeItem('sgs_room');
+      localStorage.removeItem('sgs_player');
+      ui.error = '房间已失效（服务器可能重启过），请重新建房';
+      render();
+      return;
+    }
+    if (st.state && st.state.started) {
+      ui.state = st.state;
       ui.starting = false;
       ui.startStatus = '';
       ui.error = '';
@@ -555,7 +593,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v19</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v20</div>
   </div></div>`;
 }
 
@@ -570,6 +608,8 @@ function roomHtml() {
 
   return `<div class="lobby"><div class="lobby-card">
     <h1>斗地主 <span>房间</span></h1>
+    ${ui.error ? `<div class="error">${escapeHtml(ui.error)}</div>` : ''}
+    ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     <div class="room-code">房间号：<b>${s.room}</b></div>
     <div class="copy-row"><button class="btn ghost" data-action="copy">复制邀请链接</button></div>
     <div class="player-list">${slots}</div>
@@ -609,9 +649,10 @@ function generalHtml() {
     <h1>${isPvp ? '1v1 联机' : '选择武将'}</h1>
     <p class="tagline">${isPvp ? '双方各选一个武将，选完自动开始' : '你先选，AI 从剩下的随机选'}</p>
     ${ui.error ? `<div class="error">${escapeHtml(ui.error)}</div>` : ''}
+    ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v19</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v20</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -634,7 +675,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v19</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v20</div>
   </div></div>`;
 }
 
@@ -694,6 +735,7 @@ function tableGameHtml() {
       <button class="btn ghost" data-action="leave">离开</button>
     </header>
     ${s.log && s.log.length ? `<div class="banner">${escapeHtml(bannerText(s.log[s.log.length - 1], s))}</div>` : ''}
+    ${ui.connecting ? '<div class="banner reconnect">网络断开，正在重连…</div>' : ''}
     ${s.gameOver ? gameOverHtml() : ''}
     <main class="dz-table">
       <section class="dz-opponents">

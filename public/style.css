@@ -600,6 +600,7 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.banner.reconnect { background: rgba(120, 35, 25, .9); color: #ffd9a0; border-color: rgba(255, 180, 100, .4); }
 .dz-prompt { width: 100%; max-width: 900px; margin: 0 auto; }
 .dz-prompt .control-box { margin: 0; }
 .bottom-hud {
