@@ -466,7 +466,7 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 .dz-self-meta .dz-general { font-size: 15px; }
 .dz-skills { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
 .skill-tag { font-size: 10px; color: var(--gold); border: 1px solid rgba(217, 179, 108, .4); border-radius: 4px; padding: 1px 5px; }
-.dz-hand { flex: 1; display: flex; flex-wrap: nowrap; gap: 0; align-items: flex-end; min-height: 110px; order: 1; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.dz-hand { flex: 1; display: flex; flex-wrap: nowrap; gap: 0; align-items: flex-end; min-height: 110px; order: 1; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; padding-top: 10px; margin-top: -10px; }
 .dz-hand::-webkit-scrollbar { display: none; }
 .dz-hand .card { flex: 0 0 auto; position: relative; }
 .dz-hand .card + .card { margin-left: calc(-1 * var(--hand-overlap, 0px)); }
@@ -492,13 +492,12 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 .gc-portrait {
   position: absolute;
   left: 0;
-  top: 0;
+  top: -16%;
   z-index: 1;
   width: 100%;
-  height: 100%;
+  height: 116%;
   object-fit: cover;
   display: block;
-  clip-path: inset(0 round 8px);
 }
 .gc::after {
   content: '';
@@ -507,6 +506,23 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
   background: linear-gradient(transparent, rgba(0, 0, 0, .55));
   pointer-events: none;
 }
+.hp-row { display: inline-flex; align-items: center; gap: 2px; }
+.hp-fish {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: linear-gradient(90deg, #5cff9a 50%, #0d3b20 50%);
+  position: relative; display: inline-block;
+  box-shadow: 0 0 4px rgba(60, 255, 140, .35);
+}
+.hp-fish::before {
+  content: ''; position: absolute; left: 25%; top: 0; width: 50%; height: 50%;
+  border-radius: 50%; background: #5cff9a;
+}
+.hp-fish::after {
+  content: ''; position: absolute; left: 25%; bottom: 0; width: 50%; height: 50%;
+  border-radius: 50%; background: #0d3b20;
+}
+.hp-fish.empty { filter: grayscale(1); opacity: .3; box-shadow: none; }
+.hp-num { font-size: 10px; color: #5cff9a; margin-left: 2px; }
 .gc-faction-name {
   display: block;
   font-size: 10px;
@@ -565,6 +581,7 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 }
 .gc-hp {
   position: absolute; left: 8px; bottom: 20px; z-index: 3;
+  display: flex; align-items: center; gap: 3px;
   font-size: 15px; color: #4fe08a; letter-spacing: 1px;
   text-shadow: 0 0 6px rgba(79, 224, 138, .6);
 }
