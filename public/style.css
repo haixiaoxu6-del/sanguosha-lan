@@ -23,7 +23,7 @@ html, body {
   min-height: 100%;
   background:
     linear-gradient(180deg, rgba(25, 15, 8, .10), rgba(15, 9, 5, .26)),
-    url('/assets/ui/bg-10th.jpg') center / cover no-repeat fixed,
+    url('/assets/ui/bg-xinsha.jpg') center / cover no-repeat fixed,
     #2a1e14;
   color: var(--text);
   font-family: "FZBeiWeiKai", "Noto Serif SC", "Songti SC", "STSong", "SimSun", Georgia, serif;
@@ -460,10 +460,11 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 .dz-log { max-height: 150px; }
 
 .dz-self {
-  display: flex; gap: 10px; align-items: flex-end;
-  background: linear-gradient(180deg, #35261a, #22170f);
-  border: 2px solid #a98145; border-radius: 12px; padding: 10px;
-  box-shadow: inset 0 0 0 1px #d8b46a, 0 6px 18px rgba(0, 0, 0, .45);
+  width: 100%;
+  display: flex; gap: 12px; align-items: flex-end; justify-content: space-between;
+  background: none;
+  border: 0; border-radius: 0; padding: 0;
+  box-shadow: none;
 }
 .dz-self-info { width: 140px; flex: 0 0 auto; order: 2; position: relative; padding-top: 6px; }
 .dz-self-portrait { width: 100%; height: 150px; object-fit: cover; display: block; background: #0e0b09; }
@@ -543,7 +544,7 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 .fan-card.c2 { transform: translateY(-2px); z-index: 2; }
 .fan-card.c3 { transform: rotate(20deg) translateX(7px); }
 .hand-num {
-  position: absolute; left: 50%; top: 2px; transform: translateX(-50%); z-index: 3;
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 3;
   font-family: 'FZBeiWeiKai', 'Microsoft YaHei', 'PingFang SC', sans-serif;
   font-size: 18px; font-weight: 900; line-height: 1;
   color: #2a1c10; text-shadow: 0 1px 0 #fff, 0 0 2px #fff;
