@@ -271,7 +271,9 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 .prompt { font-size: 15px; color: var(--gold-strong); font-weight: 700; }
 .sub { font-size: 12px; color: var(--muted); }
 .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
-.play-bar { display: flex; align-items: center; justify-content: center; gap: 16px; padding: 2px 0; }
+.play-bar { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 3px 8px; border-radius: 6px; background: rgba(10, 7, 5, .38); }
+.play-tip { font-size: 12px; color: var(--gold-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.endplay-text { padding: 4px 14px; font-size: 12px; }
 .img-btn { border: 0; background-color: transparent; cursor: pointer; padding: 0; flex: 0 0 auto; }
 .img-btn.confirm {
   width: 128px;
@@ -971,6 +973,9 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
   .dz-prompt .control-box .prompt { font-size: 11px; }
   .dz-prompt .control-box .sub { display: none; }
   .dz-prompt .control-box .btn { padding: 3px 7px; font-size: 10px; }
+  .play-bar { padding: 2px 6px; gap: 8px; }
+  .play-tip { font-size: 10px; }
+  .endplay-text { padding: 3px 9px; font-size: 10px; }
   .bottom-hud { padding: 0 6px 3px; gap: 3px; }
   .banner { margin: 1px auto 2px; font-size: 9px; padding: 1px 6px; }
   .mode-grid, .general-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }

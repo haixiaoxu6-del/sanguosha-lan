@@ -593,7 +593,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v23</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v24</div>
   </div></div>`;
 }
 
@@ -652,7 +652,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v23</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v24</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -675,7 +675,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v23</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v24</div>
   </div></div>`;
 }
 
@@ -984,31 +984,17 @@ function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
   }
   if (s.phase === 'play' && isMyTurn) {
     const selected = you.hand.find(c => c.id === ui.selectedCard);
-    let actionsHtml = '';
+    let tip = '出牌阶段，请选择1张牌';
     if (selected) {
-      const acts = playActions(selected);
-      actionsHtml = acts.map(a => `<button class="btn primary" data-action="play" data-as="${a.as}" data-target="${a.needsTarget ? '1' : '0'}">${a.label}</button>`).join('');
-      if (!actionsHtml) actionsHtml = '<span class="sub">这张牌现在不能使用</span>';
-    } else {
-      actionsHtml = '<span class="sub">点击手牌选择；也可以按住牌拖到目标</span>';
+      const act = playActions(selected)[0];
+      if (!act) tip = `已选【${selected.name}】，这张牌现在不能使用`;
+      else if (ui.pendingAction && ui.pendingAction.needsTarget) tip = `已选【${selected.name}】，请点击目标`;
+      else if (act.needsTarget) tip = `已选【${selected.name}】，点目标出牌，或再点一次使用`;
+      else tip = `已选【${selected.name}】，再点一次使用，或点其他牌换选`;
     }
-
-    let targetHtml = '';
-    if (ui.pendingAction && ui.pendingAction.needsTarget) {
-      const t = ui.selectedTarget ? s.players.find(p => p.id === ui.selectedTarget) : null;
-      targetHtml = `<div class="target-hint">${t ? `目标：${t.name}` : '请点击一名目标角色'}</div>`;
-    }
-
-    return `<div class="control-box">
-      <div class="prompt">你的出牌阶段</div>
-      <div class="btn-row">${actionsHtml}${selected ? '<button class="btn ghost" data-action="cancel">取消</button>' : ''}</div>
-      ${selected ? `<div class="sub">已选【${selected.name}】：点目标立绘直接出牌，或点下面的确定。</div>` : ''}
-      ${targetHtml}
-      <div class="play-bar">
-        <button class="img-btn confirm" data-action="confirm-play" ${selected ? '' : 'disabled'} aria-label="确定"></button>
-        <button class="img-btn endplay" data-action="end-play" aria-label="结束出牌"></button>
-      </div>
-      <div class="sub">本回合已使用【杀】${you.shaUsed} 次${you.general.skills.includes('paoxiao') ? '（咆哮：无次数限制）' : ''}</div>
+    return `<div class="play-bar">
+      <div class="play-tip">${tip}</div>
+      <button class="btn endplay-text" data-action="end-play">结束出牌</button>
     </div>`;
   }
   return `<div class="control-box waiting"><div class="prompt">等待 ${current ? current.name : '其他玩家'} 出牌…</div></div>`;
@@ -1097,9 +1083,26 @@ document.addEventListener('click', (e) => {
       return;
     }
     const card = s.you.hand.find(c => c.id === id);
-    const acts = card ? playActions(card) : [];
-    if (s.phase === 'play' && s.currentPlayer === myId(s) && !s.pending && acts.length === 1 && !acts[0].needsTarget) {
-      sendAction({ type: 'play', cardId: id, as: acts[0].as });
+    if (s.phase === 'play' && s.currentPlayer === myId(s) && !s.pending && card) {
+      if (ui.selectedCard === id) {
+        const act = playActions(card)[0];
+        if (act) {
+          if (act.needsTarget) {
+            ui.pendingAction = { as: act.as, needsTarget: true };
+            ui.selectedTarget = null;
+            render();
+          } else {
+            sendAction({ type: 'play', cardId: id, as: act.as });
+            ui.selectedCard = null;
+            ui.pendingAction = null;
+          }
+        }
+        return;
+      }
+      ui.selectedCard = id;
+      ui.selectedTarget = null;
+      ui.pendingAction = null;
+      render();
       return;
     }
     ui.selectedCard = (ui.selectedCard === id ? null : id);
@@ -1125,7 +1128,8 @@ document.addEventListener('click', (e) => {
     // 已经进入选目标模式
     if (ui.pendingAction && ui.pendingAction.needsTarget && p && p.alive && id !== myId(ui.state)) {
       ui.selectedTarget = id;
-      render();
+      sendAction({ type: 'play', cardId: ui.selectedCard, as: ui.pendingAction.as, targetId: id });
+      return;
     }
     return;
   }
