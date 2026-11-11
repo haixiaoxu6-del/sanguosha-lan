@@ -16,6 +16,7 @@ const ui = {
   code: '',
   modes: [
     { id: 'doudizhu', name: '斗地主', players: 3, enabled: true, desc: '1 地主 vs 2 农民' },
+    { id: 'duel_pvp', name: '1v1 联机', players: 2, enabled: true, desc: '两个真人单挑' },
     { id: 'duel', name: '人机对战', players: 2, enabled: true, desc: '1v1 打 AI' },
     { id: 'identity', name: '身份局', players: 0, enabled: false, desc: '敬请期待' },
   ],
@@ -72,7 +73,7 @@ function stateSignature(ns) {
     ns.pending ? [ns.pending.type, ns.pending.playerId, ns.pending.count, ns.pending.prompt] : null,
     ns.pick ? ns.pick.cards.map(c => c.id) : null,
     you ? [you.hp, you.maxHp, you.hand.map(c => c.id), you.judge.map(c => c.id), you.shaUsed] : null,
-    ns.players ? ns.players.map(p => [p.id, p.hp, p.maxHp, p.handCount, p.judgeCount, p.alive, p.isCurrent, p.connected]) : null,
+    ns.players ? ns.players.map(p => [p.id, p.hp, p.maxHp, p.handCount, p.judgeCount, p.alive, p.isCurrent, p.connected, p.generalId]) : null,
     ns.gameOver ? [ns.gameOver.winner, ns.gameOver.text] : null,
     ns.lastJudgment ? ns.lastJudgment.seq : null,
     ns.log ? ns.log[ns.log.length - 1] : null,
@@ -436,6 +437,14 @@ async function startGame(generalId) {
     return;
   }
 
+  if (r.waiting) {
+    ui.starting = false;
+    ui.startStatus = r.reason || '已选择，等待对手…';
+    render();
+    if (refreshNow) setTimeout(refreshNow, 50);
+    return;
+  }
+
   ui.startStatus = '服务器已开局，正在同步…';
   render();
 
@@ -529,7 +538,7 @@ function lobbyHtml() {
   const modes = ui.modes || [];
   return `<div class="lobby"><div class="lobby-card" style="width:min(720px,100%)">
     <h1>三国杀 <span>网页联机版</span></h1>
-    <p class="tagline">斗地主 · 人机对战 · 手机流量也能联机</p>
+    <p class="tagline">斗地主 · 1v1 联机 · 手机流量也能联机</p>
     ${ui.error ? `<div class="error">${escapeHtml(ui.error)}</div>` : ''}
     <label class="field">昵称<input id="nameInput" maxlength="12" placeholder="你的名字" value="${escapeHtml(ui.name)}"></label>
     <div class="mode-grid">
@@ -541,12 +550,12 @@ function lobbyHtml() {
           : '<div class="sub">敬请期待</div>'}
       </div>`).join('')}
     </div>
-    <div class="divider">或加入好友的斗地主房间</div>
+    <div class="divider">或加入好友的房间</div>
     <label class="field">房间号<input id="codeInput" maxlength="4" placeholder="4 位房间号" value="${escapeHtml(ui.code)}" style="text-transform:uppercase"></label>
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
-    <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v18</div>
+    <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v19</div>
   </div></div>`;
 }
 
@@ -576,28 +585,56 @@ function roomHtml() {
 function generalHtml() {
   const s = ui.state;
   const list = s.generals || [];
-  const selected = list.find(g => g.id === ui.selectedGeneral);
+  const isPvp = s.mode === 'duel_pvp';
+  const meId = myId(s);
+  const meP = s.players.find(p => p.id === meId);
+  const opp = s.players.find(p => p.id !== meId);
+  const oppGenId = opp && opp.generalId ? opp.generalId : '';
+  const oppGen = list.find(g => g.id === oppGenId);
+  const myGenId = meP && meP.generalId ? meP.generalId : '';
+  const chosenId = myGenId || ui.selectedGeneral;
+  const selected = list.find(g => g.id === chosenId);
+  const locked = isPvp && !!myGenId;
+
+  const roomBlock = isPvp ? `
+    <div class="room-code">房间号：<b>${s.room}</b></div>
+    <div class="copy-row"><button class="btn ghost" data-action="copy">复制邀请链接</button></div>
+    <div class="player-list">
+      ${s.players.map((p, i) => `<div class="lobby-player"><span class="seat">${i + 1}</span><span>${escapeHtml(p.name)}</span>${p.id === s.hostId ? '<span class="host-tag">房主</span>' : ''}${p.generalId ? '<span class="online">已选武将</span>' : '<span class="offline">未选</span>'}</div>`).join('')}
+      ${s.players.length < 2 ? '<div class="lobby-player" style="opacity:.4"><span class="seat">2</span><span>等待对手加入…</span></div>' : ''}
+    </div>
+    <div class="lobby-hint">${s.players.length}/2 人${oppGen ? ` · 对手已选 ${escapeHtml(oppGen.name)}` : ' · 等待对手加入/选择'}</div>` : '';
+
   return `<div class="lobby"><div class="lobby-card" style="width:min(820px,100%)">
-    <h1>选择武将</h1>
-    <p class="tagline">你先选，AI 从剩下的随机选</p>
+    <h1>${isPvp ? '1v1 联机' : '选择武将'}</h1>
+    <p class="tagline">${isPvp ? '双方各选一个武将，选完自动开始' : '你先选，AI 从剩下的随机选'}</p>
     ${ui.error ? `<div class="error">${escapeHtml(ui.error)}</div>` : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v18</div>
+    ${roomBlock}
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v19</div>
     <div class="general-grid">
-      ${list.map(g => `<div class="general-card ${ui.selectedGeneral === g.id ? 'selected' : ''}" data-general-id="${g.id}">
-        <img class="general-portrait" src="/assets/generals/${g.portrait}" alt="${g.name}" draggable="false">
-        <div class="general-info">
-          <div class="g-name">${g.name}</div>
-          <div class="g-faction">${g.faction} · ${g.hp} 血</div>
-          <div class="general-skills">${g.desc}</div>
-        </div>
-      </div>`).join('')}
+      ${list.map(g => {
+        const taken = isPvp && oppGenId === g.id;
+        return `<div class="general-card ${chosenId === g.id ? 'selected' : ''} ${taken ? 'taken' : ''}" data-general-id="${g.id}"${taken ? ' data-taken="1"' : ''}>
+          <img class="general-portrait" src="/assets/generals/${g.portrait}" alt="${g.name}" draggable="false">
+          <div class="general-info">
+            <div class="g-name">${g.name}</div>
+            <div class="g-faction">${g.faction} · ${g.hp} 血</div>
+            <div class="general-skills">${g.desc}</div>
+            ${taken ? '<div class="g-taken">对手已选</div>' : ''}
+          </div>
+        </div>`;
+      }).join('')}
     </div>
-    <div class="sub" style="text-align:center;margin-bottom:8px">已选：${selected ? selected.name : '未选择'}</div>
-    <button class="btn primary big" onclick="window.__startDuel()" ${ui.selectedGeneral && !ui.starting ? '' : 'disabled'}>${ui.starting ? '开始中…' : '开始对战'}</button>
+    <div class="sub" style="text-align:center;margin-bottom:8px">已选：${selected ? selected.name : '未选择'}${locked ? '（已确定，等待对手）' : ''}</div>
+    <button class="btn primary big" onclick="window.__startDuel()" ${chosenId && !ui.starting && !locked ? '' : 'disabled'}>${
+      isPvp
+        ? (locked ? '已选择，等待对手…' : (ui.starting ? '提交中…' : '确定选择'))
+        : (ui.starting ? '开始中…' : '开始对战')
+    }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v18</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v19</div>
   </div></div>`;
 }
 
@@ -613,7 +650,9 @@ function generalCardHtml(p, s, extra = '') {
   const meId = myId(s);
   const roleText = s.mode === 'duel'
     ? (p.role === 'player' ? '你' : '敌')
-    : (p.role === 'landlord' ? '主' : '农');
+    : s.mode === 'duel_pvp'
+      ? '对手'
+      : (p.role === 'landlord' ? '主' : '农');
   const displayName = p.name && !['玩家', 'AI'].includes(p.name) ? p.name : '';
   const selected = s.you.hand.find(c => c.id === ui.selectedCard);
   const canTarget = !!(ui.pendingAction && ui.pendingAction.needsTarget)
@@ -645,7 +684,7 @@ function tableGameHtml() {
 
   return `<div class="game dz">
     <header class="topbar">
-      <div class="brand">三国杀 <span>${s.mode === 'duel' ? '人机对战' : '斗地主'}</span></div>
+      <div class="brand">三国杀 <span>${s.mode === 'duel' ? '人机对战' : s.mode === 'duel_pvp' ? '1v1 联机' : '斗地主'}</span></div>
       <div class="top-meta">
         <span class="room-badge">房间 ${s.room}</span>
         <span class="turn-badge">第 ${s.turn} 轮</span>
@@ -693,7 +732,7 @@ function dzOpponentHtml(p, s) {
   const hasTargetAction = !!(selected && playActions(selected).some(a => a.needsTarget));
   const canTarget = !!(ui.pendingAction && ui.pendingAction.needsTarget) || hasTargetAction;
   const me = s.players.find(x => x.id === myId(s));
-  const relation = s.mode === 'duel' ? '敌人' : (me.role === 'landlord' ? '敌人' : (p.role === 'landlord' ? '敌人' : '队友'));
+  const relation = (s.mode === 'duel' || s.mode === 'duel_pvp') ? '敌人' : (me.role === 'landlord' ? '敌人' : (p.role === 'landlord' ? '敌人' : '队友'));
   return `<div class="dz-opponent ${p.alive ? '' : 'dead'} ${p.isCurrent ? 'current' : ''} ${isTarget ? 'target' : ''} ${canTarget && p.alive ? 'targetable' : ''}" data-player-id="${p.id}">
     <img class="crest" src="/assets/ui/crest-gold.png" alt="" draggable="false">
     <div class="dz-role ${p.role}">${ROLE_CN[p.role] || p.role}</div>
@@ -720,7 +759,7 @@ function duelGameHtml() {
 
   return `<div class="game">
     <header class="topbar">
-      <div class="brand">三国杀 <span>${s.mode === 'duel' ? '人机对战' : '斗地主'}</span></div>
+      <div class="brand">三国杀 <span>${s.mode === 'duel' ? '人机对战' : s.mode === 'duel_pvp' ? '1v1 联机' : '斗地主'}</span></div>
       <div class="top-meta">
         <span class="room-badge">房间 ${s.room}</span>
         <span class="turn-badge">第 ${s.turn} 轮</span>
@@ -992,6 +1031,7 @@ document.addEventListener('click', (e) => {
 
   const generalEl = e.target.closest('[data-general-id]');
   if (generalEl) {
+    if (generalEl.dataset.taken) return;
     ui.selectedGeneral = generalEl.dataset.generalId;
     render();
     return;

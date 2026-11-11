@@ -46,6 +46,7 @@ const GENERALS = [
 const ROLE_SETS = {
   doudizhu: ['landlord', 'farmer', 'farmer'],
   duel: ['player', 'ai'],
+  duel_pvp: ['player', 'player'],
 };
 
 const ROLE_CN = {
@@ -57,6 +58,7 @@ const ROLE_CN = {
 
 const MODES = [
   { id: 'doudizhu', name: '斗地主', players: 3, enabled: true, desc: '1 地主 vs 2 农民' },
+  { id: 'duel_pvp', name: '1v1 联机', players: 2, enabled: true, desc: '两个真人单挑' },
   { id: 'duel', name: '人机对战', players: 2, enabled: true, desc: '1v1 打 AI' },
   { id: 'identity', name: '身份局', players: 0, enabled: false, desc: '敬请期待' },
 ];

@@ -56,12 +56,12 @@ class Room {
     this.players = [];
     this.game = null;
     this.started = false;
-    this.selecting = mode === 'duel';
+    this.selecting = mode === 'duel' || mode === 'duel_pvp';
     this.createdAt = Date.now();
   }
 
   add(name) {
-    const cap = this.mode === 'duel' ? 1 : 3;
+    const cap = this.mode === 'duel' ? 1 : this.mode === 'duel_pvp' ? 2 : 3;
     if (this.players.length >= cap) return null;
     const p = { id: uid(), name: (name || '玩家').slice(0, 12), res: null, connected: false };
     this.players.push(p);
@@ -83,10 +83,10 @@ class Room {
       you: id,
       modes: MODES,
       generals: GENERALS,
-      players: this.players.map(p => ({ id: p.id, name: p.name, connected: p.connected })),
+      players: this.players.map(p => ({ id: p.id, name: p.name, connected: p.connected, generalId: p.generalId || null })),
       canStart: this.mode === 'doudizhu' ? this.players.length >= 3 : false,
-      minPlayers: this.mode === 'doudizhu' ? 3 : 1,
-      maxPlayers: this.mode === 'doudizhu' ? 3 : 1,
+      minPlayers: this.mode === 'duel' ? 1 : this.mode === 'duel_pvp' ? 2 : 3,
+      maxPlayers: this.mode === 'duel' ? 1 : this.mode === 'duel_pvp' ? 2 : 3,
     };
   }
 
@@ -179,7 +179,8 @@ const server = http.createServer(async (req, res) => {
       if (!room) return json(res, 404, { ok: false, error: '房间不存在' });
       if (room.mode === 'duel') return json(res, 400, { ok: false, error: '人机对战不需要加入' });
       if (room.started) return json(res, 400, { ok: false, error: '游戏已经开始' });
-      if (room.players.length >= 3) return json(res, 400, { ok: false, error: '房间已满（3人）' });
+      const cap = room.mode === 'duel_pvp' ? 2 : 3;
+      if (room.players.length >= cap) return json(res, 400, { ok: false, error: `房间已满（${cap}人）` });
       const p = room.add((body.name || '玩家').trim());
       room.broadcast();
       return json(res, 200, { ok: true, room: code, playerId: p.id, mode: room.mode });
@@ -233,7 +234,9 @@ const server = http.createServer(async (req, res) => {
       if (!room) return json(res, 404, { ok: false, error: '房间不存在' });
       const p = room.get(body.player);
       if (!p) return json(res, 403, { ok: false, error: '你不在这个房间' });
-      if (room.hostId !== p.id) return json(res, 403, { ok: false, error: '只有房主可以开始' });
+      if (room.mode !== 'duel_pvp' && room.hostId !== p.id) {
+        return json(res, 403, { ok: false, error: '只有房主可以开始' });
+      }
       if (room.started) return json(res, 400, { ok: false, error: '游戏已经开始' });
 
       console.log('[start] enter', code, p.id, room.mode, room.players.length, body.generalId || '');
@@ -243,6 +246,28 @@ const server = http.createServer(async (req, res) => {
           room.players.map(x => ({ id: x.id, name: x.name })),
           'doudizhu'
         );
+      } else if (room.mode === 'duel_pvp') {
+        const generalId = String(body.generalId || '');
+        const gen = GENERALS.find(g => g.id === generalId);
+        if (!gen) return json(res, 400, { ok: false, error: '请选择武将' });
+        const other = room.players.find(x => x.id !== p.id);
+        if (other && other.generalId === generalId) {
+          return json(res, 400, { ok: false, error: '对手已选该武将，换一个' });
+        }
+        p.generalId = generalId;
+        if (room.players.length < 2) {
+          room.broadcast();
+          return json(res, 200, { ok: true, waiting: true, reason: '已选择，等待对手加入…' });
+        }
+        if (!room.players.every(x => x.generalId)) {
+          room.broadcast();
+          return json(res, 200, { ok: true, waiting: true, reason: '已选择，等待对手选择…' });
+        }
+        room.game = new Game(
+          room.players.map(x => ({ id: x.id, name: x.name, generalId: x.generalId })),
+          'duel_pvp'
+        );
+        room.selecting = false;
       } else {
         const generalId = String(body.generalId || '');
         const humanGen = GENERALS.find(g => g.id === generalId);

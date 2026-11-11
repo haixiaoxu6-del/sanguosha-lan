@@ -16,8 +16,8 @@ class Game {
     }
     this.mode = mode;
     this.n = playerInfos.length;
-    // 斗地主随机座位；1v1 保持顺序（玩家在 0，AI 在 1）
-    const shuffled = mode === 'duel' ? playerInfos.slice() : shuffle(playerInfos.slice());
+    // 斗地主随机座位；1v1（含真人联机）保持顺序
+    const shuffled = (mode === 'duel' || mode === 'duel_pvp') ? playerInfos.slice() : shuffle(playerInfos.slice());
     this.players = shuffled.map((info, i) => ({
       id: info.id,
       name: info.name,
@@ -52,6 +52,10 @@ class Game {
       this.players[1].role = 'ai';
       return;
     }
+    if (this.mode === 'duel_pvp') {
+      for (const p of this.players) p.role = 'player';
+      return;
+    }
     // 斗地主：0 号位地主，1/2 号位农民（players 已打乱）
     this.players[0].role = 'landlord';
     for (let i = 1; i < this.n; i++) this.players[i].role = 'farmer';
@@ -62,7 +66,7 @@ class Game {
     for (let i = 0; i < this.n; i++) {
       const p = this.players[i];
       let g = null;
-      if (this.mode === 'duel' && p.generalId) {
+      if ((this.mode === 'duel' || this.mode === 'duel_pvp') && p.generalId) {
         g = GENERALS.find(x => x.id === p.generalId) || null;
       }
       if (!g) {
@@ -86,7 +90,12 @@ class Game {
     for (const p of this.players) this.draw(p, 4);
     this.current = 0;
     this.turn = 1;
-    this.pushLog(this.mode === 'duel' ? '游戏开始，你先手' : '游戏开始，地主先手');
+    const firstText = this.mode === 'duel'
+      ? '游戏开始，你先手'
+      : this.mode === 'duel_pvp'
+        ? `游戏开始，${this.currentPlayer().name} 先手`
+        : '游戏开始，地主先手';
+    this.pushLog(firstText);
     this.beginTurn();
   }
 
@@ -701,7 +710,15 @@ class Game {
 
   checkWin() {
     if (this.gameOver) return;
-    if (this.mode === 'duel') {
+    if (this.mode === 'duel_pvp') {
+      const dead = this.players.find(p => !p.alive);
+      if (dead) {
+        const winner = this.players.find(p => p.alive);
+        this.gameOver = winner
+          ? { winner: winner.id, text: `${winner.name} 获胜` }
+          : { winner: 'draw', text: '平局' };
+      }
+    } else if (this.mode === 'duel') {
       const player = this.players.find(p => p.role === 'player');
       const ai = this.players.find(p => p.role === 'ai');
       if (!player.alive) this.gameOver = { winner: 'ai', text: 'AI 获胜' };

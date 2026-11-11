@@ -346,6 +346,8 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 }
 .general-card:hover { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
 .general-card.selected { border-color: var(--gold-strong); box-shadow: 0 0 0 2px var(--gold); }
+.general-card.taken { opacity: .35; pointer-events: none; filter: grayscale(.7); }
+.g-taken { margin-top: 6px; color: #e8b45a; font-size: 12px; text-align: center; }
 .general-portrait {
   width: 100%;
   height: auto;
