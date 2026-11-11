@@ -30,6 +30,7 @@ class Game {
       hand: [],
       judge: [],
       equips: { weapon: null, armor: null, horse1: null, horse2: null },
+      chained: false,
       alive: true,
       flags: { shaUsed: 0, jiuUsed: 0, jiu: false },
     }));
@@ -340,6 +341,7 @@ class Game {
       if (this.hasSkill(p, 'wusheng') && card.color === 'red') return true;
       if (this.hasSkill(p, 'longdan') && card.key === 'shan') return true;
     }
+    if (as === 'tiesuo_recast' && card.key === 'tiesuo') return true;
     if (as === 'shan') {
       if (this.hasSkill(p, 'longdan') && card.key === 'sha') return true;
     }
@@ -373,6 +375,15 @@ class Game {
     const useAs = action.as || card.key;
     if (!this.canUseAs(p, card, useAs)) return err('这张牌不能这样使用');
 
+    // 铁索连环重铸：弃置此牌，摸一张牌
+    if (useAs === 'tiesuo_recast') {
+      p.hand.splice(p.hand.findIndex(c => c.id === card.id), 1);
+      this.discard.push(card);
+      this.draw(p, 1);
+      this.pushLog(`${p.name} 重铸【铁索连环】，摸一张牌`);
+      return ok();
+    }
+
     // 酒：出牌阶段限一次，下一张杀伤害+1
     if (useAs === 'jiu') {
       if (p.flags.jiuUsed >= 1) return err('本回合已经使用过【酒】');
@@ -384,7 +395,9 @@ class Game {
       return ok();
     }
 
-    const target = action.targetId ? this.findPlayer(action.targetId) : null;
+    const targetIds = Array.isArray(action.targetIds) ? action.targetIds : (action.targetId ? [action.targetId] : []);
+    const targets = targetIds.map(id => this.findPlayer(id)).filter(Boolean);
+    const target = targets[0] || null;
 
     // 目标/使用条件校验
     if (useAs === 'sha') {
@@ -417,7 +430,8 @@ class Game {
       if (!target || target.id === p.id) return err('请选择一名其他角色');
       if (target.hand.length === 0) return err('目标没有手牌');
     } else if (useAs === 'tiesuo') {
-      if (!target || !target.alive) return err('请选择一名角色');
+      if (!targets.length) return err('请选择一名或两名角色');
+      if (targets.length > 2) return err('最多选择两名角色');
     } else if (useAs === 'shandian') {
       // 闪电对自己使用，不指定目标
     } else if (useAs === 'taoyuan' || useAs === 'wugu') {
@@ -485,7 +499,7 @@ class Game {
       return ok();
     }
     this.discard.push(card);
-    this.startWuxie(p, card, { useAs, targetId: target ? target.id : null });
+    this.startWuxie(p, card, { useAs, targetId: target ? target.id : null, targetIds: targets.map(x => x.id) });
     return ok();
   }
 
@@ -608,9 +622,13 @@ class Game {
       return;
     }
     if (trick.useAs === 'tiesuo') {
-      if (!target || !target.alive) return;
-      target.chained = !target.chained;
-      this.pushLog(`${source.name} 使用【铁索连环】，${target.name}${target.chained ? '横置' : '重置'}`);
+      const ids = trick.targetIds && trick.targetIds.length ? trick.targetIds : (target ? [target.id] : []);
+      for (const id of ids) {
+        const q = this.findPlayer(id);
+        if (!q || !q.alive) continue;
+        q.chained = !q.chained;
+        this.pushLog(`${source.name} 使用【铁索连环】，${q.name}${q.chained ? '横置' : '重置'}`);
+      }
       return;
     }
     if (trick.useAs === 'jiedao') {
@@ -856,6 +874,16 @@ class Game {
     if (target.equips && target.equips.armor && target.equips.armor.key === 'tengjia' && card && (card.fire || card.element === 'fire')) amount += 1;
     target.hp -= amount;
     this.pushLog(`${target.name} 受到${amount}点伤害（${target.hp}/${target.maxHp}）`);
+    // 连环：属性伤害传导给其他横置角色
+    if (target.chained && card && (card.element === 'fire' || card.element === 'thunder' || card.fire)) {
+      for (const q of this.players) {
+        if (q.id === target.id || !q.alive || !q.chained) continue;
+        this.pushLog(`${q.name} 处于连环状态，受到传导的${amount}点伤害`);
+        q.hp -= amount;
+        if (q.hp <= 0) this.enterDying(q, source, card, null);
+      }
+      this.checkWin();
+    }
 
     // 奸雄
     if (this.hasSkill(target, 'jianxiong') && card) {
@@ -978,6 +1006,7 @@ class Game {
         handCount: p.hand.length,
         judgeCount: p.judge.length,
         equips: p.equips,
+        chained: !!p.chained,
         alive: p.alive,
         isCurrent: this.currentPlayer() && this.currentPlayer().id === p.id,
       })),

@@ -622,8 +622,16 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
   background: rgba(10, 7, 5, .68); border: 1px solid rgba(216, 180, 106, .35);
   color: #f0e2c4; font-size: 10px; line-height: 1.2;
 }
+.gc-equip { min-height: 15px; }
 .gc-equip b { font-weight: 700; }
 .gc-equip span { color: #f0cf8e; }
+.gc-chained {
+  position: absolute; left: 4px; right: 4px; top: 42%;
+  z-index: 5; height: 34px;
+  background: url('/assets/ui/chain.png') center / 100% 100% no-repeat;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .7));
+}
 .gc-equip.armor { border-color: rgba(120, 170, 255, .4); }
 .gc-equip.horse { border-color: rgba(140, 220, 150, .4); }
 .gc::after {

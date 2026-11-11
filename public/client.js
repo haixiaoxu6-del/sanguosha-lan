@@ -24,6 +24,7 @@ const ui = {
   selectedTarget: null,
   pendingAction: null,
   discardSet: new Set(),
+  tiesuoTargets: [],
   selectedGeneral: null,
   skillView: null,
   error: '',
@@ -693,7 +694,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v55</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v56</div>
   </div></div>`;
 }
 
@@ -752,7 +753,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v55</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v56</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -775,7 +776,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v55</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v56</div>
   </div></div>`;
 }
 
@@ -807,14 +808,15 @@ function generalCardHtml(p, s, extra = '') {
     || !!(selected && playActions(selected).some(a => a.needsTarget));
   const hp = Math.max(0, p.hp);
   const eq = p.equips || {};
-  const eqHtml = (eq.weapon || eq.armor || eq.horse1 || eq.horse2)
-    ? `<div class="gc-equips">
-        ${eq.weapon ? `<div class="gc-equip weapon"><b>${eq.weapon.name}</b><span>${eq.weapon.range}</span></div>` : ''}
-        ${eq.armor ? `<div class="gc-equip armor"><b>${eq.armor.name}</b></div>` : ''}
-        ${eq.horse1 ? `<div class="gc-equip horse"><b>+1 ${eq.horse1.name}</b></div>` : ''}
-        ${eq.horse2 ? `<div class="gc-equip horse"><b>-1 ${eq.horse2.name}</b></div>` : ''}
-      </div>`
-    : '';
+  const eqRow = (slot, c, label, range) => `<div class="gc-equip ${slot}">${
+    c ? `<b>${label}${c.name}</b>${range && c.range ? `<span>${c.range}</span>` : ''}` : ''
+  }</div>`;
+  const eqHtml = `<div class="gc-equips">
+    ${eqRow('weapon', eq.weapon, '', true)}
+    ${eqRow('armor', eq.armor, '')}
+    ${eqRow('horse1', eq.horse1, '+1 ')}
+    ${eqRow('horse2', eq.horse2, '-1 ')}
+  </div>`;
   return `<div class="gc-wrap ${extra} ${p.isCurrent ? 'current' : ''} ${ui.selectedTarget === p.id ? 'target' : ''} ${canTarget && p.alive && p.id !== meId ? 'targetable' : ''}" data-player-id="${p.id}">
     <div class="gc-side">
       <div class="gc-side-top">
@@ -833,6 +835,7 @@ function generalCardHtml(p, s, extra = '') {
     <div class="gc ${p.isCurrent ? 'current' : ''} ${!p.alive ? 'dead' : ''}">
       <div class="gc-art"><img class="gc-portrait" src="/assets/generals/${p.general.portrait}" alt="${p.general.name}" draggable="false"></div>
       <div class="gc-hair"><img class="gc-portrait" src="/assets/generals/${p.general.portrait}" alt="" draggable="false"></div>
+      ${p.chained ? '<div class="gc-chained"></div>' : ''}
       ${eqHtml}
       ${showRole ? `<div class="gc-role ${p.role}">${roleText}</div>` : ''}
       ${p.isCurrent ? '<div class="gc-turn">行动中</div>' : ''}
@@ -1027,6 +1030,18 @@ function canUseAsShan(card) {
   return false;
 }
 
+function pickTiesuoTarget(cardId, id) {
+  if (!ui.tiesuoTargets) ui.tiesuoTargets = [];
+  if (!ui.tiesuoTargets.includes(id)) ui.tiesuoTargets.push(id);
+  ui.selectedTarget = id;
+  renderLocal();
+  if (ui.tiesuoTargets.length >= 2) {
+    const ids = ui.tiesuoTargets.slice();
+    ui.tiesuoTargets = [];
+    sendAction({ type: 'play', cardId, as: 'tiesuo', targetIds: ids });
+  }
+}
+
 function playActions(card) {
   const you = ui.state?.you;
   if (!you) return [];
@@ -1037,6 +1052,7 @@ function playActions(card) {
   if (canSha && shaAllowed) acts.push({ label: '出【杀】', as: 'sha', needsTarget: true });
   if (card.type === 'equip') acts.push({ label: `装备【${card.name}】`, as: card.key, needsTarget: false });
   if (card.key === 'jiu' && (you.jiuUsed || 0) < 1) acts.push({ label: '使用【酒】', as: 'jiu', needsTarget: false });
+  if (card.key === 'tiesuo') acts.push({ label: '重铸【铁索连环】', as: 'tiesuo_recast', needsTarget: false });
   if (card.key === 'tao' && you.hp < you.maxHp) acts.push({ label: '使用【桃】', as: 'tao', needsTarget: false });
   const tricks = ['juedou', 'guohe', 'shunshou', 'wuzhong', 'nanman', 'wanjian', 'bingliang', 'jiedao', 'taoyuan', 'wugu', 'lebu', 'shandian', 'huogong', 'tiesuo'];
   if (tricks.includes(card.key)) {
@@ -1254,11 +1270,16 @@ document.addEventListener('click', (e) => {
       const card = ui.state.you.hand.find(c => c.id === ui.selectedCard);
       const acts = card ? playActions(card) : [];
       const act = acts.find(a => a.as === card.key && a.needsTarget) || acts.find(a => a.needsTarget);
-      if (act) { sendAction({ type: 'play', cardId: card.id, as: act.as, targetId: id }); return; }
+      if (act) {
+        if (act.as === 'tiesuo') { pickTiesuoTarget(card.id, id); return; }
+        sendAction({ type: 'play', cardId: card.id, as: act.as, targetId: id });
+        return;
+      }
     }
 
     // 已经进入选目标模式
     if (ui.pendingAction && ui.pendingAction.needsTarget && p && p.alive && id !== myId(ui.state)) {
+      if (ui.pendingAction.as === 'tiesuo') { pickTiesuoTarget(ui.selectedCard, id); return; }
       ui.selectedTarget = id;
       renderLocal();
       sendAction({ type: 'play', cardId: ui.selectedCard, as: ui.pendingAction.as, targetId: id });

@@ -79,6 +79,10 @@ function aiAct(game) {
     const wuzhong = ai.hand.find(c => c.key === 'wuzhong');
     if (tryPlay(wuzhong, 'wuzhong')) continue;
 
+    // 2.5 装备：空栏优先，有更好的武器也换
+    const emptyEquip = ai.hand.find(c => c.type === 'equip' && ai.equips && !ai.equips[c.slot]);
+    if (tryPlay(emptyEquip, emptyEquip && emptyEquip.key)) continue;
+
     if (target) {
       // 3. 杀（含武圣/龙胆转化）
       const canShaLimit = ai.general.skills.includes('paoxiao') || ai.flags.shaUsed < 1;
