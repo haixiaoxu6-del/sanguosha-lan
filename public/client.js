@@ -679,7 +679,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v46</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v47</div>
   </div></div>`;
 }
 
@@ -738,7 +738,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v46</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v47</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -761,7 +761,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v46</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v47</div>
   </div></div>`;
 }
 
@@ -802,9 +802,8 @@ function generalCardHtml(p, s, extra = '') {
       <div class="gc-side-hand">
         <span class="hand-fan">
           <span class="fan-card c1"></span>
-          <span class="fan-card c2"></span>
+          <span class="fan-card c2"><span class="hand-num">${p.handCount}</span></span>
           <span class="fan-card c3"></span>
-          <span class="hand-num">${p.handCount}</span>
         </span>
       </div>
     </div>
@@ -853,6 +852,9 @@ function tableGameHtml() {
       </section>
       <section class="dz-self">
         <div class="dz-hand">${you.hand.map(c => cardHtml(c, s)).join('') || '<div class="empty">没有手牌</div>'}</div>
+        <div class="dz-skill-col">
+          ${(me.general.skills || []).map(x => `<button class="skill-btn" data-skill-view="1">${skillName(x)}</button>`).join('')}
+        </div>
         ${generalCardHtml(me, s, 'gc-self')}
       </section>
     </div>
@@ -1136,6 +1138,10 @@ document.addEventListener('mouseup', (e) => {
 document.addEventListener('click', (e) => {
   if (ui.skillView) { ui.skillView = null; render(); return; }
   if (ui.suppressClick) { ui.suppressClick = false; return; }
+  if (e.target.closest('[data-skill-view]') && ui.state && ui.state.started) {
+    const me = ui.state.players.find(p => p.id === myId(ui.state));
+    if (me) { ui.skillView = me; render(); return; }
+  }
 
   const modeEl = e.target.closest('[data-mode]');
   if (modeEl && e.target.closest('[data-action="create"]')) {
