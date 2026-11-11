@@ -248,6 +248,7 @@ class Game {
           card: jc ? { id: jc.id, name: jc.name, suit: jc.suit, number: jc.number, color: jc.color } : null,
           passed,
           text,
+          skipPlay: !passed,
         };
         if (!passed) skipPlay = true;
         this.discard.push(card);
@@ -372,7 +373,35 @@ class Game {
       return ok();
     }
 
-    const useAs = action.as || card.key;
+    const useAs = action.as || (card && card.key);
+
+    // 丈八蛇矛：两张手牌当杀
+    if (useAs === 'zhangba_sha') {
+      const ids = Array.isArray(action.cardIds) ? action.cardIds : [];
+      if (ids.length !== 2) return err('请选择两张手牌');
+      const c1 = p.hand.find(c => c.id === ids[0]);
+      const c2 = p.hand.find(c => c.id === ids[1]);
+      if (!c1 || !c2 || c1.id === c2.id) return err('请选择两张不同的手牌');
+      if (!p.equips || !p.equips.weapon || p.equips.weapon.key !== 'zhangba') return err('没有装备【丈八蛇矛】');
+      const target = action.targetId ? this.findPlayer(action.targetId) : null;
+      if (!target || !target.alive || target.id === p.id) return err('请选择一名其他角色');
+      if (this.distance(p, target) > 3) return err('目标不在攻击范围内');
+      if (!this.hasSkill(p, 'paoxiao') && p.flags.shaUsed >= 1) return err('本回合已经使用过【杀】');
+      p.hand.splice(p.hand.findIndex(c => c.id === c1.id), 1);
+      p.hand.splice(p.hand.findIndex(c => c.id === c2.id), 1);
+      this.discard.push(c1, c2);
+      p.flags.shaUsed++;
+      this.pushLog(`${p.name} 发动【丈八蛇矛】，将两张手牌当【杀】对 ${target.name} 使用`);
+      this.pending = {
+        type: 'shan',
+        playerId: target.id,
+        sourceId: p.id,
+        cardId: c1.id,
+        prompt: `${target.name} 请出【闪】`,
+      };
+      return ok();
+    }
+
     if (!this.canUseAs(p, card, useAs)) return err('这张牌不能这样使用');
 
     // 铁索连环重铸：弃置此牌，摸一张牌
@@ -481,13 +510,18 @@ class Game {
         this.draw(p, 1);
         this.pushLog(`${p.name} 发动【雌雄双股剑】，摸一张牌`);
       }
+      const fangtian = !!(weapon && weapon.key === 'fangtian' && p.hand.length === 0 && targets.length > 1);
+      const shaTargets = fangtian ? targets : [target];
+      const first = shaTargets[0];
+      const rest = shaTargets.slice(1).map(x => x.id);
       this.pending = {
         type: 'shan',
-        playerId: target.id,
+        playerId: first.id,
         sourceId: p.id,
         cardId: card.id,
         fire,
-        prompt: `${target.name} 请出【闪】`,
+        queue: rest,
+        prompt: `${first.name} 请出【闪】`,
       };
       return ok();
     }
@@ -601,29 +635,33 @@ class Game {
     }
     if (trick.useAs === 'wugu') {
       const alive = this.players.filter(q => q.alive);
-      const revealed = [];
+      const cards = [];
       for (let i = 0; i < alive.length; i++) {
         const c = this.drawCard();
-        if (c) revealed.push(c);
+        if (c) cards.push(c);
       }
-      this.pushLog(`${source.name} 使用【五谷丰登】，亮出${revealed.length}张牌`);
-      for (const c of revealed) {
-        const pick = alive[Math.floor(Math.random() * alive.length)];
-        pick.hand.push(c);
-      }
+      this.pushLog(`${source.name} 使用【五谷丰登】，亮出${cards.length}张牌`);
+      this.pending = {
+        type: 'wugu',
+        playerId: source.id,
+        aliveIds: alive.map(q => q.id),
+        cards,
+        index: 0,
+        prompt: '五谷丰登：请选择一张牌',
+      };
       return;
     }
     if (trick.useAs === 'huogong') {
       if (!target || !target.alive || target.hand.length === 0) return;
       const shown = target.hand[Math.floor(Math.random() * target.hand.length)];
       this.pushLog(`${target.name} 展示【${shown.name}】`);
-      const same = source.hand.find(c => c.suit === shown.suit);
-      if (same) {
-        this.removeFromPlayer(source, same);
-        this.discard.push(same);
-        this.pushLog(`${source.name} 弃置同花色【${same.name}】，对 ${target.name} 造成1点火焰伤害`);
-        this.damage(target, 1, source, { ...card, element: 'fire' }, null);
-      }
+      this.pending = {
+        type: 'huogong',
+        playerId: source.id,
+        targetId: target.id,
+        shown,
+        prompt: `火攻：${target.name} 展示了【${shown.name}】，可弃同花色手牌造成1点火焰伤害`,
+      };
       return;
     }
     if (trick.useAs === 'tiesuo') {
@@ -734,6 +772,40 @@ class Game {
 
     if (pend.type === 'pick') return this.pickCard(playerId, action.cardId);
 
+    if (pend.type === 'wugu') {
+      const c = (pend.cards || []).find(x => x.id === action.cardId);
+      if (!c) return err('请选择五谷的牌');
+      pend.cards = pend.cards.filter(x => x.id !== c.id);
+      p.hand.push(c);
+      this.pushLog(`${p.name} 从【五谷丰登】获得【${c.name}】`);
+      pend.index++;
+      if (pend.index < pend.aliveIds.length) {
+        const nid = pend.aliveIds[pend.index];
+        const nq = this.findPlayer(nid);
+        pend.playerId = nid;
+        pend.prompt = `${nq ? nq.name : '?'} 请选择一张五谷牌`;
+        this.pending = pend;
+      } else {
+        for (const rest of pend.cards) this.discard.push(rest);
+        this.pending = null;
+      }
+      return ok();
+    }
+
+    if (pend.type === 'huogong') {
+      if (action.pass) { this.pending = null; return ok(); }
+      const c = p.hand.find(x => x.id === action.cardId);
+      const shown = pend.shown;
+      if (!c || c.suit !== shown.suit) return err('请弃置同花色手牌');
+      p.hand.splice(p.hand.indexOf(c), 1);
+      this.discard.push(c);
+      const target = this.findPlayer(pend.targetId);
+      this.pushLog(`${p.name} 弃置【${c.name}】，对 ${target.name} 造成1点火焰伤害`);
+      this.pending = null;
+      this.damage(target, 1, p, { ...shown, element: 'fire' }, null);
+      return ok();
+    }
+
     if (pend.type === 'wuxie') {
       if (action.pass) {
         pend.index++;
@@ -763,10 +835,26 @@ class Game {
     }
 
     if (pend.type === 'shan') {
+      const nextSha = () => {
+        if (pend.queue && pend.queue.length) {
+          const nid = pend.queue.shift();
+          const nq = this.findPlayer(nid);
+          if (nq && nq.alive) {
+            this.pending = {
+              type: 'shan', playerId: nid, sourceId: pend.sourceId,
+              cardId: pend.cardId, queue: pend.queue,
+              prompt: `${nq.name} 请出【闪】`,
+            };
+            return true;
+          }
+        }
+        return false;
+      };
       if (action.pass) {
         this.pending = null;
         this.pushLog(`${p.name} 没有出【闪】`);
         this.damage(p, 1, this.findPlayer(pend.sourceId), this.findCardById(pend.cardId), null);
+        if (!this.pending) nextSha();
         return ok();
       }
       const card = p.hand.find(c => c.id === action.cardId);
@@ -775,6 +863,7 @@ class Game {
       this.discard.push(card);
       this.pushLog(`${p.name} 打出【闪】`);
       this.pending = null;
+      nextSha();
       // 青龙偃月刀：被闪抵消后可以继续使用一张杀
       const src = this.findPlayer(pend.sourceId);
       if (src && src.equips && src.equips.weapon && src.equips.weapon.key === 'qinglong') {
@@ -1071,6 +1160,8 @@ class Game {
         judgeCount: p.judge.length,
         equips: p.equips,
         chained: !!p.chained,
+        jiu: !!p.flags.jiu,
+        judges: p.judge.map(c => c.name),
         alive: p.alive,
         isCurrent: this.currentPlayer() && this.currentPlayer().id === p.id,
       })),
@@ -1097,6 +1188,15 @@ class Game {
           }
         : { type: this.pending.type, playerId: this.pending.playerId }) : null,
       lastJudgment: this.lastJudgment || null,
+      wugu: this.pending && this.pending.type === 'wugu' && this.pending.playerId === playerId
+        ? { cards: this.pending.cards.map(c => ({ id: c.id, name: c.name, suit: c.suit, number: c.number, color: c.color })) }
+        : null,
+      huogong: this.pending && this.pending.type === 'huogong' && this.pending.playerId === playerId
+        ? {
+            shown: { id: this.pending.shown.id, name: this.pending.shown.name, suit: this.pending.shown.suit, number: this.pending.shown.number, color: this.pending.shown.color },
+            same: (you ? you.hand : []).filter(c => c.suit === this.pending.shown.suit).map(c => ({ id: c.id, name: c.name, suit: c.suit, number: c.number, color: c.color })),
+          }
+        : null,
       pick: this.pending && this.pending.type === 'pick' && this.pending.playerId === playerId
         ? (() => {
             const t = this.findPlayer(this.pending.targetId);

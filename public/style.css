@@ -625,6 +625,22 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 .gc-equip { min-height: 15px; }
 .gc-equip b { font-weight: 700; }
 .gc-equip span { color: #f0cf8e; }
+.gc-wrap.jiu .gc::before {
+  content: '';
+  position: absolute; inset: 0;
+  z-index: 3; border-radius: 8px;
+  background: linear-gradient(180deg, rgba(210, 30, 30, .62), rgba(210, 30, 30, .06) 75%, transparent);
+  pointer-events: none;
+}
+.gc-judges {
+  position: absolute; left: 4px; right: 4px; top: 4px; z-index: 5;
+  display: flex; flex-wrap: wrap; gap: 2px; justify-content: center;
+  font-size: 10px; color: #f0cf8e; pointer-events: none;
+}
+.gc-judges span {
+  padding: 1px 4px; border-radius: 3px;
+  background: rgba(80, 20, 20, .8); border: 1px solid rgba(240, 140, 120, .5);
+}
 .gc-chained {
   position: absolute; left: 4px; right: 4px; top: 42%;
   z-index: 5; height: 34px;
@@ -874,6 +890,8 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 .judge-card .jc-suit { font-size: 26px; }
 .judge-card .jc-suit.red { color: #b83232; }
 .judge-text { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+.judge-text.skip { color: #ffb0a0; }
+.judge-skip { color: #ff8f7a; font-size: 15px; font-weight: 700; margin: -8px 0 16px; }
 
 /* ---------------- skill modal ---------------- */
 .skill-modal { width: min(420px, 92vw); text-align: left; }

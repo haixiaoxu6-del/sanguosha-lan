@@ -18,6 +18,20 @@ function aiAct(game) {
         continue;
       }
 
+      if (pend.type === 'wugu') {
+        const c = (pend.cards || [])[0];
+        if (c) game.respond(ai.id, { cardId: c.id });
+        else game.respond(ai.id, { pass: true });
+        continue;
+      }
+
+      if (pend.type === 'huogong') {
+        const shown = pend.shown;
+        const c = shown ? ai.hand.find(x => x.suit === shown.suit) : null;
+        game.respond(ai.id, c ? { cardId: c.id } : { pass: true });
+        continue;
+      }
+
       if (pend.type === 'pick') {
         const t = game.findPlayer(pend.targetId);
         const pool = t ? [...t.hand, ...t.judge] : [];
@@ -84,6 +98,12 @@ function aiAct(game) {
     if (tryPlay(emptyEquip, emptyEquip && emptyEquip.key)) continue;
 
     if (target) {
+      // 丈八蛇矛：两张手牌当杀
+      if (ai.equips && ai.equips.weapon && ai.equips.weapon.key === 'zhangba' && ai.hand.length >= 2) {
+        const [c1, c2] = ai.hand;
+        const r = game.play(ai.id, { as: 'zhangba_sha', cardIds: [c1.id, c2.id], targetId: target.id });
+        if (r.ok) continue;
+      }
       // 3. 杀（含武圣/龙胆转化）
       const canShaLimit = ai.general.skills.includes('paoxiao') || ai.flags.shaUsed < 1;
       if (canShaLimit) {
