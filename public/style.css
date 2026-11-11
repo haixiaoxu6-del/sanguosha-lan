@@ -537,11 +537,20 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
   cursor: pointer;
   transition: box-shadow .15s, border-color .15s;
 }
+.gc-art {
+  position: absolute;
+  left: 0;
+  top: -7%;
+  width: 100%;
+  height: 107%;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
 .gc-portrait {
   position: absolute;
   left: 0;
-  bottom: 0;
-  z-index: 1;
+  top: 0;
   width: 100%;
   height: auto;
   aspect-ratio: 138 / 253;
