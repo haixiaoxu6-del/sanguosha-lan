@@ -339,12 +339,12 @@ class Game {
     if (as === card.key) return true;
     if (as === 'sha') {
       if (['sha', 'huosha', 'leisha'].includes(card.key)) return true;
-      if (this.hasSkill(p, 'wusheng') && card.color === 'red') return true;
-      if (this.hasSkill(p, 'longdan') && card.key === 'shan') return true;
+      if ((this.hasSkill(p, 'wusheng') || this.hasSkill(p, 're_wusheng')) && card.color === 'red') return true;
+      if ((this.hasSkill(p, 'longdan') || this.hasSkill(p, 're_longdan')) && card.key === 'shan') return true;
     }
     if (as === 'tiesuo_recast' && card.key === 'tiesuo') return true;
     if (as === 'shan') {
-      if (this.hasSkill(p, 'longdan') && card.key === 'sha') return true;
+      if ((this.hasSkill(p, 'longdan') || this.hasSkill(p, 're_longdan')) && card.key === 'sha') return true;
     }
     return false;
   }
@@ -433,7 +433,7 @@ class Game {
       if (!target || !target.alive || target.id === p.id) return err('请选择一名其他角色');
       const range = (p.equips && p.equips.weapon && p.equips.weapon.range) || 1;
       if (this.distance(p, target) > range) return err('目标不在攻击范围内');
-      if (!this.hasSkill(p, 'paoxiao') && !(p.equips && p.equips.weapon && p.equips.weapon.key === 'zhuge') && p.flags.shaUsed >= 1) return err('本回合已经使用过【杀】');
+      if (!this.hasSkill(p, 'paoxiao') && !this.hasSkill(p, 're_paoxiao') && !(p.equips && p.equips.weapon && p.equips.weapon.key === 'zhuge') && p.flags.shaUsed >= 1) return err('本回合已经使用过【杀】');
     } else if (useAs === 'juedou') {
       if (!target || !target.alive || target.id === p.id) return err('请选择一名其他角色');
     } else if (useAs === 'guohe') {
@@ -504,6 +504,15 @@ class Game {
       }
       this.discard.push(card);
       p.flags.shaUsed++;
+      if (this.hasSkill(p, 're_paoxiao') && p.flags.shaUsed === 2) {
+        this.draw(p, 1);
+        this.pushLog(`${p.name} 发动【咆哮】，摸一张牌`);
+      }
+      if (this.hasSkill(p, 're_longdan') && card.key === 'shan') {
+        this.draw(p, 1);
+        this.pushLog(`${p.name} 发动【龙胆】，摸一张牌`);
+      }
+      const wushengBoost = this.hasSkill(p, 're_wusheng') && card.color === 'red' && card.key !== 'sha';
       this.pushLog(`${p.name} 对 ${target.name} 使用【杀】${fire ? '（火杀）' : ''}`);
       // 雌雄双股剑：异性目标，摸一张
       if (weapon && weapon.key === 'cixiong' && p.general && target.general && p.general.gender !== target.general.gender) {
@@ -520,6 +529,7 @@ class Game {
         sourceId: p.id,
         cardId: card.id,
         fire,
+        boost: wushengBoost,
         queue: rest,
         prompt: `${first.name} 请出【闪】`,
       };
@@ -853,7 +863,7 @@ class Game {
       if (action.pass) {
         this.pending = null;
         this.pushLog(`${p.name} 没有出【闪】`);
-        this.damage(p, 1, this.findPlayer(pend.sourceId), this.findCardById(pend.cardId), null);
+        this.damage(p, pend.boost ? 2 : 1, this.findPlayer(pend.sourceId), this.findCardById(pend.cardId), null);
         if (!this.pending) nextSha();
         return ok();
       }
@@ -862,6 +872,10 @@ class Game {
       p.hand.splice(p.hand.indexOf(card), 1);
       this.discard.push(card);
       this.pushLog(`${p.name} 打出【闪】`);
+      if (this.hasSkill(p, 're_longdan') && card.key === 'sha') {
+        this.draw(p, 1);
+        this.pushLog(`${p.name} 发动【龙胆】，摸一张牌`);
+      }
       this.pending = null;
       nextSha();
       // 青龙偃月刀：被闪抵消后可以继续使用一张杀

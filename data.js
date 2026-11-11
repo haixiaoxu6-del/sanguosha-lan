@@ -74,6 +74,24 @@ const GENERALS = [
     desc: '龙胆：你可以将【杀】当【闪】、【闪】当【杀】使用或打出。',
     portrait: 'zhaoyun.png',
   },
+  {
+    id: 're_guanyu', name: '界关羽', faction: '蜀', gender: 'male', hp: 4,
+    skills: ['re_wusheng'],
+    desc: '武圣：你可以将一张红色牌当【杀】使用或打出；当你以此法使用或打出【杀】时，你可以令此【杀】的伤害+1。',
+    portrait: 're_guanyu.jpg',
+  },
+  {
+    id: 're_zhangfei', name: '界张飞', faction: '蜀', gender: 'male', hp: 4,
+    skills: ['re_paoxiao'],
+    desc: '咆哮：锁定技，你使用【杀】无次数限制；当你于出牌阶段内使用第二张【杀】时，你摸一张牌。',
+    portrait: 're_zhangfei.jpg',
+  },
+  {
+    id: 're_zhaoyun', name: '界赵云', faction: '蜀', gender: 'male', hp: 4,
+    skills: ['re_longdan'],
+    desc: '龙胆：你可以将【杀】当【闪】、【闪】当【杀】使用或打出；当你以此法使用或打出牌时，你摸一张牌。',
+    portrait: 're_zhaoyun.jpg',
+  },
 ];
 
 // ---------- 模式 ----------
