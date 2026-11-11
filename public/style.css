@@ -889,6 +889,14 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 .skill-desc-item b { color: var(--gold-strong); font-size: 14px; }
 .skill-desc-item p { margin: 4px 0 0; font-size: 12px; line-height: 1.7; color: #d8c9ad; }
 .skill-hint { font-size: 11px; color: var(--muted); text-align: center; margin-top: 8px; }
+.skill-equips { margin: 10px 0 14px; display: flex; flex-direction: column; gap: 6px; }
+.skill-equips h3 { margin: 0 0 2px; font-size: 13px; color: var(--gold-strong); letter-spacing: 2px; }
+.skill-equip {
+  background: rgba(0, 0, 0, .25); border: 1px solid rgba(216, 180, 106, .28);
+  border-radius: 6px; padding: 6px 9px;
+}
+.skill-equip-name { font-size: 13px; font-weight: 700; color: var(--gold-strong); }
+.skill-equip p { margin: 3px 0 0; font-size: 12px; line-height: 1.6; color: #d8c9ad; }
 
 .pick-cards { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 10px 0; }
 .pick-card {
