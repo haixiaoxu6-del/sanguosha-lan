@@ -788,7 +788,7 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 #fx { position: fixed; inset: 0; pointer-events: none; z-index: 70; overflow: hidden; }
 
 .fx-card {
-  position: absolute; left: 50%; top: 42%; width: 116px; height: 162px;
+  position: absolute; left: 50%; top: 45%; width: 116px; height: 162px;
   transform: translate(-50%, -50%); border-radius: 10px; overflow: hidden;
   border: 2px solid var(--gold); background: #0e0b09;
   box-shadow: 0 0 34px rgba(240, 207, 142, .55);
@@ -965,26 +965,27 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 
 /* ---------------- 手机横屏：PC 式牌桌 ---------------- */
 @media (orientation: landscape) and (max-height: 560px) {
-  .game.dz { padding: 2px 6px 176px; }
+  .game.dz { padding: 2px 6px 190px; }
   .topbar { padding: 2px 6px; }
   .topbar .brand { font-size: 13px; }
   .top-meta { gap: 3px; font-size: 9px; }
   .dz-table { gap: 2px; }
   .dz-opponents { gap: 10px; padding: 0; }
-  .gc { width: 78px; height: 104px; }
-  .gc-name-vertical { font-size: 8px; }
-  .gc-role { min-width: 14px; height: 14px; line-height: 14px; font-size: 8px; }
-  .gc-hp { font-size: 8px; bottom: 8px; }
-  .gc-hand { font-size: 7px; bottom: 8px; }
+  .gc { width: 104px; height: 138px; }
+  .gc-name-vertical { font-size: 10px; }
+  .gc-role { min-width: 16px; height: 16px; line-height: 16px; font-size: 9px; }
+  .gc-hp { font-size: 10px; bottom: 10px; }
+  .gc-hand { font-size: 8px; bottom: 10px; }
   .gc-skills { display: none; }
-  .gc-turn { top: 16px; font-size: 7px; }
+  .gc-turn { top: 20px; font-size: 8px; }
   .dz-self {
     flex-direction: row;
     align-items: flex-end;
-    background: none;
-    border: none;
-    box-shadow: none;
-    padding: 0;
+    background: linear-gradient(180deg, #35261a, #22170f);
+    border: 2px solid #a98145;
+    border-radius: 12px;
+    box-shadow: inset 0 0 0 1px #d8b46a, 0 6px 18px rgba(0, 0, 0, .45);
+    padding: 6px;
     gap: 8px;
   }
   .dz-hand { order: 1; flex: 1; min-height: 44px; gap: 3px; }
