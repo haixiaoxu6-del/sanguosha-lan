@@ -279,6 +279,7 @@ const server = http.createServer(async (req, res) => {
       const result = room.game.handle(p.id, body.action || {});
       if (result.ok && room.mode === 'duel') aiAct(room.game);
       room.broadcast();
+      if (result.ok) result.state = room.viewFor(p.id);
       return json(res, 200, result);
     }
 

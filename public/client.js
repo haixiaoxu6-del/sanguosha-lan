@@ -57,9 +57,11 @@ async function loadModes() {
 }
 
 let pollTimer = null;
+let refreshNow = null;
 
 function stopPolling() {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  refreshNow = null;
 }
 
 function stateSignature(ns) {
@@ -111,7 +113,7 @@ function connect() {
     const ns = await fetchState();
     if (!ns) {
       misses++;
-      if (misses >= 10) {
+      if (misses >= 20) {
         stopPolling();
         ui.state = null;
         ui.room = '';
@@ -137,8 +139,9 @@ function connect() {
     ui.lastSig = sig;
     applyState(ns);
   };
+  refreshNow = tick;
   tick();
-  pollTimer = setInterval(tick, 600);
+  pollTimer = setInterval(tick, 300);
 }
 
 // ---------------- 音效 / 特效 ----------------
@@ -468,7 +471,13 @@ window.__startDuel = () => {
 
 async function sendAction(action) {
   const r = await post('/api/action', { room: ui.room, player: ui.playerId, action });
-  if (!r.ok) { ui.error = r.error; render(); }
+  if (!r.ok) { ui.error = r.error; render(); return; }
+  if (r.state) {
+    ui.lastSig = stateSignature(r.state);
+    applyState(r.state);
+  } else if (refreshNow) {
+    setTimeout(refreshNow, 20);
+  }
 }
 
 function leave() {
@@ -519,8 +528,8 @@ function render() {
 function lobbyHtml() {
   const modes = ui.modes || [];
   return `<div class="lobby"><div class="lobby-card" style="width:min(720px,100%)">
-    <h1>三国杀 <span>局域网版</span></h1>
-    <p class="tagline">斗地主 · 人机对战 · 同一 WiFi 联机</p>
+    <h1>三国杀 <span>网页联机版</span></h1>
+    <p class="tagline">斗地主 · 人机对战 · 手机流量也能联机</p>
     ${ui.error ? `<div class="error">${escapeHtml(ui.error)}</div>` : ''}
     <label class="field">昵称<input id="nameInput" maxlength="12" placeholder="你的名字" value="${escapeHtml(ui.name)}"></label>
     <div class="mode-grid">
@@ -537,7 +546,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v17</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v18</div>
   </div></div>`;
 }
 
@@ -573,7 +582,7 @@ function generalHtml() {
     <p class="tagline">你先选，AI 从剩下的随机选</p>
     ${ui.error ? `<div class="error">${escapeHtml(ui.error)}</div>` : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v17</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v18</div>
     <div class="general-grid">
       ${list.map(g => `<div class="general-card ${ui.selectedGeneral === g.id ? 'selected' : ''}" data-general-id="${g.id}">
         <img class="general-portrait" src="/assets/generals/${g.portrait}" alt="${g.name}" draggable="false">
@@ -588,7 +597,7 @@ function generalHtml() {
     <button class="btn primary big" onclick="window.__startDuel()" ${ui.selectedGeneral && !ui.starting ? '' : 'disabled'}>${ui.starting ? '开始中…' : '开始对战'}</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v17</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v18</div>
   </div></div>`;
 }
 
