@@ -320,6 +320,20 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+// AI 看门狗：AI 自己出牌后可能留下需要 AI 自己响应的窗口，
+// 只靠“玩家操作后触发一次 AI”会卡在“等待 AI 响应…”。
+setInterval(() => {
+  for (const room of rooms.values()) {
+    if (room.mode !== 'duel' || !room.game || room.game.gameOver) continue;
+    const ai = room.game.players.find(p => p.role === 'ai');
+    if (!ai || !ai.alive) continue;
+    const pend = room.game.pending;
+    if (pend && pend.playerId === ai.id) {
+      try { aiAct(room.game); room.broadcast(); } catch (e) { /* ignore */ }
+    }
+  }
+}, 400);
+
 server.listen(PORT, () => {
   console.log(`三国杀已启动: http://localhost:${PORT}`);
 });

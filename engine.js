@@ -216,25 +216,61 @@ class Game {
     this.phase = 'judge';
 
     let skipDraw = false;
+    let skipPlay = false;
     let lastJudgment = null;
     for (const card of [...p.judge]) {
-      if (card.key !== 'bingliang') continue;
+      if (!['bingliang', 'lebu', 'shandian'].includes(card.key)) continue;
       const jc = this.drawCard();
-      const passed = !!(jc && jc.suit === 'club');
       if (jc) this.discard.push(jc);
-      const text = `【兵粮寸断】判定：${jc ? SUIT_CN[jc.suit] + jc.number : '无牌'}${passed ? '，通过' : '，跳过摸牌阶段'}`;
-      this.pushLog(`${p.name} ${text}`);
-      lastJudgment = {
-        seq: (this.judgmentSeq = (this.judgmentSeq || 0) + 1),
-        playerId: p.id,
-        card: jc ? { id: jc.id, name: jc.name, suit: jc.suit, number: jc.number, color: jc.color } : null,
-        passed,
-        text,
-      };
-      if (!passed) skipDraw = true;
       const idx = p.judge.findIndex(c => c.id === card.id);
       if (idx >= 0) p.judge.splice(idx, 1);
-      this.discard.push(card);
+      if (card.key === 'bingliang') {
+        const passed = !!(jc && jc.suit === 'club');
+        const text = `【兵粮寸断】判定：${jc ? SUIT_CN[jc.suit] + jc.number : '无牌'}${passed ? '，通过' : '，跳过摸牌阶段'}`;
+        this.pushLog(`${p.name} ${text}`);
+        lastJudgment = {
+          seq: (this.judgmentSeq = (this.judgmentSeq || 0) + 1),
+          playerId: p.id,
+          card: jc ? { id: jc.id, name: jc.name, suit: jc.suit, number: jc.number, color: jc.color } : null,
+          passed,
+          text,
+        };
+        if (!passed) skipDraw = true;
+        this.discard.push(card);
+      } else if (card.key === 'lebu') {
+        const passed = !!(jc && jc.suit === 'heart');
+        const text = `【乐不思蜀】判定：${jc ? SUIT_CN[jc.suit] + jc.number : '无牌'}${passed ? '，通过' : '，跳过出牌阶段'}`;
+        this.pushLog(`${p.name} ${text}`);
+        lastJudgment = {
+          seq: (this.judgmentSeq = (this.judgmentSeq || 0) + 1),
+          playerId: p.id,
+          card: jc ? { id: jc.id, name: jc.name, suit: jc.suit, number: jc.number, color: jc.color } : null,
+          passed,
+          text,
+        };
+        if (!passed) skipPlay = true;
+        this.discard.push(card);
+      } else if (card.key === 'shandian') {
+        const hit = !!(jc && jc.suit === 'spade' && jc.number >= 2 && jc.number <= 9);
+        const text = `【闪电】判定：${jc ? SUIT_CN[jc.suit] + jc.number : '无牌'}${hit ? '，受到3点雷电伤害' : '，移动到下家'}`;
+        this.pushLog(`${p.name} ${text}`);
+        lastJudgment = {
+          seq: (this.judgmentSeq = (this.judgmentSeq || 0) + 1),
+          playerId: p.id,
+          card: jc ? { id: jc.id, name: jc.name, suit: jc.suit, number: jc.number, color: jc.color } : null,
+          passed: !hit,
+          text,
+        };
+        if (hit) {
+          this.discard.push(card);
+          this.damage(p, 3, null, null, null);
+          if (this.gameOver || !p.alive) { this.phase = 'over'; return; }
+        } else {
+          const others = this.othersInSeatOrder(p);
+          if (others.length) others[0].judge.push(card);
+          else this.discard.push(card);
+        }
+      }
     }
     if (lastJudgment) this.lastJudgment = lastJudgment;
 
@@ -247,6 +283,12 @@ class Game {
       this.draw(p, drawCount);
       this.pushLog(`${p.name} 摸${drawCount}张牌`);
       if (this.hasSkill(p, 'yingzi')) this.pushLog(`${p.name} 发动【英姿】多摸一张牌`);
+    }
+    if (skipPlay) {
+      this.pushLog(`${p.name} 跳过出牌阶段`);
+      this.phase = 'discard';
+      this.checkDiscard();
+      return;
     }
     this.phase = 'play';
   }
@@ -365,6 +407,21 @@ class Game {
       if (target.judge.some(c => c.key === 'bingliang')) return err('目标已有【兵粮寸断】');
     } else if (useAs === 'tao') {
       if (p.hp >= p.maxHp) return err('体力已满，不能使用【桃】');
+    } else if (useAs === 'jiedao') {
+      if (!target || target.id === p.id) return err('请选择一名其他角色');
+      if (!target.equips || !target.equips.weapon) return err('目标没有装备武器');
+    } else if (useAs === 'lebu') {
+      if (!target || target.id === p.id) return err('请选择一名其他角色');
+      if (target.judge.some(c => c.key === 'lebu')) return err('目标已有【乐不思蜀】');
+    } else if (useAs === 'huogong') {
+      if (!target || target.id === p.id) return err('请选择一名其他角色');
+      if (target.hand.length === 0) return err('目标没有手牌');
+    } else if (useAs === 'tiesuo') {
+      if (!target || !target.alive) return err('请选择一名角色');
+    } else if (useAs === 'shandian') {
+      // 闪电对自己使用，不指定目标
+    } else if (useAs === 'taoyuan' || useAs === 'wugu') {
+      // 不指定目标
     } else if (!['wuzhong', 'nanman', 'wanjian'].includes(useAs)) {
       return err('未知的牌');
     }
@@ -423,8 +480,8 @@ class Game {
     }
 
     // 锦囊：先进入【无懈可击】窗口
-    if (useAs === 'bingliang') {
-      this.startWuxie(p, card, { useAs, targetId: target.id });
+    if (useAs === 'bingliang' || useAs === 'lebu' || useAs === 'shandian') {
+      this.startWuxie(p, card, { useAs, targetId: useAs === 'shandian' ? p.id : target.id });
       return ok();
     }
     this.discard.push(card);
@@ -469,10 +526,18 @@ class Game {
     }
     if (!source || !source.alive) return;
 
-    if (trick.useAs === 'bingliang') {
+    if (trick.useAs === 'bingliang' || trick.useAs === 'lebu') {
       if (target && target.alive && card) {
         target.judge.push(card);
-        this.pushLog(`${source.name} 对 ${target.name} 使用【兵粮寸断】`);
+        this.pushLog(`${source.name} 对 ${target.name} 使用【${trick.useAs === 'lebu' ? '乐不思蜀' : '兵粮寸断'}】`);
+      }
+      return;
+    }
+    if (trick.useAs === 'shandian') {
+      const self = source;
+      if (self && self.alive && card) {
+        self.judge.push(card);
+        this.pushLog(`${source.name} 使用【闪电】`);
       }
       return;
     }
@@ -508,6 +573,61 @@ class Game {
     if (trick.useAs === 'wuzhong') {
       this.draw(source, 2);
       this.pushLog(`${source.name} 使用【无中生有】，摸两张牌`);
+      return;
+    }
+    if (trick.useAs === 'taoyuan') {
+      this.pushLog(`${source.name} 使用【桃园结义】`);
+      for (const q of this.players) if (q.alive && q.hp < q.maxHp) this.heal(q, 1);
+      return;
+    }
+    if (trick.useAs === 'wugu') {
+      const alive = this.players.filter(q => q.alive);
+      const revealed = [];
+      for (let i = 0; i < alive.length; i++) {
+        const c = this.drawCard();
+        if (c) revealed.push(c);
+      }
+      this.pushLog(`${source.name} 使用【五谷丰登】，亮出${revealed.length}张牌`);
+      for (const c of revealed) {
+        const pick = alive[Math.floor(Math.random() * alive.length)];
+        pick.hand.push(c);
+      }
+      return;
+    }
+    if (trick.useAs === 'huogong') {
+      if (!target || !target.alive || target.hand.length === 0) return;
+      const shown = target.hand[Math.floor(Math.random() * target.hand.length)];
+      this.pushLog(`${target.name} 展示【${shown.name}】`);
+      const same = source.hand.find(c => c.suit === shown.suit);
+      if (same) {
+        this.removeFromPlayer(source, same);
+        this.discard.push(same);
+        this.pushLog(`${source.name} 弃置同花色【${same.name}】，对 ${target.name} 造成1点火焰伤害`);
+        this.damage(target, 1, source, { ...card, element: 'fire' }, null);
+      }
+      return;
+    }
+    if (trick.useAs === 'tiesuo') {
+      if (!target || !target.alive) return;
+      target.chained = !target.chained;
+      this.pushLog(`${source.name} 使用【铁索连环】，${target.name}${target.chained ? '横置' : '重置'}`);
+      return;
+    }
+    if (trick.useAs === 'jiedao') {
+      if (!target || !target.alive) return;
+      const w = target.equips && target.equips.weapon;
+      if (!w) return;
+      const sha = target.hand.find(c => this.canUseAs(target, c, 'sha'));
+      if (sha) {
+        this.removeFromPlayer(target, sha);
+        this.discard.push(sha);
+        this.pushLog(`${target.name} 使用【杀】响应【借刀杀人】`);
+        this.damage(target, 0, null, null, null);
+      } else {
+        target.equips.weapon = null;
+        source.hand.push(w);
+        this.pushLog(`${target.name} 将【${w.name}】交给 ${source.name}`);
+      }
       return;
     }
     if (trick.useAs === 'nanman' || trick.useAs === 'wanjian') {
