@@ -550,7 +550,7 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 .gc-portrait {
   position: absolute;
   left: 0;
-  top: 0;
+  top: -12%;
   width: 100%;
   height: auto;
   aspect-ratio: 138 / 253;
