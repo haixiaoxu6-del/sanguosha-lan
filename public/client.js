@@ -575,12 +575,33 @@ function hearts(hp, max) {
 
 function render() {
   const app = $('#app');
-  if (!ui.state) { app.innerHTML = lobbyHtml(); return; }
+  if (!ui.state) { app.innerHTML = lobbyHtml(); requestAnimationFrame(layoutHand); return; }
   if (!ui.state.started) {
     app.innerHTML = ui.state.selecting ? generalHtml() : roomHtml();
+    requestAnimationFrame(layoutHand);
     return;
   }
   app.innerHTML = gameHtml();
+  requestAnimationFrame(layoutHand);
+}
+
+function layoutHand() {
+  document.querySelectorAll('.dz-hand').forEach(hand => {
+    hand.style.gap = '0px';
+    const cards = [...hand.querySelectorAll('.card')];
+    hand.style.setProperty('--hand-overlap', '0px');
+    if (cards.length < 2) return;
+    const avail = hand.clientWidth;
+    const cardW = cards[0].offsetWidth;
+    if (!avail || !cardW) return;
+    const total = cards.length * cardW;
+    if (total <= avail) return;
+    const minStep = Math.max(30, Math.round(cardW * 0.38));
+    const maxOverlap = Math.max(0, cardW - minStep);
+    const need = Math.ceil((total - avail) / (cards.length - 1));
+    const overlap = Math.min(maxOverlap, Math.max(0, need));
+    hand.style.setProperty('--hand-overlap', overlap + 'px');
+  });
 }
 
 function renderLocal() {
@@ -610,6 +631,7 @@ function renderLocal() {
     const isMyTurn = s.currentPlayer === meId;
     prompt.innerHTML = controlsHtml(s, you, current, pending, myPending, isMyTurn);
   }
+  requestAnimationFrame(layoutHand);
 }
 
 function lobbyHtml() {
@@ -633,7 +655,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v28</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v32</div>
   </div></div>`;
 }
 
@@ -692,7 +714,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v28</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v32</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -715,7 +737,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v28</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v32</div>
   </div></div>`;
 }
 
@@ -744,7 +766,6 @@ function generalCardHtml(p, s, extra = '') {
   const empty = Math.max(0, p.maxHp - hp);
   const skills = (p.general.skills || []).map(x => `<span>${skillName(x)}</span>`).join('');
   return `<div class="gc ${extra} ${p.isCurrent ? 'current' : ''} ${ui.selectedTarget === p.id ? 'target' : ''} ${!p.alive ? 'dead' : ''} ${canTarget && p.alive && p.id !== meId ? 'targetable' : ''}" data-player-id="${p.id}">
-    <div class="gc-bg" style="background-image:url('/assets/generals/${p.general.portrait}')"></div>
     <img class="gc-portrait" src="/assets/generals/${p.general.portrait}" alt="${p.general.name}" draggable="false">
     <div class="gc-name-vertical"><span class="gc-faction-name">${p.general.faction}</span>${p.general.name}</div>
     ${showRole ? `<div class="gc-role ${p.role}">${roleText}</div>` : ''}
@@ -1279,6 +1300,9 @@ document.addEventListener('click', (e) => {
 });
 
 // ---------------- 启动 ----------------
+window.addEventListener('resize', () => requestAnimationFrame(layoutHand));
+window.addEventListener('orientationchange', () => setTimeout(layoutHand, 250));
+
 document.getElementById('rotateBtn')?.addEventListener('click', async () => {
   try {
     const el = document.documentElement;
