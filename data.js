@@ -57,19 +57,19 @@ const CARD_DEFS = [
 // ---------- 武将（首版 3 个） ----------
 const GENERALS = [
   {
-    id: 'guanyu', name: '关羽', faction: '蜀', hp: 4,
+    id: 'guanyu', name: '关羽', faction: '蜀', gender: 'male', hp: 4,
     skills: ['wusheng'],
     desc: '武圣：你可以将一张红色牌当【杀】使用或打出。',
     portrait: 'guanyu.png',
   },
   {
-    id: 'zhangfei', name: '张飞', faction: '蜀', hp: 4,
+    id: 'zhangfei', name: '张飞', faction: '蜀', gender: 'male', hp: 4,
     skills: ['paoxiao'],
     desc: '咆哮：锁定技，你使用【杀】无次数限制。',
     portrait: 'zhangfei.png',
   },
   {
-    id: 'zhaoyun', name: '赵云', faction: '蜀', hp: 4,
+    id: 'zhaoyun', name: '赵云', faction: '蜀', gender: 'male', hp: 4,
     skills: ['longdan'],
     desc: '龙胆：你可以将【杀】当【闪】、【闪】当【杀】使用或打出。',
     portrait: 'zhaoyun.png',

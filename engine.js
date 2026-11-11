@@ -476,6 +476,11 @@ class Game {
       this.discard.push(card);
       p.flags.shaUsed++;
       this.pushLog(`${p.name} 对 ${target.name} 使用【杀】${fire ? '（火杀）' : ''}`);
+      // 雌雄双股剑：异性目标，摸一张
+      if (weapon && weapon.key === 'cixiong' && p.general && target.general && p.general.gender !== target.general.gender) {
+        this.draw(p, 1);
+        this.pushLog(`${p.name} 发动【雌雄双股剑】，摸一张牌`);
+      }
       this.pending = {
         type: 'shan',
         playerId: target.id,
@@ -640,7 +645,7 @@ class Game {
         this.removeFromPlayer(target, sha);
         this.discard.push(sha);
         this.pushLog(`${target.name} 使用【杀】响应【借刀杀人】`);
-        this.damage(target, 0, null, null, null);
+        this.damage(source, 1, target, sha, null);
       } else {
         target.equips.weapon = null;
         source.hand.push(w);
@@ -770,6 +775,35 @@ class Game {
       this.discard.push(card);
       this.pushLog(`${p.name} 打出【闪】`);
       this.pending = null;
+      // 青龙偃月刀：被闪抵消后可以继续使用一张杀
+      const src = this.findPlayer(pend.sourceId);
+      if (src && src.equips && src.equips.weapon && src.equips.weapon.key === 'qinglong') {
+        const sha = src.hand.find(c => this.canUseAs(src, c, 'sha'));
+        if (sha) {
+          this.removeFromPlayer(src, sha);
+          this.discard.push(sha);
+          this.pushLog(`${src.name} 发动【青龙偃月刀】，继续使用【杀】`);
+          this.pending = {
+            type: 'shan',
+            playerId: p.id,
+            sourceId: src.id,
+            cardId: sha.id,
+            prompt: `${p.name} 请出【闪】`,
+          };
+          return ok();
+        }
+      }
+      // 贯石斧：被闪抵消后弃两张牌，强行造成伤害
+      if (src && src.equips && src.equips.weapon && src.equips.weapon.key === 'guanshi' && this.cardCount(src) >= 2) {
+        const pool = [...src.hand, ...src.judge];
+        for (let i = 0; i < 2 && pool.length; i++) {
+          const c = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+          this.removeFromPlayer(src, c);
+          this.discard.push(c);
+        }
+        this.pushLog(`${src.name} 发动【贯石斧】，弃两张牌令【杀】依然造成伤害`);
+        this.damage(p, 1, src, this.findCardById(pend.cardId), null);
+      }
       return ok();
     }
 
@@ -871,9 +905,39 @@ class Game {
       source.flags.jiu = false;
       this.pushLog(`${source.name} 的【酒】使【杀】伤害+1`);
     }
+    // 藤甲：南蛮/万箭无效
+    if (target.equips && target.equips.armor && target.equips.armor.key === 'tengjia' && card && (card.key === 'nanman' || card.key === 'wanjian')) {
+      this.pushLog(`${target.name} 的【藤甲】使【${card.name}】无效`);
+      this.pending = parent;
+      return;
+    }
+    // 寒冰剑：防止伤害，弃目标两张牌
+    if (source && source.equips && source.equips.weapon && source.equips.weapon.key === 'hanbing' && card && card.key !== 'nanman' && card.key !== 'wanjian') {
+      const pool = [...target.hand, ...target.judge, ...Object.values(target.equips || {}).filter(Boolean)];
+      const removed = [];
+      for (let i = 0; i < 2 && pool.length; i++) {
+        const c = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+        this.removeFromPlayer(target, c);
+        this.discard.push(c);
+        removed.push(c.name);
+      }
+      this.pushLog(`${source.name} 发动【寒冰剑】，防止伤害并弃置 ${target.name} 的${removed.length ? '【' + removed.join('】【') + '】' : '两张牌'}`);
+      this.pending = parent;
+      return;
+    }
     if (target.equips && target.equips.armor && target.equips.armor.key === 'tengjia' && card && (card.fire || card.element === 'fire')) amount += 1;
     target.hp -= amount;
     this.pushLog(`${target.name} 受到${amount}点伤害（${target.hp}/${target.maxHp}）`);
+    // 麒麟弓：造成伤害后弃置目标一匹马
+    if (source && source.equips && source.equips.weapon && source.equips.weapon.key === 'qilin' && target.equips) {
+      const slot = target.equips.horse1 ? 'horse1' : (target.equips.horse2 ? 'horse2' : null);
+      if (slot) {
+        const horse = target.equips[slot];
+        target.equips[slot] = null;
+        this.discard.push(horse);
+        this.pushLog(`${source.name} 发动【麒麟弓】，弃置 ${target.name} 的【${horse.name}】`);
+      }
+    }
     // 连环：属性伤害传导给其他横置角色
     if (target.chained && card && (card.element === 'fire' || card.element === 'thunder' || card.fire)) {
       for (const q of this.players) {
