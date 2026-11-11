@@ -633,7 +633,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v26</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v27</div>
   </div></div>`;
 }
 
@@ -692,7 +692,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v26</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v27</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -715,7 +715,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v26</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v27</div>
   </div></div>`;
 }
 
@@ -735,20 +735,24 @@ function generalCardHtml(p, s, extra = '') {
       ? '对手'
       : (p.role === 'landlord' ? '主' : '农');
   const showRole = p.id !== meId && s.mode !== 'duel' && s.mode !== 'duel_pvp';
+  const isSelf = p.id === meId;
   const displayName = p.name && !['玩家', 'AI'].includes(p.name) ? p.name : '';
   const selected = s.you.hand.find(c => c.id === ui.selectedCard);
   const canTarget = !!(ui.pendingAction && ui.pendingAction.needsTarget)
     || !!(selected && playActions(selected).some(a => a.needsTarget));
   const hp = Math.max(0, p.hp);
   const empty = Math.max(0, p.maxHp - hp);
+  const skills = (p.general.skills || []).map(x => `<span>${skillName(x)}</span>`).join('');
   return `<div class="gc ${extra} ${p.isCurrent ? 'current' : ''} ${ui.selectedTarget === p.id ? 'target' : ''} ${!p.alive ? 'dead' : ''} ${canTarget && p.alive && p.id !== meId ? 'targetable' : ''}" data-player-id="${p.id}">
+    <div class="gc-bg" style="background-image:url('/assets/generals/${p.general.portrait}')"></div>
     <img class="gc-portrait" src="/assets/generals/${p.general.portrait}" alt="${p.general.name}" draggable="false">
-    <div class="gc-name-vertical">${p.general.name}</div>
+    <div class="gc-name-vertical"><span class="gc-faction-name">${p.general.faction}</span>${p.general.name}</div>
     ${showRole ? `<div class="gc-role ${p.role}">${roleText}</div>` : ''}
     ${displayName ? `<div class="gc-banner">${escapeHtml(displayName)}</div>` : ''}
     <div class="gc-hp">${'◆'.repeat(hp)}${'◇'.repeat(empty)}</div>
     <div class="gc-hand">手牌 ${p.handCount}${p.judgeCount ? ` · 判 ${p.judgeCount}` : ''}</div>
-    <div class="gc-skills">${(p.general.skills || []).map(x => `<span>${skillName(x)}</span>`).join('')}</div>
+    ${isSelf ? '' : `<div class="gc-skills">${skills}</div>`}
+    ${isSelf ? `<div class="gc-side-skills">${(p.general.skills || []).map(x => `<span class="gc-side-skill" title="${escapeHtml(p.general.desc || '')}">${skillName(x)}</span>`).join('')}</div>` : ''}
     ${p.isCurrent ? '<div class="gc-turn">行动中</div>' : ''}
     ${!p.alive ? '<div class="gc-dead">阵亡</div>' : ''}
   </div>`;
