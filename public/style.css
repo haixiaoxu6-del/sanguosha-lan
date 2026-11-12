@@ -1525,3 +1525,10 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 .play-card { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 93; pointer-events: none; }
 .play-card .wugu-modal { background: none; border: 0; padding: 0; }
 .play-card .card { width: 150px; height: 210px; flex: 0 0 auto; }
+
+/* 出牌展示：加不透明背景，彻底遮住后面任何残留牌层 */
+.play-card { background: transparent; }
+
+
+.play-card-inner { display: flex; justify-content: center; }
+
