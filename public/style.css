@@ -1484,3 +1484,12 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 
 /* 火攻展示牌：保持不消失，直到玩家做出选择 */
 .center-card.persist { animation: none !important; opacity: 1 !important; }
+
+/* 出牌展示：手牌同款牌面居中 */
+.center-card .center-face { width: 150px; height: 210px; }
+/* 五谷丰登：居中大牌 */
+.wugu-mask { display: flex; align-items: center; justify-content: center; }
+.wugu-modal { background: rgba(20,14,10,.94); border: 1px solid #a98145; border-radius: 14px; padding: 18px 24px 22px; text-align: center; }
+.wugu-modal h2 { color: #e8cf9a; font-size: 20px; margin: 0 0 12px; }
+.wugu-cards { display: flex; gap: 16px; justify-content: center; }
+.wugu-cards .card { width: 150px; height: 210px; flex: 0 0 auto; }

@@ -726,10 +726,10 @@ function showCenterCard(card, fromEl, persist) {
   const el = document.createElement('div');
   el.className = 'center-card' + (persist ? ' persist' : '');
   el.dataset.cardId = card.id;
-  el.innerHTML = `<div class="cc-inner">
-    <div class="cc-top"><span class="${card.color === 'red' ? 'red' : ''}">${SUIT_CN[card.suit]}${card.number}</span><span>${CARD_TYPE_CN[card.type] || ''}</span></div>
-    <div class="cc-name">${card.name}</div>
-    <div class="cc-art" style="background-image:url('/assets/cards/${card.art}')"></div>
+  el.innerHTML = `<div class="card ${card.color === 'red' ? 'red' : 'black'} center-face" style="--art:url('/assets/cards/${card.art}')">
+    <div class="c-top"><span class="c-suit">${SUIT_CN[card.suit]}</span><span class="c-num">${card.number}</span><span class="c-type">${CARD_TYPE_CN[card.type] || ''}</span></div>
+    <div class="c-name">${card.name}</div>
+    <div class="c-art"></div>
   </div>`;
   layer.appendChild(el);
   // 从手牌位置飞到屏幕中心
@@ -1019,7 +1019,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v100</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v101</div>
   </div></div>`;
 }
 
@@ -1078,7 +1078,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v100</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v101</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1107,7 +1107,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v100</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v101</div>
   </div></div>`;
 }
 
@@ -1224,6 +1224,7 @@ function tableGameHtml() {
     </div>
     <footer class="hint">${you.general.desc}</footer>
     ${judgmentHtml(s)}
+    ${wuguHtml(s)}
   </div>`;
 }
 
@@ -1557,12 +1558,8 @@ function _controlsHtml(s, you, current, pending, myPending, isMyTurn) {
     }
 
     if (pending.type === 'wugu' && s.wugu) {
-      return `<div class="control-box pick-box">
-        <div class="prompt">${escapeHtml(pending.prompt || '五谷丰登')}</div>
-        <div class="pick-cards">
-          ${s.wugu.cards.map(c => `<div class="pick-card" data-pick-id="${c.id}"><span class="pick-suit ${c.color === 'red' ? 'red' : ''}">${SUIT_CN[c.suit]}${c.number}</span><b>${c.name}</b><small>五谷</small></div>`).join('')}
-        </div>
-        <div class="sub">点击一张牌获得</div>
+      return `<div class="control-box">
+        <div class="prompt">五谷丰登：请在屏幕中央选择一张牌</div>
       </div>`;
     }
 
@@ -2235,4 +2232,20 @@ function playDrawFx(ev) {
 
 
 
+
+
+// 五谷丰登：屏幕中央的大号待选牌（手牌同款牌面）
+function wuguHtml(s) {
+  if (!(s.pending && s.pending.type === 'wugu' && s.pending.playerId === myId(s) && s.wugu)) return '';
+  const cards = s.wugu.cards || [];
+  return `<div class="modal-mask wugu-mask"><div class="wugu-modal">
+    <h2>五谷丰登 · 选择一张牌</h2>
+    <div class="wugu-cards">
+      ${cards.map(c => `<div class="card ${c.color === 'red' ? 'red' : 'black'}" data-pick-id="${c.id}" style="--art:url('/assets/cards/${c.art}')">
+        <div class="c-top"><span class="c-suit">${SUIT_CN[c.suit]}</span><span class="c-num">${c.number}</span><span class="c-type">${CARD_TYPE_CN[c.type] || ''}</span></div>
+        <div class="c-name">${c.name}</div><div class="c-art"></div>
+      </div>`).join('')}
+    </div>
+  </div></div>`;
+}
 
