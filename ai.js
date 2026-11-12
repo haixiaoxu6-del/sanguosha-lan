@@ -56,6 +56,11 @@ function aiAct(game) {
         continue;
       }
 
+      if (pend.type === 'yijue_heal') {
+        game.respond(ai.id, { pass: true });
+        continue;
+      }
+
       if (pend.type === 'jiedao') {
         const sha = ai.hand.find(c => game.canUseAs(ai, c, 'sha'));
         game.respond(ai.id, sha ? { cardId: sha.id } : { pass: true });

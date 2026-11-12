@@ -1384,3 +1384,12 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 .zm-sub { text-align: center; color: #b9a887; font-size: 15px; margin-top: 12px; }
 #zoneModal.zone-modal { max-height: 96vh; }
 .center-card { z-index: 10 !important; }
+
+/* 义绝封印标记 */
+.gc-seal {
+  position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%); z-index: 6;
+  padding: 3px 9px; background: rgba(90, 20, 10, .92); color: #ffd9b0;
+  border: 1px solid #ff9a6a; border-radius: 6px; font-size: 12px; font-weight: 700;
+  letter-spacing: 1px; pointer-events: none; box-shadow: 0 0 12px rgba(255, 80, 40, .6);
+}
+.pending-wrap { display: flex; flex-direction: column; gap: 8px; width: 100%; }

@@ -826,8 +826,16 @@ class Game {
       return;
     }
     if (trick.useAs === 'nanman' || trick.useAs === 'wanjian') {
-      const queue = this.othersInSeatOrder(source);
-      this.pushLog(`${source.name} 使用【${trick.useAs === 'nanman' ? '南蛮入侵' : '万箭齐发'}】`);
+      const cardName = trick.useAs === 'nanman' ? '南蛮入侵' : '万箭齐发';
+      // 藤甲：南蛮/万箭对其无效，直接跳过响应与伤害
+      const queue = this.othersInSeatOrder(source).filter(q => {
+        if (q.equips && q.equips.armor && q.equips.armor.key === 'tengjia') {
+          this.pushLog(`${q.name} 的【藤甲】使【${cardName}】无效`);
+          return false;
+        }
+        return true;
+      });
+      this.pushLog(`${source.name} 使用【${cardName}】`);
       if (queue.length > 0) {
         this.pending = {
           type: trick.useAs,
@@ -981,8 +989,24 @@ class Game {
         p.hand.splice(p.hand.indexOf(shown), 1);
         if (src) src.hand.push(shown);
         this.pushLog(`${p.name} 展示红色【${shown.name}】，${src ? src.name : ''} 获得之`);
-        if (p.hp < p.maxHp) { this.heal(p, 1); this.pushLog(`${p.name} 回复1点体力`); }
+        if (src && src.alive && p.hp < p.maxHp) {
+          this.pending = {
+            type: 'yijue_heal', playerId: src.id, targetId: p.id,
+            prompt: `【义绝】：是否令 ${p.name} 回复1点体力？`,
+          };
+        }
       }
+      return ok();
+    }
+
+    if (pend.type === 'yijue_heal') {
+      if (action.pass) { this.pending = null; return ok(); }
+      const t = this.findPlayer(pend.targetId);
+      if (t && t.alive && t.hp < t.maxHp) {
+        this.heal(t, 1);
+        this.pushLog(`${p.name} 令 ${t.name} 回复1点体力`);
+      }
+      this.pending = null;
       return ok();
     }
 

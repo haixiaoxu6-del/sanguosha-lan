@@ -672,24 +672,54 @@ function onTimerExpired() {
   const s = ui.state;
   if (!s) return;
   const me = myId(s);
-  const RESPOND_TYPES = ['shan', 'wanjian', 'duel', 'nanman', 'tao', 'wuxie'];
-  if (s.pending && s.pending.playerId === me && RESPOND_TYPES.includes(s.pending.type)) {
-    sendAction({ type: 'respond', pass: true });
-  } else if (s.phase === 'play' && s.currentPlayer === me && !s.pending) {
-    sendAction({ type: 'end-play' });
+  const p = s.pending;
+  if (p && p.playerId === me) {
+    switch (p.type) {
+      case 'discard': {
+        const ids = s.you.hand.slice(0, p.count || 0).map(c => c.id);
+        sendAction({ type: 'discard', cardIds: ids });
+        return;
+      }
+      case 'pick': {
+        const cards = (s.pick && s.pick.cards) || [];
+        if (cards.length) sendAction({ type: 'respond', cardId: cards[Math.floor(Math.random() * cards.length)].id });
+        else sendAction({ type: 'respond', pass: true });
+        return;
+      }
+      case 'wugu': {
+        const cards = (s.wugu && s.wugu.cards) || [];
+        if (cards.length) sendAction({ type: 'respond', cardId: cards[0].id });
+        else sendAction({ type: 'respond', pass: true });
+        return;
+      }
+      case 'yajiao': sendAction({ type: 'respond', targetId: me }); return;
+      case 'yajiao_discard': {
+        const ids = s.you.hand.slice(0, 1).map(c => c.id);
+        sendAction({ type: 'respond', cardIds: ids });
+        return;
+      }
+      case 'yijue': {
+        if (s.you.hand.length) sendAction({ type: 'respond', cardId: s.you.hand[0].id });
+        else sendAction({ type: 'respond', pass: true });
+        return;
+      }
+      default:
+        sendAction({ type: 'respond', pass: true });
+        return;
+    }
   }
+  if (s.phase === 'play' && s.currentPlayer === me && !s.pending) sendAction({ type: 'end-play' });
 }
 
 function syncTimers() {
   const s = ui.state;
   if (!s || !s.started) return;
   const me = myId(s);
-  const RESPOND_TYPES = ['shan', 'wanjian', 'duel', 'nanman', 'tao', 'wuxie'];
-  const responding = s.pending && s.pending.playerId === me && RESPOND_TYPES.includes(s.pending.type);
+  const myPending = !!(s.pending && s.pending.playerId === me);
   const myPlay = s.phase === 'play' && s.currentPlayer === me && !s.pending;
-  if (responding) {
-    if (ui.timerKind !== 'respond') {
-      ui.timerKind = 'respond';
+  if (myPending) {
+    if (ui.timerKind !== 'pending') {
+      ui.timerKind = 'pending';
       ui.timerDeadline = Date.now() + 20000;
       ui.timerAutoDone = false;
     }
@@ -852,7 +882,8 @@ function renderLocal() {
         const needShan = s.pending.type === 'shan' || s.pending.type === 'wanjian';
         const ok = needShan ? canUseAsShan(card) : canUseAsSha(card);
         if (!ok) {
-          addToast(needShan ? '这张牌不能当【闪】：先点【龙胆】/【武圣】再选牌' : '这张牌不能当【杀】：先点技能再选牌');
+          if (you.yijueSealed) addToast('你被【义绝】封印：本回合不能使用或打出手牌');
+          else addToast(needShan ? '这张牌不能当【闪】：先点【龙胆】/【武圣】再选牌' : '这张牌不能当【杀】：先点技能再选牌');
           return;
         }
         if (ui.respondBusy) return;
@@ -889,7 +920,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v87</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v90</div>
   </div></div>`;
 }
 
@@ -948,7 +979,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v87</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v90</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -971,7 +1002,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v87</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v90</div>
   </div></div>`;
 }
 
@@ -1035,6 +1066,7 @@ function generalCardHtml(p, s, extra = '') {
       <div class="gc-art"><img class="gc-portrait" src="/assets/generals/${p.general.portrait}" alt="${p.general.name}" draggable="false"></div>
       <div class="gc-hair"><img class="gc-portrait" src="/assets/generals/${p.general.portrait}" alt="" draggable="false"></div>
       ${p.chained ? '<div class="gc-chained"></div>' : ''}
+      ${p.yijueSealed ? '<div class="gc-seal">义绝·封印</div>' : ''}
       ${p.judges && p.judges.length ? `<div class="gc-judges">判定：${p.judges.map(n => `<span>${n}</span>`).join('')}</div>` : ''}
       ${eqHtml}
       ${showRole ? `<div class="gc-role ${p.role}">${roleText}</div>` : ''}
@@ -1362,6 +1394,15 @@ function syncZoneModal(s) {
 }
 
 function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
+  const body = _controlsHtml(s, you, current, pending, myPending, isMyTurn);
+  if (pending && myPending) {
+    const bar = `<div class="play-timer"><div class="pt-fill" id="ptFill"></div><div class="pt-text">${escapeHtml(pending.prompt || '')}</div></div>`;
+    return `<div class="pending-wrap">${bar}${body}</div>`;
+  }
+  return body;
+}
+
+function _controlsHtml(s, you, current, pending, myPending, isMyTurn) {
   if (s.gameOver) return '';
   if (pending && myPending) {
     if (pending.type === 'discard') {
@@ -1450,12 +1491,13 @@ function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
       </div>`;
     }
 
-    if (pending.type === 'qinglong' || pending.type === 'qilin') {
-      const prefix = pending.type === 'qinglong' ? 'qinglong' : 'qilin';
+    if (pending.type === 'qinglong' || pending.type === 'qilin' || pending.type === 'yijue_heal') {
+      const prefix = pending.type === 'qinglong' ? 'qinglong' : (pending.type === 'qilin' ? 'qilin' : 'yijue-heal');
+      const yesText = pending.type === 'yijue_heal' ? '令其回复' : '发动';
       return `<div class="control-box">
         <div class="prompt">${escapeHtml(pending.prompt || '')}</div>
         <div class="btn-row">
-          <button class="btn primary" data-action="${prefix}-yes">发动</button>
+          <button class="btn primary" data-action="${prefix}-yes">${yesText}</button>
           <button class="btn ghost" data-action="${prefix}-no">放弃</button>
         </div>
       </div>`;
@@ -1467,7 +1509,7 @@ function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
       return `<div class="control-box waiting"><div class="prompt">${escapeHtml(pending.prompt || '')}</div></div>`;
     }
     return `<div class="prompt-line">
-      <div class="play-timer"><div class="pt-fill" id="ptFill"></div><div class="pt-text">${escapeHtml(pending.prompt || '')}${ui.activeSkill ? `　已发动【${skillName(ui.activeSkill)}】` : ''}</div></div>
+      <span class="prompt">${escapeHtml(pending.prompt || '')}${you.yijueSealed ? '（义绝封印中，不能使用手牌）' : ''}${ui.activeSkill ? `　已发动【${skillName(ui.activeSkill)}】` : ''}</span>
       <button class="btn ghost" data-action="cancel">取消</button>
     </div>`;
   }
@@ -1653,6 +1695,8 @@ document.addEventListener('click', (e) => {
           : s.pending.type === 'wuxie' ? responseCard.key === 'wuxie'
           : s.pending.type === 'tao' ? (responseCard.key === 'tao' || (responseCard.key === 'jiu' && s.pending.dyingId === myId(s))) : false;
         if (valid) { sendAction({ type: 'respond', cardId: id }); return; }
+        if (s.you.yijueSealed) addToast('你被【义绝】封印：本回合不能使用或打出手牌');
+        else if (ui.activeSkill) addToast('这张牌不能用于当前响应');
       }
       ui.selectedCard = id;
       renderLocal();
@@ -1832,12 +1876,12 @@ document.addEventListener('click', (e) => {
     return;
   }
 
-  if (action === 'qinglong-yes' || action === 'qilin-yes') {
+  if (action === 'qinglong-yes' || action === 'qilin-yes' || action === 'yijue-heal-yes') {
     sendAction({ type: 'respond' });
     return;
   }
 
-  if (action === 'qinglong-no' || action === 'qilin-no') {
+  if (action === 'qinglong-no' || action === 'qilin-no' || action === 'yijue-heal-no') {
     sendAction({ type: 'respond', pass: true });
     return;
   }
@@ -2020,6 +2064,9 @@ loadModes().then(() => {
   if (ui.room && ui.playerId) connect();
   else render();
 });
+
+
+
 
 
 
