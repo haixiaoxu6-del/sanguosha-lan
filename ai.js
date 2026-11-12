@@ -32,9 +32,15 @@ function aiAct(game) {
         continue;
       }
 
+      if (pend.type === 'jiedao') {
+        const sha = ai.hand.find(c => game.canUseAs(ai, c, 'sha'));
+        game.respond(ai.id, sha ? { cardId: sha.id } : { pass: true });
+        continue;
+      }
+
       if (pend.type === 'pick') {
         const t = game.findPlayer(pend.targetId);
-        const pool = t ? [...t.hand, ...t.judge] : [];
+        const pool = t ? [...t.hand, ...t.judge, ...Object.values(t.equips || {}).filter(Boolean)] : [];
         if (pool.length) game.respond(ai.id, { cardId: pool[Math.floor(Math.random() * pool.length)].id });
         else game.respond(ai.id, { pass: true });
         continue;

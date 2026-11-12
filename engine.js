@@ -460,6 +460,9 @@ class Game {
     } else if (useAs === 'jiedao') {
       if (!target || target.id === p.id) return err('请选择一名其他角色');
       if (!target.equips || !target.equips.weapon) return err('目标没有装备武器');
+      const victim = action.victimId ? this.findPlayer(action.victimId) : null;
+      if (!victim || !victim.alive || victim.id === target.id) return err('请选择被出杀的角色');
+      if (this.distance(target, victim) > (target.equips.weapon.range || 1)) return err('该角色不在其攻击范围内');
     } else if (useAs === 'lebu') {
       if (!target || target.id === p.id) return err('请选择一名其他角色');
       if (target.judge.some(c => c.key === 'lebu')) return err('目标已有【乐不思蜀】');
@@ -486,6 +489,7 @@ class Game {
       const armor = target.equips && target.equips.armor;
       const ignoreArmor = weapon && weapon.key === 'qinggang';
       const fire = weapon && weapon.key === 'zhuque';
+      const liyongActive = this.hasSkill(p, 'liyong') && p.flags.liyong;
       if (armor && !ignoreArmor) {
         if (armor.key === 'renwang' && !fire && card.color === 'black') {
           this.discard.push(card);
@@ -497,7 +501,7 @@ class Game {
           this.pushLog(`${target.name} 的【藤甲】使普通【杀】无效`);
           return ok();
         }
-        if (armor.key === 'bagua') {
+        if (armor.key === 'bagua' && !liyongActive) {
           const judge = this.drawCard();
           if (judge) {
             this.discard.push(judge);
@@ -565,7 +569,7 @@ class Game {
       return ok();
     }
     this.discard.push(card);
-    this.startWuxie(p, card, { useAs, targetId: target ? target.id : null, targetIds: targets.map(x => x.id) });
+    this.startWuxie(p, card, { useAs, targetId: target ? target.id : null, victimId: action.victimId || null, targetIds: targets.map(x => x.id) });
     return ok();
   }
 
@@ -705,17 +709,23 @@ class Game {
       if (!target || !target.alive) return;
       const w = target.equips && target.equips.weapon;
       if (!w) return;
+      const victim = trick.victimId ? this.findPlayer(trick.victimId) : null;
       const sha = target.hand.find(c => this.canUseAs(target, c, 'sha'));
-      if (sha) {
-        this.removeFromPlayer(target, sha);
-        this.discard.push(sha);
-        this.pushLog(`${target.name} 使用【杀】响应【借刀杀人】`);
-        this.damage(source, 1, target, sha, null);
-      } else {
+      if (!sha || !victim || !victim.alive) {
         target.equips.weapon = null;
         source.hand.push(w);
-        this.pushLog(`${target.name} 将【${w.name}】交给 ${source.name}`);
+        this.pushLog(`${target.name} 没有对 ${victim ? victim.name : '目标'} 出【杀】，将【${w.name}】交给 ${source.name}`);
+        return;
       }
+      this.pushLog(`${source.name} 对 ${target.name} 使用【借刀杀人】，令其杀 ${victim.name}`);
+      this.pending = {
+        type: 'jiedao',
+        playerId: target.id,
+        sourceId: source.id,
+        victimId: victim.id,
+        weaponName: w.name,
+        prompt: `【借刀杀人】：对 ${victim.name} 使用【杀】，或交出【${w.name}】`,
+      };
       return;
     }
     if (trick.useAs === 'nanman' || trick.useAs === 'wanjian') {
@@ -797,7 +807,16 @@ class Game {
     const p = this.findPlayer(playerId);
     if (!p || !p.alive) return err('角色已阵亡');
 
-    if (pend.type === 'pick') return this.pickCard(playerId, action.cardId);
+    if (pend.type === 'pick') {
+      if (action.pass || !action.cardId) {
+        const t = this.findPlayer(pend.targetId);
+        const has = t ? (t.hand.length + t.judge.length + Object.values(t.equips || {}).filter(Boolean).length) : 0;
+        if (has > 0) return err('请选择一张牌');
+        this.pending = null;
+        return ok();
+      }
+      return this.pickCard(playerId, action.cardId);
+    }
 
     if (pend.type === 'wugu') {
       const c = (pend.cards || []).find(x => x.id === action.cardId);
@@ -830,6 +849,33 @@ class Game {
       this.pushLog(`${p.name} 弃置【${c.name}】，对 ${target.name} 造成1点火焰伤害`);
       this.pending = null;
       this.damage(target, 1, p, { ...shown, element: 'fire' }, null);
+      return ok();
+    }
+
+    if (pend.type === 'jiedao') {
+      if (action.pass) {
+        const w = p.equips && p.equips.weapon;
+        const src = this.findPlayer(pend.sourceId);
+        if (w) {
+          p.equips.weapon = null;
+          if (src) src.hand.push(w);
+          this.pushLog(`${p.name} 将【${w.name}】交给 ${src ? src.name : ''}`);
+        }
+        this.pending = null;
+        return ok();
+      }
+      const card = p.hand.find(c => c.id === action.cardId);
+      if (!card || !this.canUseAs(p, card, 'sha')) return err('请选择【杀】');
+      const victim = this.findPlayer(pend.victimId);
+      if (!victim || !victim.alive) { this.pending = null; return ok(); }
+      p.hand.splice(p.hand.indexOf(card), 1);
+      this.discard.push(card);
+      this.pushLog(`${p.name} 对 ${victim.name} 使用【${card.name}】（借刀杀人）`);
+      this.pending = {
+        type: 'shan', playerId: victim.id, sourceId: p.id,
+        cardId: card.id, boost: false, queue: [],
+        prompt: `${victim.name} 请出【闪】`,
+      };
       return ok();
     }
 

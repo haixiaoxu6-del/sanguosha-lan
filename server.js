@@ -326,10 +326,30 @@ setInterval(() => {
   for (const room of rooms.values()) {
     if (room.mode !== 'duel' || !room.game || room.game.gameOver) continue;
     const ai = room.game.players.find(p => p.role === 'ai');
-    if (!ai || !ai.alive) continue;
+    if (!ai) continue;
     const pend = room.game.pending;
     if (pend && pend.playerId === ai.id) {
-      try { aiAct(room.game); room.broadcast(); } catch (e) { /* ignore */ }
+      const sig = `${pend.type}|${pend.playerId}|${pend.cardId || ''}|${pend.targetId || ''}`;
+      if (room._aiSig === sig) room._aiStuck = (room._aiStuck || 0) + 1;
+      else { room._aiSig = sig; room._aiStuck = 0; }
+
+      // 安全阀：AI 连续 10 个 tick（约 4 秒）处理不了同一响应，强制放弃，避免整局卡死
+      if (room._aiStuck >= 10) {
+        console.error('[AI watchdog] force pass on stuck pending:', sig);
+        const r = room.game.respond(ai.id, { pass: true });
+        if (!r.ok) room.game.pending = null;
+        room._aiStuck = 0;
+        room._aiSig = '';
+        room.broadcast();
+        continue;
+      }
+
+      if (ai.alive) {
+        try { aiAct(room.game); room.broadcast(); } catch (e) { /* ignore */ }
+      }
+    } else {
+      room._aiSig = '';
+      room._aiStuck = 0;
     }
   }
 }, 400);

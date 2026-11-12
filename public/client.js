@@ -27,6 +27,7 @@ const ui = {
   tiesuoTargets: [],
   zhangba: false,
   zhangbaCards: [],
+  jiedaoFirst: null,
   selectedGeneral: null,
   skillView: null,
   error: '',
@@ -356,7 +357,7 @@ function triggerFx(line, s) {
     showCardFx(m[3], m[1], m[2], s);
     const src = playerByName(s, m[1]);
     if (m[3] === '杀' && src && src.general && src.general.skills.includes('wusheng')) playSound('wusheng');
-    else if (m[3] === '杀' && src && src.general && src.general.skills.includes('paoxiao')) playSound('paoxiao');
+    else if (m[3] === '杀' && src && src.general && (src.general.skills.includes('paoxiao') || src.general.skills.includes('re_paoxiao'))) playSound('paoxiao');
     else playSound('card');
     if (m[3] === '桃') { showHealFx(m[1], s); playSound('recover'); }
     return;
@@ -611,7 +612,7 @@ function skillModalHtml() {
         </div>
       </div>
       <div class="skill-desc-list">
-        ${(g.skills || []).map(id => `<div class="skill-desc-item"><b>${skillName(id)}</b><p>${escapeHtml(g.desc || '')}</p></div>`).join('')}
+        ${(g.skills || []).map(id => `<div class="skill-desc-item"><b>${skillName(id)}</b><p>${escapeHtml((g.skillDescs && g.skillDescs[id]) || g.desc || '')}</p></div>`).join('')}
       </div>
       ${eqRows.length ? `<div class="skill-equips">
         <h3>装备</h3>
@@ -696,7 +697,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v67</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v70</div>
   </div></div>`;
 }
 
@@ -755,7 +756,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v67</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v70</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -778,7 +779,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v67</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v70</div>
   </div></div>`;
 }
 
@@ -1052,7 +1053,7 @@ function playActions(card) {
   const acts = [];
   const canSha = canUseAsSha(card);
   const zhuge = you.equips && you.equips.weapon && you.equips.weapon.key === 'zhuge';
-  const shaAllowed = you.general.skills.includes('paoxiao') || zhuge || you.shaUsed < 1;
+  const shaAllowed = you.general.skills.includes('paoxiao') || you.general.skills.includes('re_paoxiao') || zhuge || you.shaUsed < 1;
   const fangtian = !!(you.equips && you.equips.weapon && you.equips.weapon.key === 'fangtian' && card.key === 'sha' && you.hand.length === 1);
   if (canSha && shaAllowed) acts.push({ label: fangtian ? '出【杀】（方天画戟·双目标）' : '出【杀】', as: 'sha', needsTarget: true, fangtian });
   if (card.type === 'equip') acts.push({ label: `装备【${card.name}】`, as: card.key, needsTarget: false });
@@ -1094,6 +1095,14 @@ function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
         </div>
       </div>`;
     }
+    if (pending.type === 'jiedao') {
+      return `<div class="control-box pick-box">
+        <div class="prompt">${escapeHtml(pending.prompt || '借刀杀人')}</div>
+        <div class="sub">点击手牌中的【杀】对其出杀，或交出武器</div>
+        <button class="btn ghost" data-action="jiedao-pass">交出武器</button>
+      </div>`;
+    }
+
     if (pending.type === 'wugu' && s.wugu) {
       return `<div class="control-box pick-box">
         <div class="prompt">${escapeHtml(pending.prompt || '五谷丰登')}</div>
@@ -1145,6 +1154,7 @@ function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
       const act = playActions(selected)[0];
       if (!act) tip = `已选【${selected.name}】，这张牌现在不能使用`;
       else if (ui.pendingAction && ui.pendingAction.needsTarget) tip = `已选【${selected.name}】，请点击目标`;
+      else if (ui.jiedaoFirst) tip = '借刀杀人：请点击被出杀的角色';
       else if (act.needsTarget) tip = `已选【${selected.name}】，点目标出牌，或再点一次使用`;
       else tip = `已选【${selected.name}】，再点一次使用，或点其他牌换选`;
     }
@@ -1250,6 +1260,7 @@ document.addEventListener('click', (e) => {
       if (responseCard) {
         const valid = (s.pending.type === 'shan' || s.pending.type === 'wanjian') ? canUseAsShan(responseCard)
           : (s.pending.type === 'duel' || s.pending.type === 'nanman') ? canUseAsSha(responseCard)
+          : s.pending.type === 'jiedao' ? canUseAsSha(responseCard)
           : s.pending.type === 'wuxie' ? responseCard.key === 'wuxie'
           : s.pending.type === 'tao' ? responseCard.key === 'tao' : false;
         if (valid) { sendAction({ type: 'respond', cardId: id }); return; }
@@ -1289,6 +1300,7 @@ document.addEventListener('click', (e) => {
       ui.selectedCard = id;
       ui.selectedTarget = null;
       ui.pendingAction = null;
+      ui.jiedaoFirst = null;
       renderLocal();
       return;
     }
@@ -1307,7 +1319,7 @@ document.addEventListener('click', (e) => {
     // 选牌后直接点目标立绘出牌
     const selfCard = ui.selectedCard ? ui.state.you.hand.find(c => c.id === ui.selectedCard) : null;
     const isTiesuo = (ui.pendingAction && ui.pendingAction.as === 'tiesuo') || (selfCard && selfCard.key === 'tiesuo');
-    const allowSelf = !!isTiesuo;
+    const allowSelf = !!isTiesuo || !!(selfCard && selfCard.key === 'jiedao') || !!(ui.pendingAction && ui.pendingAction.as === 'jiedao');
     const canPick = p && p.alive && (id !== myId(ui.state) || allowSelf);
 
     if (!ui.pendingAction && ui.selectedCard && canPick) {
@@ -1316,6 +1328,21 @@ document.addEventListener('click', (e) => {
       const act = acts.find(a => a.as === card.key && a.needsTarget) || acts.find(a => a.needsTarget);
       if (act) {
         if (act.as === 'tiesuo') { pickTiesuoTarget(card.id, id); return; }
+        if (act.as === 'jiedao') {
+          if (!ui.jiedaoFirst) {
+            const t = ui.state.players.find(x => x.id === id);
+            if (!t || !t.equips || !t.equips.weapon) { ui.error = '请选择装备武器的角色'; render(); return; }
+            ui.jiedaoFirst = id;
+            ui.selectedTarget = id;
+            renderLocal();
+            return;
+          }
+          if (id === ui.jiedaoFirst) { ui.error = '出杀目标必须是另一名角色'; render(); return; }
+          const first = ui.jiedaoFirst;
+          ui.jiedaoFirst = null;
+          sendAction({ type: 'play', cardId: card.id, as: 'jiedao', targetId: first, victimId: id });
+          return;
+        }
         if (act.fangtian) {
           ui.pendingAction = { as: 'sha', needsTarget: true, fangtian: true, fangtianIds: [id] };
           ui.selectedTarget = id;
@@ -1376,6 +1403,11 @@ document.addEventListener('click', (e) => {
   }
 
   if (action === 'huogong-pass') {
+    sendAction({ type: 'respond', pass: true });
+    return;
+  }
+
+  if (action === 'jiedao-pass') {
     sendAction({ type: 'respond', pass: true });
     return;
   }

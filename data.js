@@ -17,7 +17,7 @@ const CARD_DEFS = [
   { key: 'guohe',     name: '过河拆桥', type: 'trick',   count: 6,  art: 'guohe.png' },
   { key: 'shunshou',  name: '顺手牵羊', type: 'trick',   count: 5,  art: 'shunshou.png' },
   { key: 'wuzhong',   name: '无中生有', type: 'trick',   count: 4,  art: 'wuzhong.png' },
-  { key: 'jiedao',    name: '借刀杀人', type: 'trick',   count: 2,  art: 'jiedao.png', desc: '对装备武器的角色使用，令其对你指定的角色使用【杀】，否则获得其武器。' },
+  { key: 'jiedao',    name: '借刀杀人', type: 'trick',   count: 2,  art: 'jiedao.png', desc: '出牌阶段，对一名装备区有武器的角色使用。你指定其攻击范围内的另一名角色，该角色需对其使用【杀】，否则将武器交给你。' },
   { key: 'nanman',    name: '南蛮入侵', type: 'trick',   count: 3,  art: 'nanman.png' },
   { key: 'wanjian',   name: '万箭齐发', type: 'trick',   count: 1,  art: 'wanjian.png' },
   { key: 'taoyuan',   name: '桃园结义', type: 'trick',   count: 1,  art: 'taoyuan.png', desc: '所有角色各回复1点体力。' },
@@ -60,18 +60,28 @@ const GENERALS = [
     id: 're_guanyu', name: '界关羽', faction: '蜀', gender: 'male', hp: 4,
     skills: ['re_wusheng'],
     desc: '武圣：你可以将一张红色牌当【杀】使用或打出；当你以此法使用或打出【杀】时，你可以令此【杀】的伤害+1。',
+    skillDescs: {
+      re_wusheng: '你可以将一张红色牌当【杀】使用或打出；当你以此法使用或打出【杀】时，你可以令此【杀】的伤害+1。',
+    },
     portrait: 're_guanyu.jpg',
   },
   {
     id: 're_zhangfei', name: '界张飞', faction: '蜀', gender: 'male', hp: 4,
     skills: ['re_paoxiao', 'liyong'],
     desc: '咆哮：锁定技，你使用【杀】无次数限制；若你于当前出牌阶段使用过【杀】，则你于此阶段使用【杀】无距离限制。厉勇：锁定技，当你于出牌阶段使用的【杀】被【闪】抵消后，你本阶段下一次使用【杀】指定的目标角色本回合非锁定技失效，且此【杀】不能被响应、伤害值+1；此【杀】造成伤害后，若目标角色未死亡，你失去1点体力。',
+    skillDescs: {
+      re_paoxiao: '锁定技，你使用【杀】无次数限制；若你于当前出牌阶段使用过【杀】，则你于此阶段使用【杀】无距离限制。',
+      liyong: '锁定技，当你于出牌阶段使用的【杀】被【闪】抵消后，你本阶段下一次使用【杀】指定的目标角色本回合非锁定技失效，且此【杀】不能被响应、伤害值+1；此【杀】造成伤害后，若目标角色未死亡，你失去1点体力。',
+    },
     portrait: 're_zhangfei.jpg',
   },
   {
     id: 're_zhaoyun', name: '界赵云', faction: '蜀', gender: 'male', hp: 4,
     skills: ['re_longdan'],
     desc: '龙胆：你可以将【杀】当【闪】、【闪】当【杀】使用或打出；当你以此法使用或打出牌时，你摸一张牌。',
+    skillDescs: {
+      re_longdan: '你可以将【杀】当【闪】、【闪】当【杀】使用或打出；当你以此法使用或打出牌时，你摸一张牌。',
+    },
     portrait: 're_zhaoyun.jpg',
   },
 ];
