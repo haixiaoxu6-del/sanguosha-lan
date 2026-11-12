@@ -1383,3 +1383,4 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 .zm-title { text-align: center; color: #f0cf8e; font-size: 20px; margin-bottom: 14px; }
 .zm-sub { text-align: center; color: #b9a887; font-size: 15px; margin-top: 12px; }
 #zoneModal.zone-modal { max-height: 96vh; }
+.center-card { z-index: 10 !important; }
