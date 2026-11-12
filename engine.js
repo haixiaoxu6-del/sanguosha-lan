@@ -502,6 +502,7 @@ class Game {
 
     const card = p.hand.find(c => c.id === action.cardId);
     if (!card) return err('你没有这张牌');
+    this.pushEvent('card', { playerId: p.id, card: { id: card.id, name: card.name, suit: card.suit, number: card.number, color: card.color, type: card.type, art: card.art } });
 
     const useAs = action.as || card.key;
 

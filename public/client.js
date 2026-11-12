@@ -167,6 +167,15 @@ function fxImg(name, cls) {
 function playFx(ev) {
   if (!ev || !ev.playerId) return;
   if (ev.type === 'draw') { playDrawFx(ev); return; }
+  if (ev.type === 'card') {
+    const s = ui.state;
+    const self = s && ev.playerId === myId(s);
+    const src = self
+      ? (document.querySelector('.dz-hand') || document.querySelector('.gc-self'))
+      : document.querySelector('.gc-wrap[data-player-id="' + ev.playerId + '"]');
+    showCenterCard(ev.card, src, false);
+    return;
+  }
   if (ev.type === 'sha') {
     playOn(ev.playerId, [fxImg('sha', 'sha')]);
     if (ev.element === 'thunder' && ev.targetId) {
@@ -626,9 +635,7 @@ async function sendAction(action) {
     ui.yijueCard = null;
   }
   if (action && (action.type === 'play' || action.type === 'respond') && action.cardId) {
-    const c = ui.state && ui.state.you.hand.find(x => x.id === action.cardId);
-    const fromEl = document.querySelector('.dz-hand .card[data-card-id="' + action.cardId + '"]');
-    if (c) showCenterCard(c, fromEl);
+    // 出牌飞行动画由引擎 card 事件统一触发，避免重复/凭空出现
   }
   if (action && (action.targetId || (Array.isArray(action.targetIds) && action.targetIds.length))) {
     const from = document.querySelector('.gc-self') || document.querySelector('.dz-hand .card.selected');
@@ -735,7 +742,7 @@ function showCenterCard(card, fromEl, persist) {
     try {
       el.animate(
         [{ transform: `translate(${dx}px, ${dy}px) scale(${sc})` }, { transform: 'translate(0,0) scale(1)' }],
-        { duration: 480, easing: 'cubic-bezier(.2,.8,.3,1)' }
+        { duration: 900, easing: 'cubic-bezier(.2,.8,.3,1)' }
       );
     } catch (e) { /* ignore */ }
   }
@@ -1012,7 +1019,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v99</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v100</div>
   </div></div>`;
 }
 
@@ -1071,7 +1078,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v99</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v100</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1100,7 +1107,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v99</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v100</div>
   </div></div>`;
 }
 
@@ -2218,12 +2225,14 @@ function playDrawFx(ev) {
   const dx = (tr.left + tr.width / 2) - cx;
   const dy = (tr.top + tr.height / 2) - cy;
   requestAnimationFrame(() => {
-    wrap.style.transition = 'transform 1.25s cubic-bezier(.2,.7,.3,1), opacity 1.25s ease';
+    wrap.style.transition = 'transform 1.8s cubic-bezier(.2,.7,.3,1), opacity 1.8s ease';
     wrap.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(.55)';
     wrap.style.opacity = '0';
   });
-  setTimeout(() => wrap.remove(), 1500);
+  setTimeout(() => wrap.remove(), 2100);
 }
+
+
 
 
 
