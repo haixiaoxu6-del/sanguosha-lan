@@ -12,6 +12,12 @@ function aiAct(game) {
       if (game.pending.playerId !== ai.id) break;
       const pend = game.pending;
 
+      // 被【义绝】封印：不能用/打出手牌，需要出牌的响应全部放弃
+      if (ai.yijueSealed && ['shan', 'duel', 'nanman', 'wanjian', 'tao', 'wuxie', 'huogong', 'jiedao'].includes(pend.type)) {
+        game.respond(ai.id, { pass: true });
+        continue;
+      }
+
       if (pend.type === 'discard') {
         const ids = ai.hand.slice(0, pend.count).map(c => c.id);
         game.discardCards(ai.id, ids);
@@ -35,6 +41,12 @@ function aiAct(game) {
       if (pend.type === 'jiedao') {
         const sha = ai.hand.find(c => game.canUseAs(ai, c, 'sha'));
         game.respond(ai.id, sha ? { cardId: sha.id } : { pass: true });
+        continue;
+      }
+
+      if (pend.type === 'yijue') {
+        const c = ai.hand[0];
+        game.respond(ai.id, c ? { cardId: c.id } : { pass: true });
         continue;
       }
 
@@ -103,7 +115,19 @@ function aiAct(game) {
     const emptyEquip = ai.hand.find(c => c.type === 'equip' && ai.equips && !ai.equips[c.slot]);
     if (tryPlay(emptyEquip, emptyEquip && emptyEquip.key)) continue;
 
+    // 1.5 酒：本回合未用且手里有杀，先喝酒
+    if (!ai.flags.jiuUsed && ai.hand.some(c => c.key === 'jiu') && ai.hand.some(c => game.canUseAs(ai, c, 'sha'))) {
+      const jiu = ai.hand.find(c => c.key === 'jiu');
+      if (tryPlay(jiu, 'jiu')) continue;
+    }
+
     if (target) {
+      // 义绝：本回合未发动、目标有手牌、自己有牌可弃
+      if (ai.general.skills.includes('yijue') && ai.flags.yijueUsed < 1 && target.hand.length > 0 && ai.hand.length > 1) {
+        const cost = ai.hand[ai.hand.length - 1];
+        const r = game.play(ai.id, { as: 'yijue', cardIds: [cost.id], targetId: target.id });
+        if (r.ok) continue;
+      }
       // 丈八蛇矛：两张手牌当杀
       if (ai.equips && ai.equips.weapon && ai.equips.weapon.key === 'zhangba' && ai.hand.length >= 2) {
         const [c1, c2] = ai.hand;

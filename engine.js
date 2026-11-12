@@ -31,8 +31,9 @@ class Game {
       judge: [],
       equips: { weapon: null, armor: null, horse1: null, horse2: null },
       chained: false,
+      yijueSealed: false,
       alive: true,
-      flags: { shaUsed: 0, jiuUsed: 0, jiu: false },
+      flags: { shaUsed: 0, jiuUsed: 0, jiu: false, yijueUsed: 0, yijueTarget: null },
     }));
     this.deck = buildDeck();
     this.discard = [];
@@ -219,6 +220,9 @@ class Game {
     p.flags.jiuUsed = 0;
     p.flags.jiu = false;
     p.flags.liyong = false;
+    p.flags.yijueUsed = 0;
+    p.flags.yijueTarget = null;
+    p.yijueSealed = false;
     p.skillSealed = false;
     this.phase = 'judge';
 
@@ -305,6 +309,10 @@ class Game {
     if (this.gameOver) return;
     // 【厉勇】“本回合非锁定技失效”随本回合结束到期
     for (const q of this.players) q.skillSealed = false;
+    // 【义绝】的封印与红桃杀加伤持续到本回合结束
+    for (const q of this.players) { q.yijueSealed = false; q.flags.yijueTarget = null; }
+    // 【酒】的加伤只在本回合有效，未使用的到下回合失效
+    for (const q of this.players) q.flags.jiu = false;
     const p = this.currentPlayer();
     if (p && p.alive && this.hasSkill(p, 'biyue')) {
       this.draw(p, 1);
@@ -344,6 +352,7 @@ class Game {
   }
 
   canUseAs(p, card, as) {
+    if (p.yijueSealed) return false;
     if (as === card.key) return true;
     if (as === 'sha') {
       if (['sha', 'huosha', 'leisha'].includes(card.key)) return true;
@@ -389,6 +398,29 @@ class Game {
         boost: false,
         queue: [],
         prompt: `${target.name} 请出【闪】`,
+      };
+      return ok();
+    }
+
+    // 义绝：出牌阶段限一次，弃置一张牌，令一名其他角色展示一张手牌
+    if (action.as === 'yijue') {
+      if (!this.hasSkill(p, 'yijue')) return err('没有【义绝】');
+      if (p.flags.yijueUsed >= 1) return err('本回合已经发动过【义绝】');
+      const target = action.targetId ? this.findPlayer(action.targetId) : null;
+      if (!target || !target.alive || target.id === p.id) return err('请选择一名其他角色');
+      if (target.hand.length === 0) return err('目标没有手牌');
+      const ids = Array.isArray(action.cardIds) ? action.cardIds : [];
+      const cost = p.hand.find(c => c.id === ids[0]);
+      if (!cost) return err('请选择一张要弃置的牌');
+      p.hand.splice(p.hand.indexOf(cost), 1);
+      this.discard.push(cost);
+      p.flags.yijueUsed = 1;
+      this.pushLog(`${p.name} 发动【义绝】，弃【${cost.name}】，令 ${target.name} 展示一张手牌`);
+      this.pending = {
+        type: 'yijue',
+        playerId: target.id,
+        sourceId: p.id,
+        prompt: `${target.name} 请选择一张手牌展示（义绝）`,
       };
       return ok();
     }
@@ -469,9 +501,9 @@ class Game {
     if (useAs === 'sha') {
       if (!target || !target.alive || target.id === p.id) return err('请选择一名其他角色');
       const range = (p.equips && p.equips.weapon && p.equips.weapon.range) || 1;
-      if (this.distance(p, target) > range) return err('目标不在攻击范围内');
       if (!this.hasSkill(p, 'paoxiao') && !this.hasSkill(p, 're_paoxiao') && !(p.equips && p.equips.weapon && p.equips.weapon.key === 'zhuge') && p.flags.shaUsed >= 1) return err('本回合已经使用过【杀】');
-      const noRange = this.hasSkill(p, 're_paoxiao') && p.flags.shaUsed >= 1;
+      const noRange = (this.hasSkill(p, 're_paoxiao') && p.flags.shaUsed >= 1)
+        || (this.hasSkill(p, 're_wusheng') && card.suit === 'diamond');
       if (!noRange && this.distance(p, target) > range) return err('目标不在攻击范围内');
     } else if (useAs === 'juedou') {
       if (!target || !target.alive || target.id === p.id) return err('请选择一名其他角色');
@@ -555,7 +587,12 @@ class Game {
         this.draw(p, 1);
         this.pushLog(`${p.name} 发动【龙胆】，摸一张牌`);
       }
-      const wushengBoost = this.hasSkill(p, 're_wusheng') && card.color === 'red' && card.key !== 'sha';
+      const jiuBoost = p.flags.jiu ? 1 : 0;
+      if (p.flags.jiu) {
+        p.flags.jiu = false;
+        this.pushLog(`${p.name} 的【酒】使本张【杀】伤害+1`);
+      }
+      const yijueBoost = (p.flags.yijueTarget === target.id && card.suit === 'heart') ? 1 : 0;
       this.pushLog(`${p.name} 对 ${target.name} 使用【杀】${fire ? '（火杀）' : ''}`);
       // 厉勇：上一张【杀】被【闪】抵消后，本阶段下一张【杀】目标非锁定技失效、不可响应、伤害+1
       if (this.hasSkill(p, 'liyong') && p.flags.liyong) {
@@ -585,7 +622,7 @@ class Game {
         sourceId: p.id,
         cardId: card.id,
         fire,
-        boost: wushengBoost,
+        boost: jiuBoost + yijueBoost,
         queue: rest,
         prompt: `${first.name} 请出【闪】`,
       };
@@ -841,6 +878,7 @@ class Game {
     if (pend.playerId !== playerId) return err('还没轮到你响应');
     const p = this.findPlayer(playerId);
     if (!p || !p.alive) return err('角色已阵亡');
+    if (p.yijueSealed && action.cardId) return err('被【义绝】封印，不能使用或打出手牌');
 
     if (pend.type === 'pick') {
       if (action.pass || !action.cardId) {
@@ -884,6 +922,28 @@ class Game {
       this.pushLog(`${p.name} 弃置【${c.name}】，对 ${target.name} 造成1点火焰伤害`);
       this.pending = null;
       this.damage(target, 1, p, { ...shown, element: 'fire' }, null);
+      return ok();
+    }
+
+    if (pend.type === 'yijue') {
+      const src = this.findPlayer(pend.sourceId);
+      const shown = p.hand.find(c => c.id === action.cardId);
+      if (!shown) {
+        if (p.hand.length === 0) { this.pending = null; return ok(); }
+        return err('请选择一张手牌展示');
+      }
+      this.pending = null;
+      if (shown.color === 'black') {
+        p.yijueSealed = true;
+        p.skillSealed = true;
+        if (src) src.flags.yijueTarget = p.id;
+        this.pushLog(`${p.name} 展示黑色【${shown.name}】：本回合不能使用/打出手牌、非锁定技失效，${src ? src.name : ''} 对其红桃【杀】伤害+1`);
+      } else {
+        p.hand.splice(p.hand.indexOf(shown), 1);
+        if (src) src.hand.push(shown);
+        this.pushLog(`${p.name} 展示红色【${shown.name}】，${src ? src.name : ''} 获得之`);
+        if (p.hp < p.maxHp) { this.heal(p, 1); this.pushLog(`${p.name} 回复1点体力`); }
+      }
       return ok();
     }
 
@@ -961,7 +1021,7 @@ class Game {
       if (action.pass) {
         this.pending = null;
         this.pushLog(`${p.name} 没有出【闪】`);
-        this.damage(p, pend.boost ? 2 : 1, this.findPlayer(pend.sourceId), this.findCardById(pend.cardId), null);
+        this.damage(p, 1 + (pend.boost || 0), this.findPlayer(pend.sourceId), this.findCardById(pend.cardId), null);
         if (!this.pending) nextSha();
         return ok();
       }
@@ -1009,7 +1069,7 @@ class Game {
           this.discard.push(c);
         }
         this.pushLog(`${src.name} 发动【贯石斧】，弃两张牌令【杀】依然造成伤害`);
-        this.damage(p, 1, src, this.findCardById(pend.cardId), null);
+        this.damage(p, 1 + (pend.boost || 0), src, this.findCardById(pend.cardId), null);
       }
       return ok();
     }
@@ -1053,6 +1113,7 @@ class Game {
       }
       const card = p.hand.find(c => c.id === action.cardId);
       if (!card || (card.key !== 'tao' && card.key !== 'jiu')) return err('请选择【桃】或【酒】');
+      if (card.key === 'jiu' && dying.id !== p.id) return err('【酒】只能在自己濒死时使用');
       p.hand.splice(p.hand.indexOf(card), 1);
       this.discard.push(card);
       dying.hp = Math.min(dying.maxHp, dying.hp + 1);
@@ -1107,11 +1168,6 @@ class Game {
     if (!target.alive) { this.pending = parent; return; }
     if (target.equips && target.equips.armor && target.equips.armor.key === 'baiyin' && amount > 1) amount = 1;
     if (source && source.equips && source.equips.weapon && source.equips.weapon.key === 'guding' && target.hand.length === 0) amount += 1;
-    if (source && source.flags && source.flags.jiu && card && card.key === 'sha') {
-      amount += 1;
-      source.flags.jiu = false;
-      this.pushLog(`${source.name} 的【酒】使【杀】伤害+1`);
-    }
     // 藤甲：南蛮/万箭无效
     if (target.equips && target.equips.armor && target.equips.armor.key === 'tengjia' && card && (card.key === 'nanman' || card.key === 'wanjian')) {
       this.pushLog(`${target.name} 的【藤甲】使【${card.name}】无效`);
@@ -1279,6 +1335,7 @@ class Game {
         equips: p.equips,
         chained: !!p.chained,
         jiu: !!p.flags.jiu,
+        yijueSealed: !!p.yijueSealed,
         judges: p.judge.map(c => c.name),
         alive: p.alive,
         isCurrent: this.currentPlayer() && this.currentPlayer().id === p.id,
@@ -1295,6 +1352,8 @@ class Game {
         shaUsed: you.flags.shaUsed,
         jiuUsed: you.flags.jiuUsed,
         jiu: you.flags.jiu,
+        yijueUsed: you.flags.yijueUsed,
+        yijueSealed: !!you.yijueSealed,
       } : null,
       pending: this.pending ? (this.pending.playerId === playerId
         ? {

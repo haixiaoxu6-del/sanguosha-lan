@@ -29,6 +29,8 @@ const ui = {
   zhangbaCards: [],
   jiedaoFirst: null,
   activeSkill: null,
+  yijueStage: null,
+  yijueCard: null,
   selectedGeneral: null,
   skillView: null,
   error: '',
@@ -534,7 +536,11 @@ window.__startDuel = () => {
 };
 
 async function sendAction(action) {
-  if (action && (action.type === 'play' || action.type === 'respond')) ui.activeSkill = null;
+  if (action && (action.type === 'play' || action.type === 'respond')) {
+    ui.activeSkill = null;
+    ui.yijueStage = null;
+    ui.yijueCard = null;
+  }
   const r = await post('/api/action', { room: ui.room, player: ui.playerId, action });
   if (!r.ok) { ui.error = r.error; render(); return; }
   if (r.state) {
@@ -658,7 +664,7 @@ function renderLocal() {
   const canTarget = !!(ui.pendingAction && ui.pendingAction.needsTarget) || hasTargetAction;
   document.querySelectorAll('.card[data-card-id]').forEach(el => {
     const id = el.dataset.cardId;
-    el.classList.toggle('selected', id === ui.selectedCard || ui.zhangbaCards.includes(id));
+    el.classList.toggle('selected', id === ui.selectedCard || ui.zhangbaCards.includes(id) || id === ui.yijueCard);
     el.classList.toggle('discard-selected', ui.discardSet.has(id));
   });
   document.querySelectorAll('.gc-wrap[data-player-id]').forEach(el => {
@@ -699,7 +705,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v72</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v74</div>
   </div></div>`;
 }
 
@@ -758,7 +764,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v72</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v74</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -781,7 +787,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v72</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v74</div>
   </div></div>`;
 }
 
@@ -886,7 +892,7 @@ function tableGameHtml() {
       <section class="dz-self">
         <div class="dz-hand">${you.hand.map(c => cardHtml(c, s)).join('') || '<div class="empty">没有手牌</div>'}</div>
         <div class="dz-skill-col">
-          ${(me.general.skills || []).map(x => `<button class="skill-btn ${ui.activeSkill === x ? 'active' : ''}" data-skill-act="${x}">${skillName(x)}</button>`).join('')}
+          ${(me.general.skills || []).map(x => `<button class="skill-btn ${ui.activeSkill === x || (x === 'yijue' && ui.yijueStage) ? 'active' : ''}" data-skill-act="${x}">${skillName(x)}</button>`).join('')}
         </div>
         ${generalCardHtml(me, s, 'gc-self')}
       </section>
@@ -1023,6 +1029,7 @@ function cardHtml(c, s) {
 function canUseAsSha(card) {
   const g = ui.state?.you?.general;
   if (!g) return false;
+  if (ui.state?.you?.yijueSealed) return false;
   if (['sha', 'huosha', 'leisha'].includes(card.key)) return true;
   const a = ui.activeSkill;
   if ((a === 'wusheng' || a === 're_wusheng') && card.color === 'red') return true;
@@ -1033,6 +1040,7 @@ function canUseAsSha(card) {
 function canUseAsShan(card) {
   const g = ui.state?.you?.general;
   if (!g) return false;
+  if (ui.state?.you?.yijueSealed) return false;
   if (card.key === 'shan') return true;
   const a = ui.activeSkill;
   if ((a === 'longdan' || a === 're_longdan') && card.key === 'sha') return true;
@@ -1082,9 +1090,10 @@ function isCardUsable(card, s) {
   if (s.pending && s.pending.playerId === myId(s)) {
     const type = s.pending.type;
     if (type === 'discard') return true;
+    if (type === 'yijue') return true;
     if (type === 'shan' || type === 'wanjian') return canUseAsShan(card);
     if (type === 'duel' || type === 'nanman') return canUseAsSha(card);
-    if (type === 'tao') return card.key === 'tao' || card.key === 'jiu';
+    if (type === 'tao') return card.key === 'tao' || (card.key === 'jiu' && s.pending.dyingId === myId(s));
     if (type === 'wuxie') return card.key === 'wuxie';
     return false;
   }
@@ -1105,6 +1114,13 @@ function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
         </div>
       </div>`;
     }
+    if (pending.type === 'yijue') {
+      return `<div class="control-box pick-box">
+        <div class="prompt">${escapeHtml(pending.prompt || '义绝：请选择一张手牌展示')}</div>
+        <div class="sub">点击一张手牌展示给对方</div>
+      </div>`;
+    }
+
     if (pending.type === 'jiedao') {
       return `<div class="control-box pick-box">
         <div class="prompt">${escapeHtml(pending.prompt || '借刀杀人')}</div>
@@ -1160,6 +1176,8 @@ function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
   if (s.phase === 'play' && isMyTurn) {
     const selected = you.hand.find(c => c.id === ui.selectedCard);
     let tip = ui.activeSkill ? `已发动【${skillName(ui.activeSkill)}】，请选择对应的牌` : '出牌阶段，请选择1张牌';
+    if (ui.yijueStage === 'card') tip = '义绝：请点击一张要弃置的牌';
+    else if (ui.yijueStage === 'target') tip = '义绝：请点击目标角色（需有手牌）';
     if (selected) {
       const act = playActions(selected)[0];
       if (!act) tip = `已选【${selected.name}】，这张牌现在不能使用`;
@@ -1237,6 +1255,15 @@ document.addEventListener('click', (e) => {
       if (me) { ui.skillView = me; render(); }
       return;
     }
+    if (id === 'yijue') {
+      ui.yijueStage = ui.yijueStage ? null : 'card';
+      ui.yijueCard = null;
+      ui.activeSkill = null;
+      ui.selectedCard = null;
+      ui.pendingAction = null;
+      render();
+      return;
+    }
     ui.activeSkill = ui.activeSkill === id ? null : id;
     ui.selectedCard = null;
     ui.pendingAction = null;
@@ -1265,11 +1292,19 @@ document.addEventListener('click', (e) => {
     return;
   }
 
-  const cardEl = e.target.closest('[data-card-id]');
+    const cardEl = e.target.closest('[data-card-id]');
   if (cardEl) {
     const id = cardEl.dataset.cardId;
     const s = ui.state;
     if (!s) return;
+    if (ui.yijueStage === 'card') {
+      const c = s.you.hand.find(x => x.id === id);
+      if (!c) return;
+      ui.yijueCard = id;
+      ui.yijueStage = 'target';
+      renderLocal();
+      return;
+    }
     if (s.pending && s.pending.playerId === myId(s) && s.pending.type === 'discard') {
       if (ui.discardSet.has(id)) ui.discardSet.delete(id);
       else if (ui.discardSet.size < s.pending.count) ui.discardSet.add(id);
@@ -1282,8 +1317,9 @@ document.addEventListener('click', (e) => {
         const valid = (s.pending.type === 'shan' || s.pending.type === 'wanjian') ? canUseAsShan(responseCard)
           : (s.pending.type === 'duel' || s.pending.type === 'nanman') ? canUseAsSha(responseCard)
           : s.pending.type === 'jiedao' ? canUseAsSha(responseCard)
+          : s.pending.type === 'yijue' ? true
           : s.pending.type === 'wuxie' ? responseCard.key === 'wuxie'
-          : s.pending.type === 'tao' ? responseCard.key === 'tao' : false;
+          : s.pending.type === 'tao' ? (responseCard.key === 'tao' || (responseCard.key === 'jiu' && s.pending.dyingId === myId(s))) : false;
         if (valid) { sendAction({ type: 'respond', cardId: id }); return; }
       }
       ui.selectedCard = id;
@@ -1336,6 +1372,15 @@ document.addEventListener('click', (e) => {
   if (playerEl) {
     const id = playerEl.dataset.playerId;
     const p = ui.state.players.find(x => x.id === id);
+
+    if (ui.yijueStage === 'target' && p && p.alive) {
+      if (id === myId(ui.state)) { ui.error = '义绝不能选择自己'; render(); return; }
+      const cardId = ui.yijueCard;
+      ui.yijueStage = null;
+      ui.yijueCard = null;
+      sendAction({ type: 'play', as: 'yijue', cardIds: [cardId], targetId: id });
+      return;
+    }
 
     // 选牌后直接点目标立绘出牌
     const selfCard = ui.selectedCard ? ui.state.you.hand.find(c => c.id === ui.selectedCard) : null;
