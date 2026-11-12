@@ -1520,3 +1520,8 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 .center-face .cf-name { position: relative; z-index: 3; text-align: center; font-size: 18px; font-weight: 800; padding: 3px 0;
   background: linear-gradient(180deg, #fff9e8, #e8d9ba); border-top: 1px solid #b99a63; border-bottom: 1px solid #b99a63; }
 .center-face .cf-art { position: absolute; inset: 0; z-index: 1; background-image: var(--art); background-size: cover; background-position: center; }
+
+/* 出牌展示：直接复刻五谷的浅色大牌，独立于旧 center-card */
+.play-card { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 93; pointer-events: none; }
+.play-card .wugu-modal { background: none; border: 0; padding: 0; }
+.play-card .card { width: 150px; height: 210px; flex: 0 0 auto; }

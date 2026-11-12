@@ -119,7 +119,7 @@ function applyState(ns) {
   const newLines = diffLog(oldLog, ns.log || []);
   ui.state = ns;
   if (!(ns.pending && ns.pending.type === 'huogong')) {
-    document.querySelectorAll('.center-card.persist').forEach(e => e.remove());
+    document.querySelectorAll('.play-card.persist').forEach(e => e.remove());
   }
   ui.connecting = false;
   ui.starting = false;
@@ -721,21 +721,20 @@ function addToast(msg) {
 }
 
 function showCenterCard(card, fromEl, persist) {
-  const layer = document.body;
-  if (!layer || !card) return;
-  if (document.querySelector('.center-card[data-card-id="' + card.id + '"]')) return;
-  const el = document.createElement('div');
-  el.className = 'center-card' + (persist ? ' persist' : '');
-  el.dataset.cardId = card.id;
-  el.innerHTML = `<div class="center-face ${card.color === 'red' ? 'red' : 'black'}" style="--art:url('/assets/cards/${card.art}')">
-    <div class="cf-top"><span class="cf-suit">${SUIT_CN[card.suit]}</span><span class="cf-num">${card.number}</span><span class="cf-type">${CARD_TYPE_CN[card.type] || ''}</span></div>
-    <div class="cf-name">${card.name}</div>
-    <div class="cf-art"></div>
-  </div>`;
-  layer.appendChild(el);
-  if (!persist) setTimeout(() => el.remove(), 4000);
+  if (!card) return;
+  document.querySelectorAll('.play-card[data-card-id="' + card.id + '"]').forEach(e => e.remove());
+  const mask = document.createElement('div');
+  mask.className = 'play-card' + (persist ? ' persist' : '');
+  mask.dataset.cardId = card.id;
+  mask.innerHTML = `<div class="wugu-modal"><div class="wugu-cards">
+    <div class="card ${card.color === 'red' ? 'red' : 'black'}" style="--art:url('/assets/cards/${card.art}')">
+      <div class="c-top"><span class="c-suit">${SUIT_CN[card.suit]}</span><span class="c-num">${card.number}</span><span class="c-type">${CARD_TYPE_CN[card.type] || ''}</span></div>
+      <div class="c-name">${card.name}</div><div class="c-art"></div>
+    </div>
+  </div></div>`;
+  document.body.appendChild(mask);
+  if (!persist) setTimeout(() => mask.remove(), 4000);
 }
-function layer2Ready() { return true; }
 function startPlayTimerTick() {
   if (ui.playTimerRaf) return;
   ui.playTimerRaf = requestAnimationFrame(function tick() {
@@ -1006,7 +1005,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v108</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v109</div>
   </div></div>`;
 }
 
@@ -1065,7 +1064,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v108</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v109</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1094,7 +1093,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v108</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v109</div>
   </div></div>`;
 }
 
@@ -1551,7 +1550,7 @@ function _controlsHtml(s, you, current, pending, myPending, isMyTurn) {
     }
 
     if (pending.type === 'huogong' && s.huogong) {
-      if (!document.querySelector('.center-card.persist[data-card-id="' + s.huogong.shown.id + '"]')) {
+      if (!document.querySelector('.play-card.persist[data-card-id="' + s.huogong.shown.id + '"]')) {
         showCenterCard(s.huogong.shown, null, true);
       }
       return `<div class="control-box">
@@ -2235,6 +2234,9 @@ function wuguHtml(s) {
     </div>
   </div></div>`;
 }
+
+
+
 
 
 
