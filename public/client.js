@@ -118,6 +118,9 @@ function applyState(ns) {
   const oldLog = ui.state && Array.isArray(ui.state.log) ? ui.state.log : [];
   const newLines = diffLog(oldLog, ns.log || []);
   ui.state = ns;
+  if (!(ns.pending && ns.pending.type === 'huogong')) {
+    document.querySelectorAll('.center-card.persist').forEach(e => e.remove());
+  }
   ui.connecting = false;
   ui.starting = false;
   ui.startStatus = '';
@@ -710,11 +713,12 @@ function addToast(msg) {
   setTimeout(() => el.remove(), 2200);
 }
 
-function showCenterCard(card, fromEl) {
-  const layer = document.getElementById('app') || document.getElementById('fx');
+function showCenterCard(card, fromEl, persist) {
+  const layer = persist ? (document.getElementById('fx') || document.body) : (document.getElementById('app') || document.getElementById('fx'));
   if (!layer || !card) return;
   const el = document.createElement('div');
-  el.className = 'center-card';
+  el.className = 'center-card' + (persist ? ' persist' : '');
+  el.dataset.cardId = card.id;
   el.innerHTML = `<div class="cc-inner">
     <div class="cc-top"><span class="${card.color === 'red' ? 'red' : ''}">${SUIT_CN[card.suit]}${card.number}</span><span>${CARD_TYPE_CN[card.type] || ''}</span></div>
     <div class="cc-name">${card.name}</div>
@@ -735,7 +739,7 @@ function showCenterCard(card, fromEl) {
       );
     } catch (e) { /* ignore */ }
   }
-  setTimeout(() => el.remove(), 4000);
+  if (!persist) setTimeout(() => el.remove(), 4000);
 }
 
 function startPlayTimerTick() {
@@ -1008,7 +1012,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v98</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v99</div>
   </div></div>`;
 }
 
@@ -1067,7 +1071,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v98</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v99</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1096,7 +1100,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v98</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v99</div>
   </div></div>`;
 }
 
@@ -1556,13 +1560,16 @@ function _controlsHtml(s, you, current, pending, myPending, isMyTurn) {
     }
 
     if (pending.type === 'huogong' && s.huogong) {
-      return `<div class="control-box pick-box">
-        <div class="prompt">${escapeHtml(pending.prompt || '火攻')}</div>
-        <div class="pick-cards">
-          <div class="pick-card shown"><span class="pick-suit ${s.huogong.shown.color === 'red' ? 'red' : ''}">${SUIT_CN[s.huogong.shown.suit]}${s.huogong.shown.number}</span><b>${s.huogong.shown.name}</b><small>目标展示</small></div>
-          ${s.huogong.same.map(c => `<div class="pick-card" data-pick-id="${c.id}"><span class="pick-suit ${c.color === 'red' ? 'red' : ''}">${SUIT_CN[c.suit]}${c.number}</span><b>${c.name}</b><small>同花色</small></div>`).join('')}
+      if (!document.querySelector('.center-card.persist[data-card-id="' + s.huogong.shown.id + '"]')) {
+        showCenterCard(s.huogong.shown, null, true);
+      }
+      return `<div class="control-box">
+        <div class="prompt">火攻：目标展示了【${s.huogong.shown.name}】，是否弃置一张同花色手牌？</div>
+        <div class="btn-row">
+          ${(s.huogong.same || []).map(c => `<button class="btn" data-action="huogong-pick" data-card-id="${c.id}">${SUIT_CN[c.suit]}${c.number} ${c.name}</button>`).join('')}
+          <button class="btn ghost" data-action="huogong-pass">跳过</button>
         </div>
-        <button class="btn ghost" data-action="huogong-pass">不弃（不造成伤害）</button>
+        <div class="sub">不弃置则不造成伤害</div>
       </div>`;
     }
 
@@ -1960,6 +1967,13 @@ document.addEventListener('click', (e) => {
     return;
   }
 
+  if (action === 'huogong-pick') {
+    const btn = e.target.closest('[data-card-id]');
+    const cid = btn && btn.getAttribute('data-card-id');
+    if (cid) sendAction({ type: 'respond', cardId: cid });
+    return;
+  }
+
   if (action === 'jiedao-pass') {
     sendAction({ type: 'respond', pass: true });
     return;
@@ -2204,10 +2218,12 @@ function playDrawFx(ev) {
   const dx = (tr.left + tr.width / 2) - cx;
   const dy = (tr.top + tr.height / 2) - cy;
   requestAnimationFrame(() => {
-    wrap.style.transition = 'transform .55s cubic-bezier(.2,.7,.3,1), opacity .55s ease';
+    wrap.style.transition = 'transform 1.25s cubic-bezier(.2,.7,.3,1), opacity 1.25s ease';
     wrap.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(.55)';
     wrap.style.opacity = '0';
   });
-  setTimeout(() => wrap.remove(), 700);
+  setTimeout(() => wrap.remove(), 1500);
 }
+
+
 
