@@ -43,6 +43,8 @@ class Game {
     this.pending = null;
     this.turn = 0;
     this.log = [];
+    this.events = [];
+    this.eventSeq = 0;
     this.gameOver = null;
     this.started = false;
     this.assignRoles();
@@ -107,6 +109,13 @@ class Game {
   pushLog(text) {
     this.log.push(text);
     if (this.log.length > 300) this.log.shift();
+  }
+
+  pushEvent(type, data) {
+    const ev = { id: ++this.eventSeq, type, ...data };
+    this.events.push(ev);
+    if (this.events.length > 60) this.events.shift();
+    return ev;
   }
 
   currentPlayer() { return this.players[this.current]; }
@@ -454,6 +463,7 @@ class Game {
       this.discard.push(c1, c2);
       p.flags.shaUsed++;
       this.pushLog(`${p.name} 发动【丈八蛇矛】，将两张手牌当【杀】对 ${target.name} 使用`);
+      this.pushEvent('sha', { playerId: p.id, targetId: target.id, color: 'black' });
       this.pending = {
         type: 'shan',
         playerId: target.id,
@@ -655,6 +665,7 @@ class Game {
       }
       const yijueBoost = (p.flags.yijueTarget === target.id && card.suit === 'heart') ? 1 : 0;
       this.pushLog(`${p.name} 对 ${target.name} 使用【杀】${fire ? '（火杀）' : ''}`);
+      this.pushEvent('sha', { playerId: p.id, targetId: target.id, color: card.color, element: fire ? 'fire' : (card.key === 'leisha' ? 'thunder' : null) });
       // 厉勇：上一张【杀】被【闪】抵消后，本阶段下一张【杀】目标非锁定技失效、不可响应、伤害+1
       if (this.hasSkill(p, 'liyong') && p.flags.liyong) {
         p.flags.liyong = false;
@@ -1154,6 +1165,7 @@ class Game {
       p.hand.splice(p.hand.indexOf(sha), 1);
       this.discard.push(sha);
       this.pushLog(`${p.name} 发动【青龙偃月刀】，继续使用【${sha.name}】`);
+      this.pushEvent('sha', { playerId: p.id, targetId: pend.targetId, color: sha.color });
       const t = this.findPlayer(pend.targetId);
       this.pending = {
         type: 'shan', playerId: t.id, sourceId: p.id, cardId: sha.id,
@@ -1198,6 +1210,7 @@ class Game {
       p.hand.splice(p.hand.indexOf(card), 1);
       this.discard.push(card);
       this.pushLog(`${p.name} 对 ${victim.name} 使用【${card.name}】（借刀杀人）`);
+      this.pushEvent('sha', { playerId: p.id, targetId: victim.id, color: card.color, response: true });
       this.pending = {
         type: 'shan', playerId: victim.id, sourceId: p.id,
         cardId: card.id, boost: false, queue: [],
@@ -1264,6 +1277,7 @@ class Game {
       p.hand.splice(p.hand.indexOf(card), 1);
       this.discard.push(card);
       this.pushLog(`${p.name} 打出【闪】`);
+      this.pushEvent('shan', { playerId: p.id });
       const liyongSrc = this.findPlayer(pend.sourceId);
       if (liyongSrc && this.hasSkill(liyongSrc, 'liyong') && this.phase === 'play'
         && this.currentPlayer() && this.currentPlayer().id === liyongSrc.id) {
@@ -1310,6 +1324,7 @@ class Game {
       p.hand.splice(p.hand.indexOf(card), 1);
       this.discard.push(card);
       this.pushLog(`${p.name} 打出【杀】`);
+      this.pushEvent('sha', { playerId: p.id, color: card.color, response: true });
       const oppId = p.id === pend.a ? pend.b : pend.a;
       const opp = this.findPlayer(oppId);
       if (!opp || !opp.alive) { this.pending = null; return ok(); }
@@ -1364,6 +1379,7 @@ class Game {
       p.hand.splice(p.hand.indexOf(card), 1);
       this.discard.push(card);
       this.pushLog(`${p.name} 打出【${needCard}】`);
+      this.pushEvent(needCard === '杀' ? 'sha' : 'shan', { playerId: p.id, response: true });
       this.pending = this.advanceQueue(pend);
       return ok();
     }
@@ -1420,6 +1436,7 @@ class Game {
     if (target.equips && target.equips.armor && target.equips.armor.key === 'tengjia' && card && (card.fire || card.element === 'fire')) amount += 1;
     target.hp -= amount;
     this.pushLog(`${target.name} 受到${amount}点伤害（${target.hp}/${target.maxHp}）`);
+    this.pushEvent('damage', { playerId: target.id, sourceId: source ? source.id : null, amount, element: card && (card.element || (card.fire ? 'fire' : null)) || null });
     // 麒麟弓：造成伤害后可以选择弃置目标一匹马
     if (source && source.equips && source.equips.weapon && source.equips.weapon.key === 'qilin'
       && target.alive && target.equips && (target.equips.horse1 || target.equips.horse2) && !this.pending) {
@@ -1653,11 +1670,13 @@ class Game {
           })()
         : null,
       log: this.log.slice(-30),
+      events: this.events.slice(-20),
       gameOver: this.gameOver,
     };
   }
 }
 
 module.exports = { Game };
+
 
 

@@ -32,6 +32,8 @@ const ui = {
   yijueStage: null,
   yijueCard: null,
   hanbingSet: new Set(),
+  fxKey: null,
+  fxLastId: 0,
   respondBusy: false,
   playDeadline: null,
   playTimerRaf: null,
@@ -53,6 +55,12 @@ const ui = {
   sound: localStorage.getItem('sgs_sound') !== '0',
   audio: {},
 };
+
+// 预加载特效素材
+['sha', 'shan', 'slash', 'burst', 'thunder1', 'thunder2', 'thunder3'].forEach(n => {
+  const im = new Image();
+  im.src = '/assets/fx/' + n + '.png';
+});
 
 if (params.get('room')) ui.code = params.get('room').toUpperCase();
 
@@ -119,9 +127,72 @@ function applyState(ns) {
   ui.discardSet.clear();
   ui.error = '';
   render();
+  processFx(ns);
   if (newLines.length) {
     newLines.slice(-4).forEach((line, i) => setTimeout(() => triggerFx(line, ns), i * 180));
   }
+}
+
+// ---- 结构化特效事件：杀/闪字、剑光、蓝色闪电 ----
+function processFx(s) {
+  if (!s || !s.started || !Array.isArray(s.events) || !s.events.length) return;
+  const key = s.room + '|' + myId(s);
+  const maxId = s.events[s.events.length - 1].id;
+  if (!ui.fxStarted || ui.fxKey !== key) {
+    ui.fxStarted = true;
+    ui.fxKey = key;
+    ui.fxLastId = maxId;
+    return;
+  }
+  if (maxId < ui.fxLastId) { ui.fxLastId = maxId; return; }
+  for (const ev of s.events) {
+    if (ev.id > ui.fxLastId) playFx(ev);
+  }
+  ui.fxLastId = maxId;
+}
+
+function fxImg(name, cls) {
+  const img = document.createElement('img');
+  img.src = '/assets/fx/' + name + '.png';
+  img.className = 'fx-img' + (cls ? ' ' + cls : '');
+  img.draggable = false;
+  return img;
+}
+
+function playFx(ev) {
+  if (!ev || !ev.playerId) return;
+  if (ev.type === 'sha') {
+    playOn(ev.playerId, [fxImg('sha', 'sha')]);
+    if (ev.element === 'thunder' && ev.targetId) {
+      playOn(ev.targetId, [fxImg('thunder1', 'thunder'), fxImg('thunder2', 'thunder')]);
+    }
+    return;
+  }
+  if (ev.type === 'shan') {
+    playOn(ev.playerId, [fxImg('shan', 'shan')]);
+    return;
+  }
+  if (ev.type === 'damage') {
+    const imgs = [fxImg('burst', 'burst'), fxImg('slash', 'slash')];
+    if (ev.element === 'thunder') imgs.push(fxImg('thunder1', 'thunder'));
+    playOn(ev.playerId, imgs);
+  }
+}
+
+function playOn(playerId, imgs) {
+  const el = document.querySelector('.gc-wrap[data-player-id="' + playerId + '"]');
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  const layer = document.createElement('div');
+  layer.className = 'fx-layer';
+  layer.style.left = r.left + 'px';
+  layer.style.top = r.top + 'px';
+  layer.style.width = r.width + 'px';
+  layer.style.height = r.height + 'px';
+  imgs.forEach(i => layer.appendChild(i));
+  const fx = document.getElementById('fx') || document.body;
+  fx.appendChild(layer);
+  setTimeout(() => layer.remove(), 1000);
 }
 
 function connect() {
@@ -920,7 +991,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v92</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v93</div>
   </div></div>`;
 }
 
@@ -979,7 +1050,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v92</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v93</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1002,7 +1073,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v92</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v93</div>
   </div></div>`;
 }
 
@@ -2075,6 +2146,7 @@ loadModes().then(() => {
   if (ui.room && ui.playerId) connect();
   else render();
 });
+
 
 
 
