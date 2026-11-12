@@ -1506,3 +1506,17 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
   90% { opacity: .9; }
   100% { opacity: 0; }
 }
+
+/* 出牌展示：独立浅色牌面（不依赖 .card，避免被艺术图盖住） */
+.center-face { width: 150px; height: 210px; border-radius: 8px; overflow: hidden; position: relative;
+  background: linear-gradient(180deg, #f4ead1, #ddc9a6); border: 2px solid #a98145;
+  box-shadow: 0 14px 40px rgba(0,0,0,.7); color: #2a1c10; }
+.center-face .cf-top { position: relative; z-index: 3; display: flex; align-items: center; gap: 4px; padding: 4px 6px;
+  background: linear-gradient(180deg, #fff8e6, #f0e3c6); font-size: 13px; font-weight: 700; }
+.center-face .cf-suit { color: #7a1f1f; }
+.center-face.red .cf-suit, .center-face.red .cf-num, .center-face.red .cf-name { color: #a52626; }
+.center-face .cf-num { font-size: 15px; font-weight: 800; }
+.center-face .cf-type { margin-left: auto; font-size: 10px; border: 1px solid #8a6a3a; border-radius: 3px; padding: 1px 3px; color: #6b4a24; }
+.center-face .cf-name { position: relative; z-index: 3; text-align: center; font-size: 18px; font-weight: 800; padding: 3px 0;
+  background: linear-gradient(180deg, #fff9e8, #e8d9ba); border-top: 1px solid #b99a63; border-bottom: 1px solid #b99a63; }
+.center-face .cf-art { position: absolute; inset: 0; z-index: 1; background-image: var(--art); background-size: cover; background-position: center; }
