@@ -1264,3 +1264,34 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
     font-size: 11px;
   }
 }
+
+/* ---------------- 目标手牌/装备/判定三区面板（过河、顺手、寒冰剑等） ---------------- */
+.zones-panel { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 8px; width: 100%; }
+.zone-row { display: flex; align-items: stretch; gap: 8px; }
+.zone-label {
+  flex: 0 0 26px; display: flex; align-items: center; justify-content: center;
+  writing-mode: vertical-rl; letter-spacing: 2px; padding: 6px 0;
+  color: #e8cf9a; background: rgba(30, 20, 14, .8);
+  border: 1px solid rgba(200, 160, 90, .5); border-radius: 6px;
+  font-size: 13px; font-weight: 700;
+}
+.zone-cards { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.zone-card {
+  width: 54px; height: 76px; border-radius: 6px; cursor: pointer;
+  background: linear-gradient(160deg, #f4ecd8, #d8c9a8); border: 1px solid #b99a5e;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font-size: 11px; color: #3a2c1c; box-shadow: 0 2px 6px rgba(0, 0, 0, .5);
+}
+.zone-card b { font-size: 11px; line-height: 1.15; text-align: center; padding: 0 2px; }
+.zone-card.back { background: linear-gradient(160deg, #6b5a3a, #3a2f1e); border-color: #a98145; }
+.zone-card.back span { color: #e8cf9a; font-size: 22px; font-weight: 700; }
+.zone-card .zc-suit { font-size: 11px; }
+.zone-card .zc-suit.red { color: #b32020; }
+.zone-card.selected { outline: 2px solid #f0cf8e; box-shadow: 0 0 10px rgba(240, 207, 142, .85); }
+.zone-slot {
+  width: 54px; height: 76px; border-radius: 6px; border: 1px dashed rgba(200, 170, 110, .45);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: rgba(230, 210, 170, .5); text-align: center;
+}
+.zone-empty { font-size: 12px; color: rgba(230, 210, 170, .6); padding: 0 8px; }
+.zone-card b { font-size: 10px; line-height: 1.1; }

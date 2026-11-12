@@ -720,7 +720,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v79</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v80</div>
   </div></div>`;
 }
 
@@ -779,7 +779,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v79</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v80</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -802,7 +802,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v79</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v80</div>
   </div></div>`;
 }
 
@@ -1127,6 +1127,31 @@ function isCardUsable(card, s) {
   return false;
 }
 
+function zonesHtml(z, opts) {
+  if (!z) return '';
+  const sel = id => opts.multi && ui.hanbingSet.has(id);
+  const face = (c) => `<div class="zone-card ${sel(c.id) ? 'selected' : ''}" data-zone-card="${c.id}">
+    <span class="zc-suit ${c.color === 'red' ? 'red' : ''}">${SUIT_CN[c.suit]}${c.number}</span>
+    <b>${c.name}</b></div>`;
+  const back = (c) => `<div class="zone-card back ${sel(c.id) ? 'selected' : ''}" data-zone-card="${c.id}"><span>?</span></div>`;
+  const empty = (t) => `<div class="zone-slot">${t}</div>`;
+  const eqNames = { weapon: '武器牌', armor: '防具牌', horse1: '+1马', horse2: '-1马' };
+  const eqRow = `<div class="zone-row"><div class="zone-label">装备牌</div><div class="zone-cards">${
+    Object.keys(eqNames).map(k => z.equips[k] ? face(z.equips[k]) : empty(eqNames[k])).join('')
+  }</div></div>`;
+  const judgeRow = opts.showJudge
+    ? `<div class="zone-row"><div class="zone-label">延时锦囊牌</div><div class="zone-cards">${
+        z.judge.length ? z.judge.map(face).join('') : '<div class="zone-empty">无</div>'
+      }</div></div>`
+    : '';
+  return `<div class="zones-panel">
+    <div class="zone-row"><div class="zone-label">手牌</div><div class="zone-cards">${
+      z.hand.length ? z.hand.map(back).join('') : '<div class="zone-empty">无</div>'
+    }</div></div>
+    ${eqRow}${judgeRow}
+  </div>`;
+}
+
 function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
   if (s.gameOver) return '';
   if (pending && myPending) {
@@ -1143,9 +1168,7 @@ function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
     if (pending.type === 'hanbing' && s.hanbing) {
       return `<div class="control-box pick-box">
         <div class="prompt">${escapeHtml(pending.prompt || '寒冰剑')}</div>
-        <div class="pick-cards">
-          ${s.hanbing.cards.map(c => `<div class="pick-card ${ui.hanbingSet.has(c.id) ? 'selected' : ''}" data-hanbing-id="${c.id}"><span class="pick-suit ${c.color === 'red' ? 'red' : ''}">${SUIT_CN[c.suit]}${c.number}</span><b>${c.name}</b><small>${c.type === 'equip' ? '装备' : '手牌'}</small></div>`).join('')}
-        </div>
+        ${zonesHtml(s.hanbing.zones, { multi: true, showJudge: false })}
         <div class="sub">已选 ${ui.hanbingSet.size} / ${s.hanbing.count}（至少 1 张）</div>
         <div class="btn-row">
           <button class="btn primary" data-action="hanbing-confirm" ${ui.hanbingSet.size >= 1 && ui.hanbingSet.size <= s.hanbing.count ? '' : 'disabled'}>弃置所选</button>
@@ -1212,13 +1235,8 @@ function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
       if (!pick) return `<div class="control-box waiting"><div class="prompt">${escapeHtml(pending.prompt || '')}</div></div>`;
       return `<div class="control-box pick-box">
         <div class="prompt">${escapeHtml(pending.prompt || '')}</div>
-        <div class="pick-cards">
-          ${pick.cards.map(c => c.hidden
-            ? `<div class="pick-card back" data-pick-id="${c.id}"><span>?</span><small>手牌</small></div>`
-            : `<div class="pick-card ${c.zone}" data-pick-id="${c.id}"><span class="pick-suit ${c.color === 'red' ? 'red' : ''}">${SUIT_CN[c.suit]}${c.number}</span><b>${c.name}</b><small>${c.zone === 'judge' ? '判定区' : c.zone === 'equip' ? '装备区' : '手牌'}</small></div>`
-          ).join('')}
-        </div>
-        <div class="sub">点击一张牌${pick.mode === 'guohe' ? '弃置' : '获得'}</div>
+        ${zonesHtml(pick.zones, { multi: false, showJudge: true })}
+        <div class="sub">点击一张牌${pick.mode === 'guohe' ? '弃置' : '获得'}（手牌为背面，不展示具体牌）</div>
       </div>`;
     }
     return `<div class="prompt-line">
@@ -1313,6 +1331,21 @@ document.addEventListener('click', (e) => {
     else ui.hanbingSet.add(id);
     renderLocal();
     return;
+  }
+  const zcEl = e.target.closest('[data-zone-card]');
+  if (zcEl) {
+    const id = zcEl.dataset.zoneCard;
+    const pend = ui.state && ui.state.pending;
+    if (pend && pend.type === 'hanbing') {
+      if (ui.hanbingSet.has(id)) ui.hanbingSet.delete(id);
+      else if (ui.hanbingSet.size < (ui.state.hanbing?.count || 2)) ui.hanbingSet.add(id);
+      renderLocal();
+      return;
+    }
+    if (pend && pend.type === 'pick') {
+      sendAction({ type: 'respond', cardId: id });
+      return;
+    }
   }
   if (e.target.closest('[data-skill-act]') && ui.state && ui.state.started) {
     const me = ui.state.players.find(p => p.id === myId(ui.state));

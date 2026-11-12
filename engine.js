@@ -1455,10 +1455,24 @@ class Game {
       hanbing: this.pending && this.pending.type === 'hanbing' && this.pending.playerId === playerId
         ? (() => {
             const t = this.findPlayer(this.pending.targetId);
-            if (!t) return { count: 0, cards: [] };
-            const cards = [...t.hand, ...Object.values(t.equips || {}).filter(Boolean)]
-              .map(c => ({ id: c.id, name: c.name, type: c.type, suit: c.suit, number: c.number, color: c.color }));
-            return { count: this.pending.count, cards };
+            if (!t) return { count: 0, targetName: '', cards: [], zones: null };
+            const cv = c => ({ id: c.id, name: c.name, suit: c.suit, number: c.number, color: c.color, type: c.type });
+            return {
+              count: this.pending.count,
+              targetName: t.name,
+              cards: [...t.hand, ...Object.values(t.equips || {}).filter(Boolean)]
+                .map(c => ({ id: c.id, name: c.name, type: c.type, suit: c.suit, number: c.number, color: c.color })),
+              zones: {
+                hand: t.hand.map(c => ({ id: c.id })),
+                equips: {
+                  weapon: t.equips.weapon ? cv(t.equips.weapon) : null,
+                  armor: t.equips.armor ? cv(t.equips.armor) : null,
+                  horse1: t.equips.horse1 ? cv(t.equips.horse1) : null,
+                  horse2: t.equips.horse2 ? cv(t.equips.horse2) : null,
+                },
+                judge: [],
+              },
+            };
           })()
         : null,
       wugu: this.pending && this.pending.type === 'wugu' && this.pending.playerId === playerId
@@ -1473,14 +1487,27 @@ class Game {
       pick: this.pending && this.pending.type === 'pick' && this.pending.playerId === playerId
         ? (() => {
             const t = this.findPlayer(this.pending.targetId);
+            if (!t) return { targetId: null, targetName: '', mode: this.pending.mode, cards: [], zones: null };
+            const cv = c => ({ id: c.id, name: c.name, suit: c.suit, number: c.number, color: c.color, type: c.type });
             return {
-              targetId: this.pending.targetId,
+              targetId: t.id,
+              targetName: t.name,
               mode: this.pending.mode,
-              cards: t ? [
+              cards: [
                 ...t.judge.map(c => ({ id: c.id, zone: 'judge', hidden: false, name: c.name, suit: c.suit, number: c.number, color: c.color })),
                 ...Object.values(t.equips || {}).filter(Boolean).map(c => ({ id: c.id, zone: 'equip', hidden: false, name: c.name, suit: c.suit, number: c.number, color: c.color })),
                 ...t.hand.map(c => ({ id: c.id, zone: 'hand', hidden: true })),
-              ] : [],
+              ],
+              zones: {
+                hand: t.hand.map(c => ({ id: c.id })),
+                equips: {
+                  weapon: t.equips.weapon ? cv(t.equips.weapon) : null,
+                  armor: t.equips.armor ? cv(t.equips.armor) : null,
+                  horse1: t.equips.horse1 ? cv(t.equips.horse1) : null,
+                  horse2: t.equips.horse2 ? cv(t.equips.horse2) : null,
+                },
+                judge: t.judge.map(cv),
+              },
             };
           })()
         : null,
