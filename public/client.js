@@ -36,6 +36,9 @@ const ui = {
   playDeadline: null,
   playTimerRaf: null,
   playAutoEnded: false,
+  timerKind: null,
+  timerDeadline: null,
+  timerAutoDone: false,
   selectedGeneral: null,
   skillView: null,
   error: '',
@@ -560,7 +563,10 @@ async function sendAction(action) {
   }
   const r = await post('/api/action', { room: ui.room, player: ui.playerId, action });
   if (!r.ok) { ui.error = r.error; render(); return; }
-  if (action && action.type === 'play') ui.playDeadline = Date.now() + 10000;
+  if (action && (action.type === 'play' || action.type === 'respond')) {
+    ui.timerDeadline = Date.now() + 20000;
+    ui.timerAutoDone = false;
+  }
   if (r.state) {
     ui.lastSig = stateSignature(r.state);
     applyState(r.state);
@@ -615,6 +621,8 @@ function render() {
   }
   app.innerHTML = gameHtml() + skillModalHtml();
   if (ui.error) { addToast(ui.error); ui.error = ''; }
+  syncTimers();
+  syncZoneModal(ui.state);
   requestAnimationFrame(layoutHand);
 }
 
@@ -647,18 +655,57 @@ function startPlayTimerTick() {
   ui.playTimerRaf = requestAnimationFrame(function tick() {
     ui.playTimerRaf = null;
     const fill = document.getElementById('ptFill');
-    const left = ui.playDeadline ? ui.playDeadline - Date.now() : 0;
-    if (fill) fill.style.width = Math.max(0, Math.min(100, left / 100)) + '%';
+    const left = ui.timerDeadline ? ui.timerDeadline - Date.now() : 0;
+    if (fill) fill.style.width = Math.max(0, Math.min(100, left / 200)) + '%';
     if (left <= 0) {
-      if (!ui.playAutoEnded) {
-        ui.playAutoEnded = true;
-        const s = ui.state;
-        if (s && s.phase === 'play' && s.currentPlayer === myId(s) && !s.pending) sendAction({ type: 'end-play' });
+      if (!ui.timerAutoDone) {
+        ui.timerAutoDone = true;
+        onTimerExpired();
       }
       return;
     }
     ui.playTimerRaf = requestAnimationFrame(tick);
   });
+}
+
+function onTimerExpired() {
+  const s = ui.state;
+  if (!s) return;
+  const me = myId(s);
+  const RESPOND_TYPES = ['shan', 'wanjian', 'duel', 'nanman', 'tao', 'wuxie'];
+  if (s.pending && s.pending.playerId === me && RESPOND_TYPES.includes(s.pending.type)) {
+    sendAction({ type: 'respond', pass: true });
+  } else if (s.phase === 'play' && s.currentPlayer === me && !s.pending) {
+    sendAction({ type: 'end-play' });
+  }
+}
+
+function syncTimers() {
+  const s = ui.state;
+  if (!s || !s.started) return;
+  const me = myId(s);
+  const RESPOND_TYPES = ['shan', 'wanjian', 'duel', 'nanman', 'tao', 'wuxie'];
+  const responding = s.pending && s.pending.playerId === me && RESPOND_TYPES.includes(s.pending.type);
+  const myPlay = s.phase === 'play' && s.currentPlayer === me && !s.pending;
+  if (responding) {
+    if (ui.timerKind !== 'respond') {
+      ui.timerKind = 'respond';
+      ui.timerDeadline = Date.now() + 20000;
+      ui.timerAutoDone = false;
+    }
+    startPlayTimerTick();
+  } else if (myPlay) {
+    if (ui.timerKind !== 'play') {
+      ui.timerKind = 'play';
+      ui.timerDeadline = Date.now() + 20000;
+      ui.timerAutoDone = false;
+    }
+    startPlayTimerTick();
+  } else {
+    ui.timerKind = null;
+    ui.timerDeadline = null;
+    ui.timerAutoDone = false;
+  }
 }
 
 function showTargetArrow(fromEl, toEl) {
@@ -816,13 +863,8 @@ function renderLocal() {
     });
   }
   // 出牌阶段 10 秒限时条
-  if (s.phase === 'play' && s.currentPlayer === meId && !s.pending) {
-    if (!ui.playDeadline) ui.playDeadline = Date.now() + 10000;
-    startPlayTimerTick();
-  } else {
-    ui.playDeadline = null;
-    ui.playAutoEnded = false;
-  }
+  syncTimers();
+  syncZoneModal(s);
   requestAnimationFrame(layoutHand);
 }
 
@@ -847,7 +889,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v83</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v85</div>
   </div></div>`;
 }
 
@@ -906,7 +948,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v83</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v85</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -929,7 +971,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v83</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v85</div>
   </div></div>`;
 }
 
@@ -1279,6 +1321,41 @@ function zonesHtml(z, opts) {
   </div>`;
 }
 
+function zoneModalHtml(s, pending) {
+  if (pending.type === 'hanbing' && s.hanbing) {
+    return `<div class="zone-modal" id="zoneModal">
+      <div class="zm-title">${escapeHtml(pending.prompt || '寒冰剑')}</div>
+      ${zonesHtml(s.hanbing.zones, { multi: true, showJudge: false })}
+      <div class="zm-sub">已选 ${ui.hanbingSet.size} / ${s.hanbing.count}（至少 1 张）</div>
+      <div class="btn-row">
+        <button class="btn primary" data-action="hanbing-confirm" ${ui.hanbingSet.size >= 1 && ui.hanbingSet.size <= s.hanbing.count ? '' : 'disabled'}>弃置所选</button>
+        <button class="btn ghost" data-action="hanbing-pass">放弃（正常造成伤害）</button>
+      </div>
+    </div>`;
+  }
+  if (pending.type === 'pick' && s.pick) {
+    return `<div class="zone-modal" id="zoneModal">
+      <div class="zm-title">${escapeHtml(pending.prompt || '')}</div>
+      ${zonesHtml(s.pick.zones, { multi: false, showJudge: true })}
+      <div class="zm-sub">点击一张牌${s.pick.mode === 'guohe' ? '弃置' : '获得'}（手牌为背面）</div>
+    </div>`;
+  }
+  return '';
+}
+
+function syncZoneModal(s) {
+  const layer = document.getElementById('fx');
+  if (!layer) return;
+  const old = document.getElementById('zoneModal');
+  const show = !!(s && s.started && s.pending && s.pending.playerId === myId(s)
+    && (s.pending.type === 'pick' || s.pending.type === 'hanbing'));
+  if (!show) { if (old) old.remove(); return; }
+  const html = zoneModalHtml(s, s.pending);
+  if (!html) { if (old) old.remove(); return; }
+  if (old) old.outerHTML = html;
+  else layer.insertAdjacentHTML('beforeend', html);
+}
+
 function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
   if (s.gameOver) return '';
   if (pending && myPending) {
@@ -1293,15 +1370,7 @@ function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
       </div>`;
     }
     if (pending.type === 'hanbing' && s.hanbing) {
-      return `<div class="control-box pick-box zone-modal">
-        <div class="prompt">${escapeHtml(pending.prompt || '寒冰剑')}</div>
-        ${zonesHtml(s.hanbing.zones, { multi: true, showJudge: false })}
-        <div class="sub">已选 ${ui.hanbingSet.size} / ${s.hanbing.count}（至少 1 张）</div>
-        <div class="btn-row">
-          <button class="btn primary" data-action="hanbing-confirm" ${ui.hanbingSet.size >= 1 && ui.hanbingSet.size <= s.hanbing.count ? '' : 'disabled'}>弃置所选</button>
-          <button class="btn ghost" data-action="hanbing-pass">放弃（正常造成伤害）</button>
-        </div>
-      </div>`;
+      return `<div class="control-box waiting"><div class="prompt">${escapeHtml(pending.prompt || '寒冰剑')}</div></div>`;
     }
 
     if (pending.type === 'yajiao') {
@@ -1360,15 +1429,10 @@ function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
     if (pending.type === 'pick') {
       const pick = s.pick;
       if (!pick) return `<div class="control-box waiting"><div class="prompt">${escapeHtml(pending.prompt || '')}</div></div>`;
-      return `<div class="control-box pick-box zone-modal">
-        <div class="prompt">${escapeHtml(pending.prompt || '')}</div>
-        ${zonesHtml(pick.zones, { multi: false, showJudge: true })}
-        <div class="sub">点击一张牌${pick.mode === 'guohe' ? '弃置' : '获得'}（手牌为背面，不展示具体牌）</div>
-      </div>`;
+      return `<div class="control-box waiting"><div class="prompt">${escapeHtml(pending.prompt || '')}</div></div>`;
     }
     return `<div class="prompt-line">
-      <span class="prompt">${escapeHtml(pending.prompt || '')}</span>
-      ${ui.activeSkill ? `<span class="sub">已发动【${skillName(ui.activeSkill)}】，请点击对应的牌</span>` : ''}
+      <div class="play-timer"><div class="pt-fill" id="ptFill"></div><div class="pt-text">${escapeHtml(pending.prompt || '')}${ui.activeSkill ? `　已发动【${skillName(ui.activeSkill)}】` : ''}</div></div>
       <button class="btn ghost" data-action="cancel">取消</button>
     </div>`;
   }
@@ -1880,3 +1944,4 @@ loadModes().then(() => {
   if (ui.room && ui.playerId) connect();
   else render();
 });
+

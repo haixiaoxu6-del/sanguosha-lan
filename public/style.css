@@ -1345,3 +1345,41 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 .pt-text { position: relative; z-index: 1; height: 100%; display: flex; align-items: center; justify-content: center;
   font-size: 14px; color: #ffe9c8; text-shadow: 0 1px 3px #000; }
 .play-bar { flex-wrap: wrap; }
+
+/* 限时条最终样式：单行、细、圆角胶囊、橘红 */
+.play-bar { flex-wrap: nowrap; align-items: center; }
+.play-bar .play-timer { flex: 1 1 auto; height: 26px; border-radius: 999px; }
+.play-bar .pt-fill { border-radius: 999px; background: linear-gradient(90deg, #d24a1e, #f08a4b); }
+.play-bar .pt-text { font-size: 13px; }
+.prompt-line { display: flex; align-items: center; gap: 8px; }
+.prompt-line .play-timer { flex: 1 1 auto; height: 26px; border-radius: 999px; }
+.prompt-line .pt-fill { border-radius: 999px; background: linear-gradient(90deg, #d24a1e, #f08a4b); }
+.prompt-line .pt-text { font-size: 13px; }
+/* 中央展示牌：前 2 秒不透明，后 2 秒 50% 透明，之后消失（无模糊） */
+@keyframes centerCard {
+  0% { opacity: 1; }
+  50% { opacity: 1; }
+  50.01% { opacity: .5; }
+  99% { opacity: .5; }
+  100% { opacity: 0; }
+}
+
+/* 选牌弹窗：相对整个视口居中，尺寸放大一倍 */
+#zoneModal.zone-modal {
+  position: fixed; left: 50vw; top: 50vh; transform: translate(-50%, -50%);
+  pointer-events: auto; z-index: 130;
+  width: min(94vw, 1120px); max-height: 88vh; overflow: auto;
+  padding: 26px 30px; background: rgba(24, 16, 10, .975);
+  border: 1px solid rgba(200, 160, 90, .65); border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .8);
+}
+#zoneModal .zone-card { width: 150px; height: 210px; }
+#zoneModal .zone-card b { font-size: 18px; }
+#zoneModal .zone-slot { width: 150px; height: 210px; font-size: 16px; }
+#zoneModal .zone-label { flex: 0 0 46px; font-size: 20px; }
+#zoneModal .zone-card .zc-suit { font-size: 18px; }
+#zoneModal .zone-card.back span { font-size: 48px; }
+#zoneModal .zone-cards { gap: 12px; }
+.zm-title { text-align: center; color: #f0cf8e; font-size: 20px; margin-bottom: 14px; }
+.zm-sub { text-align: center; color: #b9a887; font-size: 15px; margin-top: 12px; }
+#zoneModal.zone-modal { max-height: 96vh; }
