@@ -360,7 +360,8 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
   width: 100%;
   height: auto;
   aspect-ratio: 138 / 253;
-  object-fit: contain;
+  object-fit: cover;
+  object-position: center top;
   display: block;
   background: #0e0b09;
 }
