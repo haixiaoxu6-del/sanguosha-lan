@@ -1019,7 +1019,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v101</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v102</div>
   </div></div>`;
 }
 
@@ -1078,7 +1078,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v101</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v102</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1107,7 +1107,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v101</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v102</div>
   </div></div>`;
 }
 
@@ -1570,7 +1570,7 @@ function _controlsHtml(s, you, current, pending, myPending, isMyTurn) {
       return `<div class="control-box">
         <div class="prompt">火攻：目标展示了【${s.huogong.shown.name}】，是否弃置一张同花色手牌？</div>
         <div class="btn-row">
-          ${(s.huogong.same || []).map(c => `<button class="btn" data-action="huogong-pick" data-card-id="${c.id}">${SUIT_CN[c.suit]}${c.number} ${c.name}</button>`).join('')}
+          ${(s.huogong.same || []).map(c => `<button class="btn" data-pick-id="${c.id}">${SUIT_CN[c.suit]}${c.number} ${c.name}</button>`).join('')}
           <button class="btn ghost" data-action="huogong-pass">跳过</button>
         </div>
         <div class="sub">不弃置则不造成伤害</div>
@@ -2248,4 +2248,6 @@ function wuguHtml(s) {
     </div>
   </div></div>`;
 }
+
+
 
