@@ -705,7 +705,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v74</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v75</div>
   </div></div>`;
 }
 
@@ -764,7 +764,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v74</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v75</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -787,7 +787,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v74</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v75</div>
   </div></div>`;
 }
 
@@ -1090,6 +1090,7 @@ function isCardUsable(card, s) {
   if (s.pending && s.pending.playerId === myId(s)) {
     const type = s.pending.type;
     if (type === 'discard') return true;
+    if (type === 'yajiao_discard') return true;
     if (type === 'yijue') return true;
     if (type === 'shan' || type === 'wanjian') return canUseAsShan(card);
     if (type === 'duel' || type === 'nanman') return canUseAsSha(card);
@@ -1114,6 +1115,23 @@ function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
         </div>
       </div>`;
     }
+    if (pending.type === 'yajiao') {
+      return `<div class="control-box pick-box">
+        <div class="prompt">${escapeHtml(pending.prompt || '涯角：选择一名角色')}</div>
+        <div class="sub">点击任意武将（可以给自己）</div>
+      </div>`;
+    }
+
+    if (pending.type === 'yajiao_discard') {
+      return `<div class="control-box">
+        <div class="prompt">${escapeHtml(pending.prompt || '请弃置一张牌')}</div>
+        <div class="sub">已选 ${ui.discardSet.size} / 1</div>
+        <div class="btn-row">
+          <button class="btn primary" data-action="yajiao-discard-confirm" ${ui.discardSet.size === 1 ? '' : 'disabled'}>确认弃牌</button>
+        </div>
+      </div>`;
+    }
+
     if (pending.type === 'yijue') {
       return `<div class="control-box pick-box">
         <div class="prompt">${escapeHtml(pending.prompt || '义绝：请选择一张手牌展示')}</div>
@@ -1305,7 +1323,7 @@ document.addEventListener('click', (e) => {
       renderLocal();
       return;
     }
-    if (s.pending && s.pending.playerId === myId(s) && s.pending.type === 'discard') {
+    if (s.pending && s.pending.playerId === myId(s) && (s.pending.type === 'discard' || s.pending.type === 'yajiao_discard')) {
       if (ui.discardSet.has(id)) ui.discardSet.delete(id);
       else if (ui.discardSet.size < s.pending.count) ui.discardSet.add(id);
       renderLocal();
@@ -1379,6 +1397,12 @@ document.addEventListener('click', (e) => {
       ui.yijueStage = null;
       ui.yijueCard = null;
       sendAction({ type: 'play', as: 'yijue', cardIds: [cardId], targetId: id });
+      return;
+    }
+
+    if (ui.state.pending && ui.state.pending.type === 'yajiao'
+      && ui.state.pending.playerId === myId(ui.state) && p && p.alive) {
+      sendAction({ type: 'respond', targetId: id });
       return;
     }
 
@@ -1475,6 +1499,12 @@ document.addEventListener('click', (e) => {
 
   if (action === 'jiedao-pass') {
     sendAction({ type: 'respond', pass: true });
+    return;
+  }
+
+  if (action === 'yajiao-discard-confirm') {
+    sendAction({ type: 'respond', cardIds: [...ui.discardSet] });
+    ui.discardSet.clear();
     return;
   }
 

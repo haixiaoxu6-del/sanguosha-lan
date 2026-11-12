@@ -50,6 +50,17 @@ function aiAct(game) {
         continue;
       }
 
+      if (pend.type === 'yajiao') {
+        game.respond(ai.id, { targetId: ai.id });
+        continue;
+      }
+
+      if (pend.type === 'yajiao_discard') {
+        const c = ai.hand[0];
+        game.respond(ai.id, { cardIds: c ? [c.id] : [] });
+        continue;
+      }
+
       if (pend.type === 'pick') {
         const t = game.findPlayer(pend.targetId);
         const pool = t ? [...t.hand, ...t.judge, ...Object.values(t.equips || {}).filter(Boolean)] : [];

@@ -366,6 +366,28 @@ class Game {
     return false;
   }
 
+  // 【涯角】：回合外使用/打出手牌后，亮出牌堆顶一张交给一名角色；类别不同则弃一张
+  maybeYajiao(p, card) {
+    if (!p || !p.alive || !this.hasSkill(p, 'yajiao') || !card) return false;
+    const cur = this.currentPlayer();
+    if (cur && cur.id === p.id) return false;
+    const revealed = this.drawCard();
+    if (!revealed) return false;
+    const cat = c => (c.type === 'basic' ? 'basic' : (c.type === 'equip' ? 'equip' : 'trick'));
+    const diff = cat(card) !== cat(revealed);
+    this.pending = {
+      type: 'yajiao',
+      playerId: p.id,
+      usedName: card.name,
+      revealedName: revealed.name,
+      revealed,
+      diff,
+      prompt: `【涯角】：亮出【${revealed.name}】，选择一名角色交给其${diff ? '（类别不同，之后弃一张牌）' : ''}`,
+    };
+    this.pushLog(`${p.name} 发动【涯角】，亮出【${revealed.name}】`);
+    return true;
+  }
+
   // ---------------- 出牌 ----------------
   play(playerId, action) {
     if (this.phase !== 'play') return err('现在不是出牌阶段');
@@ -583,10 +605,6 @@ class Game {
       }
       this.discard.push(card);
       p.flags.shaUsed++;
-      if (this.hasSkill(p, 're_longdan') && card.key === 'shan') {
-        this.draw(p, 1);
-        this.pushLog(`${p.name} 发动【龙胆】，摸一张牌`);
-      }
       const jiuBoost = p.flags.jiu ? 1 : 0;
       if (p.flags.jiu) {
         p.flags.jiu = false;
@@ -873,6 +891,20 @@ class Game {
 
   // ---------------- 响应 ----------------
   respond(playerId, action) {
+    const p = this.findPlayer(playerId);
+    const before = this.pending;
+    const cur = this.currentPlayer();
+    const outside = !!(cur && cur.id !== playerId);
+    const noUse = !!(before && ['pick', 'wugu', 'yijue', 'huogong', 'yajiao', 'yajiao_discard'].includes(before.type));
+    const played = (p && action && action.cardId) ? (p.hand.find(c => c.id === action.cardId) || null) : null;
+    const res = this._respond(playerId, action);
+    if (res && res.ok && played && outside && !noUse && !this.pending) {
+      this.maybeYajiao(p, played);
+    }
+    return res;
+  }
+
+  _respond(playerId, action) {
     if (!this.pending) return err('现在没有需要响应的牌');
     const pend = this.pending;
     if (pend.playerId !== playerId) return err('还没轮到你响应');
@@ -944,6 +976,33 @@ class Game {
         this.pushLog(`${p.name} 展示红色【${shown.name}】，${src ? src.name : ''} 获得之`);
         if (p.hp < p.maxHp) { this.heal(p, 1); this.pushLog(`${p.name} 回复1点体力`); }
       }
+      return ok();
+    }
+
+    if (pend.type === 'yajiao') {
+      const target = action.targetId ? this.findPlayer(action.targetId) : null;
+      if (!target || !target.alive) return err('请选择一名角色');
+      target.hand.push(pend.revealed);
+      this.pushLog(`${p.name} 将【${pend.revealed.name}】交给 ${target.name}`);
+      this.pending = null;
+      if (pend.diff) {
+        if (p.hand.length === 0) return ok();
+        this.pending = { type: 'yajiao_discard', playerId: p.id, count: 1, prompt: '【涯角】：两张牌类别不同，请弃置一张牌' };
+      }
+      return ok();
+    }
+
+    if (pend.type === 'yajiao_discard') {
+      const ids = Array.isArray(action.cardIds) ? action.cardIds : [];
+      const c = p.hand.find(x => x.id === ids[0]);
+      if (!c) {
+        if (p.hand.length === 0) { this.pending = null; return ok(); }
+        return err('请选择一张牌弃置');
+      }
+      p.hand.splice(p.hand.indexOf(c), 1);
+      this.discard.push(c);
+      this.pushLog(`${p.name} 因【涯角】弃置【${c.name}】`);
+      this.pending = null;
       return ok();
     }
 
@@ -1035,10 +1094,6 @@ class Game {
         && this.currentPlayer() && this.currentPlayer().id === liyongSrc.id) {
         liyongSrc.flags.liyong = true;
         this.pushLog(`${liyongSrc.name} 的【杀】被【闪】抵消，触发【厉勇】`);
-      }
-      if (this.hasSkill(p, 're_longdan') && card.key === 'sha') {
-        this.draw(p, 1);
-        this.pushLog(`${p.name} 发动【龙胆】，摸一张牌`);
       }
       this.pending = null;
       nextSha();
