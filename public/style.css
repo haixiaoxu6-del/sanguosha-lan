@@ -1474,3 +1474,10 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 /* 选将卡：把立绘下方那条线提到顶部框线位置（立绘上移，顶部深色带裁掉） */
 .general-card .gc-art img { top: -42px; height: calc(100% + 42px); }
 
+
+/* 摸牌动画 */
+.draw-fly { position: fixed; width: 0; height: 0; z-index: 86; pointer-events: none; }
+.df-card { position: absolute; width: 96px; height: 120px; object-fit: cover; border: 2px solid #a98145; border-radius: 6px;
+  margin-left: -62px; margin-top: -60px; box-shadow: 0 8px 20px rgba(0,0,0,.6); }
+.df-card.a { transform: rotate(-8deg) translateX(-14px); }
+.df-card.b { transform: rotate(7deg) translateX(14px); }

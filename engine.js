@@ -172,6 +172,7 @@ class Game {
       p.hand.push(c);
       cards.push(c);
     }
+    if (cards.length) this.pushEvent('draw', { playerId: p.id, count: cards.length });
     return cards;
   }
 

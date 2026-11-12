@@ -163,6 +163,7 @@ function fxImg(name, cls) {
 
 function playFx(ev) {
   if (!ev || !ev.playerId) return;
+  if (ev.type === 'draw') { playDrawFx(ev); return; }
   if (ev.type === 'sha') {
     playOn(ev.playerId, [fxImg('sha', 'sha')]);
     if (ev.element === 'thunder' && ev.targetId) {
@@ -181,8 +182,7 @@ function playFx(ev) {
   }
 }
 
-function playOn(playerId, imgs) {
-  const el = document.querySelector('.gc-wrap[data-player-id="' + playerId + '"]');
+function playOn(playerId, imgs) {  const el = document.querySelector('.gc-wrap[data-player-id="' + playerId + '"]');
   if (!el) return;
   const r = el.getBoundingClientRect();
   const layer = document.createElement('div');
@@ -624,7 +624,8 @@ async function sendAction(action) {
   }
   if (action && (action.type === 'play' || action.type === 'respond') && action.cardId) {
     const c = ui.state && ui.state.you.hand.find(x => x.id === action.cardId);
-    if (c) showCenterCard(c);
+    const fromEl = document.querySelector('.dz-hand .card[data-card-id="' + action.cardId + '"]');
+    if (c) showCenterCard(c, fromEl);
   }
   if (action && (action.targetId || (Array.isArray(action.targetIds) && action.targetIds.length))) {
     const from = document.querySelector('.gc-self') || document.querySelector('.dz-hand .card.selected');
@@ -709,7 +710,7 @@ function addToast(msg) {
   setTimeout(() => el.remove(), 2200);
 }
 
-function showCenterCard(card) {
+function showCenterCard(card, fromEl) {
   const layer = document.getElementById('app') || document.getElementById('fx');
   if (!layer || !card) return;
   const el = document.createElement('div');
@@ -720,6 +721,20 @@ function showCenterCard(card) {
     <div class="cc-art" style="background-image:url('/assets/cards/${card.art}')"></div>
   </div>`;
   layer.appendChild(el);
+  // 从手牌位置飞到屏幕中心
+  if (fromEl) {
+    const r = fromEl.getBoundingClientRect();
+    const er = el.getBoundingClientRect();
+    const dx = (r.left + r.width / 2) - (er.left + er.width / 2);
+    const dy = (r.top + r.height / 2) - (er.top + er.height / 2);
+    const sc = Math.max(0.3, Math.min(1, r.width / Math.max(1, er.width)));
+    try {
+      el.animate(
+        [{ transform: `translate(${dx}px, ${dy}px) scale(${sc})` }, { transform: 'translate(0,0) scale(1)' }],
+        { duration: 480, easing: 'cubic-bezier(.2,.8,.3,1)' }
+      );
+    } catch (e) { /* ignore */ }
+  }
   setTimeout(() => el.remove(), 4000);
 }
 
@@ -993,7 +1008,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v97</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v98</div>
   </div></div>`;
 }
 
@@ -1052,7 +1067,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v97</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v98</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1081,7 +1096,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v97</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v98</div>
   </div></div>`;
 }
 
@@ -2166,4 +2181,33 @@ loadModes().then(() => {
 
 
 
+
+
+// 摸牌：两张重叠牌背从屏幕中心飞向手牌区
+function playDrawFx(ev) {
+  const s = ui.state;
+  if (!s) return;
+  const self = ev.playerId === myId(s);
+  const target = self
+    ? document.querySelector('.dz-hand')
+    : document.querySelector('.gc-wrap[data-player-id="' + ev.playerId + '"]');
+  if (!target) return;
+  const tr = target.getBoundingClientRect();
+  const cx = window.innerWidth / 2;
+  const cy = window.innerHeight / 2;
+  const wrap = document.createElement('div');
+  wrap.className = 'draw-fly';
+  wrap.style.left = cx + 'px';
+  wrap.style.top = cy + 'px';
+  wrap.innerHTML = '<img class="df-card a" src="/assets/ui/cardback3.png"><img class="df-card b" src="/assets/ui/cardback3.png">';
+  (document.getElementById('fx') || document.body).appendChild(wrap);
+  const dx = (tr.left + tr.width / 2) - cx;
+  const dy = (tr.top + tr.height / 2) - cy;
+  requestAnimationFrame(() => {
+    wrap.style.transition = 'transform .55s cubic-bezier(.2,.7,.3,1), opacity .55s ease';
+    wrap.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(.55)';
+    wrap.style.opacity = '0';
+  });
+  setTimeout(() => wrap.remove(), 700);
+}
 
