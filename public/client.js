@@ -722,7 +722,7 @@ function addToast(msg) {
 
 function showCenterCard(card, fromEl, persist) {
   // 放到 #fx 而不是 #app：render() 每次会重建 #app，会把飞行中的牌直接清掉
-  const layer = document.getElementById('fx') || document.body;
+  const layer = document.body;
   if (!layer || !card) return;
   const el = document.createElement('div');
   el.className = 'center-card' + (persist ? ' persist' : '');
@@ -1021,7 +1021,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v106</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v107</div>
   </div></div>`;
 }
 
@@ -1080,7 +1080,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v106</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v107</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1109,7 +1109,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v106</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v107</div>
   </div></div>`;
 }
 
@@ -2250,6 +2250,8 @@ function wuguHtml(s) {
     </div>
   </div></div>`;
 }
+
+
 
 
 
