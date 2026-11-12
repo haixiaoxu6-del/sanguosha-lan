@@ -1493,3 +1493,16 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 .wugu-modal h2 { color: #e8cf9a; font-size: 20px; margin: 0 0 12px; }
 .wugu-cards { display: flex; gap: 16px; justify-content: center; }
 .wugu-cards .card { width: 150px; height: 210px; flex: 0 0 auto; }
+
+/* 出牌展示：只保留手牌同款浅色牌面；旧深色结构一律隐藏 */
+.center-card { display: flex; align-items: center; justify-content: center; width: auto; height: auto;
+  animation: centerCardFade 4s linear forwards; }
+.center-card .cc-inner { display: none !important; }
+.center-card .card { width: 150px; height: 210px; }
+@keyframes centerCardFade {
+  0% { opacity: 0; }
+  5% { opacity: 1; }
+  50% { opacity: 1; }
+  90% { opacity: .9; }
+  100% { opacity: 0; }
+}
