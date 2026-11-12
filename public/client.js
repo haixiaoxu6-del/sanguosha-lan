@@ -31,6 +31,7 @@ const ui = {
   activeSkill: null,
   yijueStage: null,
   yijueCard: null,
+  hanbingSet: new Set(),
   selectedGeneral: null,
   skillView: null,
   error: '',
@@ -681,6 +682,20 @@ function renderLocal() {
     const isMyTurn = s.currentPlayer === meId;
     prompt.innerHTML = controlsHtml(s, you, current, pending, myPending, isMyTurn);
   }
+  // 涯角：直接给武将牌绑定点选，避免被其他点击逻辑吞掉
+  if (s.pending && s.pending.type === 'yajiao' && s.pending.playerId === meId) {
+    document.querySelectorAll('.gc-wrap[data-player-id]').forEach(el => {
+      el.classList.add('targetable');
+      el.style.cursor = 'pointer';
+      el.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        if (ui.yajiaoSent) return;
+        ui.yajiaoSent = true;
+        sendAction({ type: 'respond', targetId: el.dataset.playerId });
+        setTimeout(() => { ui.yajiaoSent = false; }, 1000);
+      });
+    });
+  }
   requestAnimationFrame(layoutHand);
 }
 
@@ -705,7 +720,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v75</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v79</div>
   </div></div>`;
 }
 
@@ -764,7 +779,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v75</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v79</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -787,7 +802,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v75</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v79</div>
   </div></div>`;
 }
 
@@ -796,7 +811,11 @@ function gameHtml() {
 }
 
 function skillName(id) {
-  return ({ wusheng: '武圣', paoxiao: '咆哮', longdan: '龙胆', yingzi: '英姿', re_wusheng: '武圣', re_paoxiao: '咆哮', re_longdan: '龙胆', liyong: '厉勇' })[id] || id;
+  return ({
+    wusheng: '武圣', paoxiao: '咆哮', longdan: '龙胆', yingzi: '英姿',
+    re_wusheng: '武圣', re_paoxiao: '咆哮', re_longdan: '龙胆',
+    liyong: '厉勇', yijue: '义绝', yajiao: '涯角',
+  })[id] || id;
 }
 
 function hpFishHtml(hp, max) {
@@ -1073,7 +1092,13 @@ function playActions(card) {
     if ((a === 'wusheng' || a === 're_wusheng') && card.color === 'red') shaLabel = '武圣：当【杀】使用';
     else if ((a === 'longdan' || a === 're_longdan') && card.key === 'shan') shaLabel = '龙胆：当【杀】使用';
   }
-  if (canSha && shaAllowed) acts.push({ label: shaLabel, as: 'sha', needsTarget: true, fangtian });
+  const conversion = !['sha', 'huosha', 'leisha'].includes(card.key)
+    && ((a === 'wusheng' || a === 're_wusheng') && card.color === 'red' || (a === 'longdan' || a === 're_longdan') && card.key === 'shan');
+  if (canSha && shaAllowed) {
+    const act = { label: shaLabel, as: 'sha', needsTarget: true, fangtian };
+    // 已发动武圣/龙胆时，转化【杀】优先于卡牌原本功能（装备/锦囊等）
+    if (conversion) acts.unshift(act); else acts.push(act);
+  }
   if (card.type === 'equip') acts.push({ label: `装备【${card.name}】`, as: card.key, needsTarget: false });
   if (card.key === 'jiu' && (you.jiuUsed || 0) < 1) acts.push({ label: '使用【酒】', as: 'jiu', needsTarget: false });
   if (card.key === 'tiesuo') acts.push({ label: '重铸【铁索连环】', as: 'tiesuo_recast', needsTarget: false });
@@ -1115,6 +1140,20 @@ function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
         </div>
       </div>`;
     }
+    if (pending.type === 'hanbing' && s.hanbing) {
+      return `<div class="control-box pick-box">
+        <div class="prompt">${escapeHtml(pending.prompt || '寒冰剑')}</div>
+        <div class="pick-cards">
+          ${s.hanbing.cards.map(c => `<div class="pick-card ${ui.hanbingSet.has(c.id) ? 'selected' : ''}" data-hanbing-id="${c.id}"><span class="pick-suit ${c.color === 'red' ? 'red' : ''}">${SUIT_CN[c.suit]}${c.number}</span><b>${c.name}</b><small>${c.type === 'equip' ? '装备' : '手牌'}</small></div>`).join('')}
+        </div>
+        <div class="sub">已选 ${ui.hanbingSet.size} / ${s.hanbing.count}（至少 1 张）</div>
+        <div class="btn-row">
+          <button class="btn primary" data-action="hanbing-confirm" ${ui.hanbingSet.size >= 1 && ui.hanbingSet.size <= s.hanbing.count ? '' : 'disabled'}>弃置所选</button>
+          <button class="btn ghost" data-action="hanbing-pass">放弃（正常造成伤害）</button>
+        </div>
+      </div>`;
+    }
+
     if (pending.type === 'yajiao') {
       return `<div class="control-box pick-box">
         <div class="prompt">${escapeHtml(pending.prompt || '涯角：选择一名角色')}</div>
@@ -1184,6 +1223,7 @@ function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
     }
     return `<div class="prompt-line">
       <span class="prompt">${escapeHtml(pending.prompt || '')}</span>
+      ${ui.activeSkill ? `<span class="sub">已发动【${skillName(ui.activeSkill)}】，请点击对应的牌</span>` : ''}
       <button class="btn ghost" data-action="cancel">取消</button>
     </div>`;
   }
@@ -1225,7 +1265,8 @@ function tryDragPlay(cardId, playerId) {
   const card = s.you.hand.find(c => c.id === cardId);
   if (!card) return false;
   const acts = playActions(card);
-  const act = acts.find(a => a.as === card.key && a.needsTarget) || acts.find(a => a.needsTarget);
+  const skillSha = ui.activeSkill ? acts.find(a => a.as === 'sha') : null;
+  const act = skillSha || acts.find(a => a.as === card.key && a.needsTarget) || acts.find(a => a.needsTarget);
   if (!act) return false;
   sendAction({ type: 'play', cardId, as: act.as, targetId: playerId });
   return true;
@@ -1265,6 +1306,14 @@ document.addEventListener('mouseup', (e) => {
 document.addEventListener('click', (e) => {
   if (ui.skillView) { ui.skillView = null; render(); return; }
   if (ui.suppressClick) { ui.suppressClick = false; return; }
+  const hbEl = e.target.closest('[data-hanbing-id]');
+  if (hbEl) {
+    const id = hbEl.dataset.hanbingId;
+    if (ui.hanbingSet.has(id)) ui.hanbingSet.delete(id);
+    else ui.hanbingSet.add(id);
+    renderLocal();
+    return;
+  }
   if (e.target.closest('[data-skill-act]') && ui.state && ui.state.started) {
     const me = ui.state.players.find(p => p.id === myId(ui.state));
     const id = e.target.closest('[data-skill-act]').dataset.skillAct;
@@ -1402,7 +1451,10 @@ document.addEventListener('click', (e) => {
 
     if (ui.state.pending && ui.state.pending.type === 'yajiao'
       && ui.state.pending.playerId === myId(ui.state) && p && p.alive) {
+      if (ui.yajiaoSent) return;
+      ui.yajiaoSent = true;
       sendAction({ type: 'respond', targetId: id });
+      setTimeout(() => { ui.yajiaoSent = false; }, 1000);
       return;
     }
 
@@ -1415,7 +1467,8 @@ document.addEventListener('click', (e) => {
     if (!ui.pendingAction && ui.selectedCard && canPick) {
       const card = selfCard;
       const acts = card ? playActions(card) : [];
-      const act = acts.find(a => a.as === card.key && a.needsTarget) || acts.find(a => a.needsTarget);
+      const skillSha = ui.activeSkill ? acts.find(a => a.as === 'sha') : null;
+      const act = skillSha || acts.find(a => a.as === card.key && a.needsTarget) || acts.find(a => a.needsTarget);
       if (act) {
         if (act.as === 'tiesuo') { pickTiesuoTarget(card.id, id); return; }
         if (act.as === 'jiedao') {
@@ -1498,6 +1551,17 @@ document.addEventListener('click', (e) => {
   }
 
   if (action === 'jiedao-pass') {
+    sendAction({ type: 'respond', pass: true });
+    return;
+  }
+
+  if (action === 'hanbing-confirm') {
+    sendAction({ type: 'respond', cardIds: [...ui.hanbingSet] });
+    ui.hanbingSet.clear();
+    return;
+  }
+
+  if (action === 'hanbing-pass') {
     sendAction({ type: 'respond', pass: true });
     return;
   }

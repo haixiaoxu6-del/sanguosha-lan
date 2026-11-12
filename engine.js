@@ -450,8 +450,10 @@ class Game {
     const card = p.hand.find(c => c.id === action.cardId);
     if (!card) return err('你没有这张牌');
 
-    // 装备牌：直接进入装备区
-    if (card.type === 'equip') {
+    const useAs = action.as || card.key;
+
+    // 装备牌：只有“装备”时进入装备区；被武圣等转化时按转化后的牌使用
+    if (card.type === 'equip' && useAs === card.key) {
       const slot = card.slot || (card.key === 'bagua' || card.key === 'renwang' || card.key === 'tengjia' || card.key === 'baiyin' ? 'armor' : 'weapon');
       const old = p.equips[slot];
       p.hand.splice(p.hand.findIndex(c => c.id === card.id), 1);
@@ -464,7 +466,6 @@ class Game {
       return ok();
     }
 
-    const useAs = action.as || (card && card.key);
 
     // 丈八蛇矛：两张手牌当杀
     if (useAs === 'zhangba_sha') {
@@ -979,6 +980,31 @@ class Game {
       return ok();
     }
 
+    if (pend.type === 'hanbing') {
+      const target = this.findPlayer(pend.targetId);
+      if (action.pass) {
+        this.pending = null;
+        this.pushLog(`${p.name} 放弃发动【寒冰剑】`);
+        if (target) this.damage(target, pend.amount, p, this.findCardById(pend.cardId), pend.parent, { skipHanbing: true });
+        return ok();
+      }
+      const ids = Array.isArray(action.cardIds) ? action.cardIds : [];
+      if (!ids.length || ids.length > pend.count) return err(`请选择 1~${pend.count} 张牌`);
+      if (!target || !target.alive) { this.pending = null; return ok(); }
+      const removed = [];
+      for (const id of ids) {
+        const pool = [...target.hand, ...Object.values(target.equips || {}).filter(Boolean)];
+        const c = pool.find(x => x.id === id);
+        if (!c) return err('目标没有这张牌');
+        this.removeFromPlayer(target, c);
+        this.discard.push(c);
+        removed.push(c.name);
+      }
+      this.pushLog(`${p.name} 发动【寒冰剑】，防止伤害并弃置 ${target.name} 的【${removed.join('】【')}】`);
+      this.pending = null;
+      return ok();
+    }
+
     if (pend.type === 'yajiao') {
       const target = action.targetId ? this.findPlayer(action.targetId) : null;
       if (!target || !target.alive) return err('请选择一名角色');
@@ -1219,7 +1245,7 @@ class Game {
   }
 
   // ---------------- 伤害 / 死亡 ----------------
-  damage(target, amount, source, card, parent = null) {
+  damage(target, amount, source, card, parent = null, opts = null) {
     if (!target.alive) { this.pending = parent; return; }
     if (target.equips && target.equips.armor && target.equips.armor.key === 'baiyin' && amount > 1) amount = 1;
     if (source && source.equips && source.equips.weapon && source.equips.weapon.key === 'guding' && target.hand.length === 0) amount += 1;
@@ -1229,19 +1255,25 @@ class Game {
       this.pending = parent;
       return;
     }
-    // 寒冰剑：防止伤害，弃目标两张牌
-    if (source && source.equips && source.equips.weapon && source.equips.weapon.key === 'hanbing' && card && card.key !== 'nanman' && card.key !== 'wanjian') {
-      const pool = [...target.hand, ...target.judge, ...Object.values(target.equips || {}).filter(Boolean)];
-      const removed = [];
-      for (let i = 0; i < 2 && pool.length; i++) {
-        const c = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
-        this.removeFromPlayer(target, c);
-        this.discard.push(c);
-        removed.push(c.name);
+    // 寒冰剑（可选）：使用【杀】造成伤害时，可以防止此伤害，改为弃置目标两张手牌/装备（不含判定区）
+    if (source && source.equips && source.equips.weapon && source.equips.weapon.key === 'hanbing'
+      && card && (card.key === 'sha' || card.key === 'huosha' || card.key === 'leisha')
+      && !(opts && opts.skipHanbing)) {
+      const poolAll = [...target.hand, ...Object.values(target.equips || {}).filter(Boolean)];
+      if (poolAll.length > 0) {
+        this.pending = {
+          type: 'hanbing',
+          playerId: source.id,
+          targetId: target.id,
+          count: Math.min(2, poolAll.length),
+          amount,
+          cardId: card.id,
+          parent,
+          prompt: `【寒冰剑】：是否防止 ${target.name} 受到的 ${amount} 点伤害，改为弃置其 ${Math.min(2, poolAll.length)} 张手牌/装备？`,
+        };
+        this.pushLog(`${source.name} 的【寒冰剑】可以选择防止伤害并弃置 ${target.name} 的牌`);
+        return;
       }
-      this.pushLog(`${source.name} 发动【寒冰剑】，防止伤害并弃置 ${target.name} 的${removed.length ? '【' + removed.join('】【') + '】' : '两张牌'}`);
-      this.pending = parent;
-      return;
     }
     if (target.equips && target.equips.armor && target.equips.armor.key === 'tengjia' && card && (card.fire || card.element === 'fire')) amount += 1;
     target.hp -= amount;
@@ -1420,6 +1452,15 @@ class Game {
           }
         : { type: this.pending.type, playerId: this.pending.playerId }) : null,
       lastJudgment: this.lastJudgment || null,
+      hanbing: this.pending && this.pending.type === 'hanbing' && this.pending.playerId === playerId
+        ? (() => {
+            const t = this.findPlayer(this.pending.targetId);
+            if (!t) return { count: 0, cards: [] };
+            const cards = [...t.hand, ...Object.values(t.equips || {}).filter(Boolean)]
+              .map(c => ({ id: c.id, name: c.name, type: c.type, suit: c.suit, number: c.number, color: c.color }));
+            return { count: this.pending.count, cards };
+          })()
+        : null,
       wugu: this.pending && this.pending.type === 'wugu' && this.pending.playerId === playerId
         ? { cards: this.pending.cards.map(c => ({ id: c.id, name: c.name, suit: c.suit, number: c.number, color: c.color })) }
         : null,

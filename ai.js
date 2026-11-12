@@ -50,6 +50,14 @@ function aiAct(game) {
         continue;
       }
 
+      if (pend.type === 'hanbing') {
+        const t = game.findPlayer(pend.targetId);
+        const pool = t ? [...t.hand, ...Object.values(t.equips || {}).filter(Boolean)] : [];
+        const ids = pool.slice(0, pend.count || 2).map(c => c.id);
+        game.respond(ai.id, ids.length ? { cardIds: ids } : { pass: true });
+        continue;
+      }
+
       if (pend.type === 'yajiao') {
         game.respond(ai.id, { targetId: ai.id });
         continue;
