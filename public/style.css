@@ -1,4 +1,4 @@
-@font-face {
+﻿@font-face {
   font-family: 'FZBeiWeiKai';
   src: url('/assets/fonts/FZBWKSJW.woff2') format('woff2');
   font-display: swap;
@@ -1456,3 +1456,21 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 .general-card.selected .sel-frame { border-color: var(--gold-strong); box-shadow: 0 0 0 3px var(--gold-strong), 0 0 18px rgba(240,207,142,.45); }
 .general-card.taken { opacity: .35; filter: grayscale(.7); pointer-events: none; }
 .general-card .g-taken { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.55); color: #e8b45a; font-weight: 800; font-size: 14px; z-index: 5; border-radius: 10px; }
+
+/* 选将卡：局内武将牌组合，等比缩放到 180 宽 */
+.general-grid { align-items: end; gap: 18px; }
+.general-card { display: block; width: 180px; height: 228px; padding: 0; background: none; border: 0; border-radius: 0; overflow: visible; cursor: pointer; }
+.gc-scaler { transform: scale(.8); transform-origin: top left; }
+.general-card .gc { cursor: pointer; }
+.general-card:hover .gc { box-shadow: 0 0 0 2px var(--gold), 0 0 16px rgba(240,207,142,.4); }
+.general-card.selected .gc { border-color: var(--gold-strong); box-shadow: 0 0 0 3px var(--gold-strong), 0 0 18px rgba(240,207,142,.45); }
+.general-card.taken { opacity: .35; filter: grayscale(.7); pointer-events: none; }
+.general-card .g-taken { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.55); color: #e8b45a; font-weight: 800; font-size: 14px; z-index: 5; border-radius: 10px; }
+
+/* 选将卡：去掉顶部裁切造成的黑带，立绘直接铺满框 */
+.general-card .gc-art { height: 100%; clip-path: none; }
+.general-card .gc-hair { display: none; }
+
+/* 选将卡：把立绘下方那条线提到顶部框线位置（立绘上移，顶部深色带裁掉） */
+.general-card .gc-art img { top: -42px; height: calc(100% + 42px); }
+

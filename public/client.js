@@ -993,7 +993,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v96</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v97</div>
   </div></div>`;
 }
 
@@ -1052,15 +1052,23 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v96</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v97</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
         return `<div class="general-card ${chosenId === g.id ? 'selected' : ''} ${taken ? 'taken' : ''}" data-general-id="${g.id}"${taken ? ' data-taken="1"' : ''}>
-          <div class="sel-card">
-            <img class="sel-art" src="/assets/generals/${g.portrait}" alt="${g.name}" draggable="false">
-            <div class="sel-frame"></div>
-            ${taken ? '<div class="g-taken">对手已选</div>' : ''}
+          <div class="gc-scaler">
+            <div class="gc-wrap">
+              <div class="gc-side">
+                <div class="gc-side-top"><div class="gc-side-faction">${g.faction}</div><div class="gc-side-name">${g.name}</div></div>
+                <div class="gc-side-hp">${hpFishHtml(g.hp, g.hp)}</div>
+              </div>
+              <div class="gc">
+                <div class="gc-art"><img class="gc-portrait" src="/assets/generals/${g.portrait}" alt="${g.name}" draggable="false"></div>
+                <div class="gc-hair"><img class="gc-portrait" src="/assets/generals/${g.portrait}" alt="" draggable="false"></div>
+                ${taken ? '<div class="g-taken">对手已选</div>' : ''}
+              </div>
+            </div>
           </div>
         </div>`;
       }).join('')}
@@ -1073,7 +1081,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v96</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v97</div>
   </div></div>`;
 }
 
@@ -2146,6 +2154,7 @@ loadModes().then(() => {
   if (ui.room && ui.playerId) connect();
   else render();
 });
+
 
 
 
