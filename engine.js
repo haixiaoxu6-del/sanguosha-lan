@@ -4,6 +4,7 @@ const {
   GENERALS, ROLE_SETS, ROLE_CN, SUIT_CN,
   shuffle, buildDeck,
 } = require('./data');
+const { CONVERSIONS, LOCKS, DRAW_TRIGGERS, DAMAGE_TRIGGERS, JUDGE_HOOKS, matchFrom } = require('./skills');
 
 function ok() { return { ok: true }; }
 function err(msg) { return { ok: false, error: msg }; }
@@ -290,11 +291,11 @@ class Game {
     if (skipDraw) {
       this.pushLog(`${p.name} 跳过摸牌阶段`);
     } else {
-      let drawCount = 2;
-      if (this.hasSkill(p, 'yingzi')) drawCount = 3;
+      const bonus = this.drawBonus(p);
+      const drawCount = 2 + bonus;
       this.draw(p, drawCount);
       this.pushLog(`${p.name} 摸${drawCount}张牌`);
-      if (this.hasSkill(p, 'yingzi')) this.pushLog(`${p.name} 发动【英姿】多摸一张牌`);
+      if (bonus > 0) this.pushLog(`${p.name} 的摸牌阶段额外摸${bonus}张牌`);
     }
     if (skipPlay) {
       this.pushLog(`${p.name} 跳过出牌阶段`);
@@ -356,14 +357,55 @@ class Game {
     if (as === card.key) return true;
     if (as === 'sha') {
       if (['sha', 'huosha', 'leisha'].includes(card.key)) return true;
-      if ((this.hasSkill(p, 'wusheng') || this.hasSkill(p, 're_wusheng')) && card.color === 'red') return true;
-      if ((this.hasSkill(p, 'longdan') || this.hasSkill(p, 're_longdan')) && card.key === 'shan') return true;
+      if (this.convertMatch(p, card, 'sha')) return true;
     }
     if (as === 'tiesuo_recast' && card.key === 'tiesuo') return true;
     if (as === 'shan') {
-      if ((this.hasSkill(p, 'longdan') || this.hasSkill(p, 're_longdan')) && card.key === 'sha') return true;
+      if (this.convertMatch(p, card, 'shan')) return true;
     }
     return false;
+  }
+
+  // ---- 通用技能原语 ----
+  convertMatch(p, card, as) {
+    return CONVERSIONS.some(c => c.as === as
+      && c.skills.some(s => this.hasSkill(p, s))
+      && matchFrom(card, c.from));
+  }
+
+  shaUnlimited(p) {
+    if (p.equips && p.equips.weapon && p.equips.weapon.key === 'zhuge') return true;
+    return LOCKS.some(l => l.effect === 'shaUnlimited' && l.skills.some(s => this.hasSkill(p, s)));
+  }
+
+  drawBonus(p) {
+    return DRAW_TRIGGERS
+      .filter(t => t.effect === 'draw' && t.skills.some(s => this.hasSkill(p, s)))
+      .reduce((a, t) => a + (t.value || 0), 0);
+  }
+
+  judge(p, reason) {
+    const c = this.drawCard();
+    if (c) this.discard.push(c);
+    this.lastJudgment = {
+      seq: (this.judgmentSeq = (this.judgmentSeq || 0) + 1),
+      playerId: p.id,
+      card: c ? { id: c.id, name: c.name, suit: c.suit, number: c.number, color: c.color } : null,
+      text: reason || '',
+    };
+    // 天妒类：判定牌生效后获得
+    if (c) {
+      for (const h of JUDGE_HOOKS) {
+        if (h.effect !== 'gainJudgeCard' || !h.skills.some(s => this.hasSkill(p, s))) continue;
+        const idx = this.discard.findIndex(x => x.id === c.id);
+        if (idx >= 0) {
+          this.discard.splice(idx, 1);
+          p.hand.push(c);
+          this.pushLog(`${p.name} 获得判定牌【${c.name}】`);
+        }
+      }
+    }
+    return c;
   }
 
   // 【涯角】：回合外使用/打出手牌后，亮出牌堆顶一张交给一名角色；类别不同则弃一张
@@ -406,7 +448,7 @@ class Game {
       const target = action.targetId ? this.findPlayer(action.targetId) : null;
       if (!target || !target.alive || target.id === p.id) return err('请选择一名其他角色');
       if (this.distance(p, target) > 3) return err('目标不在攻击范围内');
-      if (!this.hasSkill(p, 'paoxiao') && !this.hasSkill(p, 're_paoxiao') && p.flags.shaUsed >= 1) return err('本回合已经使用过【杀】');
+      if (!this.shaUnlimited(p) && p.flags.shaUsed >= 1) return err('本回合已经使用过【杀】');
       p.hand.splice(p.hand.findIndex(c => c.id === c1.id), 1);
       p.hand.splice(p.hand.findIndex(c => c.id === c2.id), 1);
       this.discard.push(c1, c2);
@@ -524,7 +566,7 @@ class Game {
     if (useAs === 'sha') {
       if (!target || !target.alive || target.id === p.id) return err('请选择一名其他角色');
       const range = (p.equips && p.equips.weapon && p.equips.weapon.range) || 1;
-      if (!this.hasSkill(p, 'paoxiao') && !this.hasSkill(p, 're_paoxiao') && !(p.equips && p.equips.weapon && p.equips.weapon.key === 'zhuge') && p.flags.shaUsed >= 1) return err('本回合已经使用过【杀】');
+      if (!this.shaUnlimited(p) && p.flags.shaUsed >= 1) return err('本回合已经使用过【杀】');
       const noRange = (this.hasSkill(p, 're_paoxiao') && p.flags.shaUsed >= 1)
         || (this.hasSkill(p, 're_wusheng') && card.suit === 'diamond');
       if (!noRange && this.distance(p, target) > range) return err('目标不在攻击范围内');
@@ -1397,21 +1439,22 @@ class Game {
       this.checkWin();
     }
 
-    // 奸雄
-    if (this.hasSkill(target, 'jianxiong') && card) {
-      const idx = this.discard.findIndex(c => c.id === card.id);
-      if (idx >= 0) {
-        const [c] = this.discard.splice(idx, 1);
-        target.hand.push(c);
-        this.pushLog(`${target.name} 发动【奸雄】，获得【${c.name}】`);
-      }
-    }
-    // 反馈
-    if (this.hasSkill(target, 'fankui') && source && source.alive) {
-      const taken = this.takeRandomCard(source);
-      if (taken) {
-        target.hand.push(taken);
-        this.pushLog(`${target.name} 发动【反馈】，获得${source.name}的一张牌`);
+    // 通用伤害触发原语（奸雄 / 反馈 等）
+    for (const t of DAMAGE_TRIGGERS) {
+      if (!t.skills.some(s => this.hasSkill(target, s))) continue;
+      if (t.effect === 'gainDamageCard' && card) {
+        const idx = this.discard.findIndex(c => c.id === card.id);
+        if (idx >= 0) {
+          const [c] = this.discard.splice(idx, 1);
+          target.hand.push(c);
+          this.pushLog(`${target.name} 发动技能，获得【${c.name}】`);
+        }
+      } else if (t.effect === 'stealSourceCard' && source && source.alive) {
+        const taken = this.takeRandomCard(source);
+        if (taken) {
+          target.hand.push(taken);
+          this.pushLog(`${target.name} 发动技能，获得${source.name}的一张牌`);
+        }
       }
     }
 
@@ -1616,4 +1659,5 @@ class Game {
 }
 
 module.exports = { Game };
+
 

@@ -1393,3 +1393,8 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
   letter-spacing: 1px; pointer-events: none; box-shadow: 0 0 12px rgba(255, 80, 40, .6);
 }
 .pending-wrap { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+
+/* 统一倒计时条为橘红色，并去掉进度条下方重复的提示文字 */
+.pending-wrap .play-timer { height: 26px; border-radius: 999px; }
+.pending-wrap .pt-fill { border-radius: 999px; background: linear-gradient(90deg, #d24a1e, #f08a4b); }
+.pending-wrap .control-box > .prompt, .pending-wrap .prompt-line > .prompt { display: none; }
