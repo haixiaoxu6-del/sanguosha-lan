@@ -1435,3 +1435,24 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
   74% { opacity: .2; }
   100% { opacity: 0; }
 }
+
+/* 选将卡：复用局内武将牌组件（框内身体 + 框外头发） */
+.general-grid { align-items: end; gap: 18px; }
+.general-card { display: block; width: 180px; padding-top: 42px; background: none; border: 0; border-radius: 0; overflow: visible; cursor: pointer; }
+.general-card .gc-wrap { --gc-w: 180px; }
+.general-card .gc { cursor: pointer; }
+.general-card:hover .gc { box-shadow: 0 0 0 2px var(--gold), 0 0 16px rgba(240,207,142,.4); }
+.general-card.selected .gc { border-color: var(--gold-strong); box-shadow: 0 0 0 3px var(--gold-strong), 0 0 18px rgba(240,207,142,.45); }
+.general-card.taken { opacity: .35; filter: grayscale(.7); pointer-events: none; }
+.general-card .g-taken { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.55); color: #e8b45a; font-weight: 800; font-size: 14px; z-index: 5; border-radius: 10px; }
+
+/* 选将卡：立绘铺满，框从 c 开始（框住身体，头发在框外） */
+.general-grid { align-items: end; gap: 18px; }
+.general-card { display: block; width: 180px; padding-top: 0; background: none; border: 0; border-radius: 0; overflow: visible; cursor: pointer; }
+.sel-card { position: relative; width: 180px; height: 330px; }
+.sel-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; }
+.sel-frame { position: absolute; left: 0; right: 0; top: 42px; bottom: 0; border-left: 2px solid #a98145; border-right: 2px solid #a98145; border-bottom: 2px solid #a98145; border-radius: 0 0 12px 12px; pointer-events: none; }
+.general-card:hover .sel-frame { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(240,207,142,.35); }
+.general-card.selected .sel-frame { border-color: var(--gold-strong); box-shadow: 0 0 0 3px var(--gold-strong), 0 0 18px rgba(240,207,142,.45); }
+.general-card.taken { opacity: .35; filter: grayscale(.7); pointer-events: none; }
+.general-card .g-taken { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.55); color: #e8b45a; font-weight: 800; font-size: 14px; z-index: 5; border-radius: 10px; }
