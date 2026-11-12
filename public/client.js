@@ -32,6 +32,10 @@ const ui = {
   yijueStage: null,
   yijueCard: null,
   hanbingSet: new Set(),
+  respondBusy: false,
+  playDeadline: null,
+  playTimerRaf: null,
+  playAutoEnded: false,
   selectedGeneral: null,
   skillView: null,
   error: '',
@@ -542,8 +546,21 @@ async function sendAction(action) {
     ui.yijueStage = null;
     ui.yijueCard = null;
   }
+  if (action && (action.type === 'play' || action.type === 'respond') && action.cardId) {
+    const c = ui.state && ui.state.you.hand.find(x => x.id === action.cardId);
+    if (c) showCenterCard(c);
+  }
+  if (action && (action.targetId || (Array.isArray(action.targetIds) && action.targetIds.length))) {
+    const from = document.querySelector('.gc-self') || document.querySelector('.dz-hand .card.selected');
+    const ids = action.targetIds || [action.targetId];
+    for (const id of ids) {
+      const to = document.querySelector(`.gc-wrap[data-player-id="${id}"]`);
+      if (to) showTargetArrow(from, to);
+    }
+  }
   const r = await post('/api/action', { room: ui.room, player: ui.playerId, action });
   if (!r.ok) { ui.error = r.error; render(); return; }
+  if (action && action.type === 'play') ui.playDeadline = Date.now() + 10000;
   if (r.state) {
     ui.lastSig = stateSignature(r.state);
     applyState(r.state);
@@ -597,7 +614,89 @@ function render() {
     return;
   }
   app.innerHTML = gameHtml() + skillModalHtml();
+  if (ui.error) { addToast(ui.error); ui.error = ''; }
   requestAnimationFrame(layoutHand);
+}
+
+function addToast(msg) {
+  const fx = document.getElementById('fx');
+  if (!fx) return;
+  const el = document.createElement('div');
+  el.className = 'game-toast';
+  el.textContent = msg;
+  fx.appendChild(el);
+  setTimeout(() => el.remove(), 2200);
+}
+
+function showCenterCard(card) {
+  const fx = document.getElementById('fx');
+  if (!fx || !card) return;
+  const el = document.createElement('div');
+  el.className = 'center-card';
+  el.innerHTML = `<div class="cc-inner">
+    <div class="cc-top"><span class="${card.color === 'red' ? 'red' : ''}">${SUIT_CN[card.suit]}${card.number}</span><span>${CARD_TYPE_CN[card.type] || ''}</span></div>
+    <div class="cc-name">${card.name}</div>
+    <div class="cc-art" style="background-image:url('/assets/cards/${card.art}')"></div>
+  </div>`;
+  fx.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+function startPlayTimerTick() {
+  if (ui.playTimerRaf) return;
+  ui.playTimerRaf = requestAnimationFrame(function tick() {
+    ui.playTimerRaf = null;
+    const fill = document.getElementById('ptFill');
+    const left = ui.playDeadline ? ui.playDeadline - Date.now() : 0;
+    if (fill) fill.style.width = Math.max(0, Math.min(100, left / 100)) + '%';
+    if (left <= 0) {
+      if (!ui.playAutoEnded) {
+        ui.playAutoEnded = true;
+        const s = ui.state;
+        if (s && s.phase === 'play' && s.currentPlayer === myId(s) && !s.pending) sendAction({ type: 'end-play' });
+      }
+      return;
+    }
+    ui.playTimerRaf = requestAnimationFrame(tick);
+  });
+}
+
+function showTargetArrow(fromEl, toEl) {
+  const fx = document.getElementById('fx');
+  if (!fx || !fromEl || !toEl) return;
+  const a = fromEl.getBoundingClientRect();
+  const b = toEl.getBoundingClientRect();
+  const x1 = a.left + a.width / 2, y1 = a.top + a.height / 2;
+  const x2 = b.left + b.width / 2, y2 = b.top + b.height / 2;
+  const w = window.innerWidth, h = window.innerHeight;
+  const ang = Math.atan2(y2 - y1, x2 - x1);
+  const size = 20;
+  const p2 = `${x2 - size * Math.cos(ang - 0.45)},${y2 - size * Math.sin(ang - 0.45)}`;
+  const p3 = `${x2 - size * Math.cos(ang + 0.45)},${y2 - size * Math.sin(ang + 0.45)}`;
+  const path = `M${x1},${y1} L${x2},${y2}`;
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'target-arrow');
+  svg.setAttribute('width', w);
+  svg.setAttribute('height', h);
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="taGrad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#ff8a2a" stop-opacity="0"/>
+        <stop offset="35%" stop-color="#ffb347" stop-opacity=".85"/>
+        <stop offset="100%" stop-color="#fff3c4" stop-opacity="1"/>
+      </linearGradient>
+      <filter id="taGlow" x="-60%" y="-60%" width="220%" height="220%">
+        <feGaussianBlur stdDeviation="7" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+    <path d="${path}" fill="none" stroke="url(#taGrad)" stroke-width="16" stroke-linecap="round" opacity=".4" filter="url(#taGlow)"/>
+    <path d="${path}" fill="none" stroke="#ffd27a" stroke-width="4" stroke-linecap="round" opacity=".95"/>
+    <polygon points="${x2},${y2} ${p2} ${p3}" fill="#fff3c4" filter="url(#taGlow)"/>
+  `;
+  fx.appendChild(svg);
+  setTimeout(() => svg.remove(), 760);
 }
 
 function skillModalHtml() {
@@ -683,8 +782,7 @@ function renderLocal() {
     prompt.innerHTML = controlsHtml(s, you, current, pending, myPending, isMyTurn);
   }
   // 涯角：直接给武将牌绑定点选，避免被其他点击逻辑吞掉
-  if (s.pending && s.pending.type === 'yajiao' && s.pending.playerId === meId) {
-    document.querySelectorAll('.gc-wrap[data-player-id]').forEach(el => {
+  if (s.pending && s.pending.type === 'yajiao' && s.pending.playerId === meId) {    document.querySelectorAll('.gc-wrap[data-player-id]').forEach(el => {
       el.classList.add('targetable');
       el.style.cursor = 'pointer';
       el.addEventListener('click', (ev) => {
@@ -695,6 +793,35 @@ function renderLocal() {
         setTimeout(() => { ui.yajiaoSent = false; }, 1000);
       });
     });
+  }
+  // 响应求【闪】/【杀】：直接在手牌上绑定，先点技能再点牌必定生效
+  if (s.pending && s.pending.playerId === meId && ['shan', 'wanjian', 'duel', 'nanman'].includes(s.pending.type)) {
+    document.querySelectorAll('.dz-hand .card[data-card-id]').forEach(el => {
+      el.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const cid = el.dataset.cardId;
+        const card = you.hand.find(c => c.id === cid);
+        if (!card) return;
+        const needShan = s.pending.type === 'shan' || s.pending.type === 'wanjian';
+        const ok = needShan ? canUseAsShan(card) : canUseAsSha(card);
+        if (!ok) {
+          addToast(needShan ? '这张牌不能当【闪】：先点【龙胆】/【武圣】再选牌' : '这张牌不能当【杀】：先点技能再选牌');
+          return;
+        }
+        if (ui.respondBusy) return;
+        ui.respondBusy = true;
+        sendAction({ type: 'respond', cardId: cid });
+        setTimeout(() => { ui.respondBusy = false; }, 700);
+      });
+    });
+  }
+  // 出牌阶段 10 秒限时条
+  if (s.phase === 'play' && s.currentPlayer === meId && !s.pending) {
+    if (!ui.playDeadline) ui.playDeadline = Date.now() + 10000;
+    startPlayTimerTick();
+  } else {
+    ui.playDeadline = null;
+    ui.playAutoEnded = false;
   }
   requestAnimationFrame(layoutHand);
 }
@@ -720,7 +847,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v80</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v83</div>
   </div></div>`;
 }
 
@@ -779,7 +906,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v80</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v83</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -802,7 +929,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v80</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v83</div>
   </div></div>`;
 }
 
@@ -1166,7 +1293,7 @@ function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
       </div>`;
     }
     if (pending.type === 'hanbing' && s.hanbing) {
-      return `<div class="control-box pick-box">
+      return `<div class="control-box pick-box zone-modal">
         <div class="prompt">${escapeHtml(pending.prompt || '寒冰剑')}</div>
         ${zonesHtml(s.hanbing.zones, { multi: true, showJudge: false })}
         <div class="sub">已选 ${ui.hanbingSet.size} / ${s.hanbing.count}（至少 1 张）</div>
@@ -1233,7 +1360,7 @@ function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
     if (pending.type === 'pick') {
       const pick = s.pick;
       if (!pick) return `<div class="control-box waiting"><div class="prompt">${escapeHtml(pending.prompt || '')}</div></div>`;
-      return `<div class="control-box pick-box">
+      return `<div class="control-box pick-box zone-modal">
         <div class="prompt">${escapeHtml(pending.prompt || '')}</div>
         ${zonesHtml(pick.zones, { multi: false, showJudge: true })}
         <div class="sub">点击一张牌${pick.mode === 'guohe' ? '弃置' : '获得'}（手牌为背面，不展示具体牌）</div>
@@ -1264,7 +1391,7 @@ function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
     }
     const zhangba = you.equips && you.equips.weapon && you.equips.weapon.key === 'zhangba' && you.hand.length >= 2;
     return `<div class="play-bar">
-      <div class="play-tip">${ui.zhangba ? '丈八蛇矛：请点选两张手牌' : tip}</div>
+      <div class="play-timer"><div class="pt-fill" id="ptFill"></div><div class="pt-text">${ui.zhangba ? '丈八蛇矛：请点选两张手牌' : tip}</div></div>
       ${zhangba ? '<button class="btn ghost" data-action="zhangba">丈八蛇矛</button>' : ''}
       <button class="btn endplay-text" data-action="end-play">结束出牌</button>
     </div>`;
@@ -1591,6 +1718,16 @@ document.addEventListener('click', (e) => {
   if (action === 'hanbing-confirm') {
     sendAction({ type: 'respond', cardIds: [...ui.hanbingSet] });
     ui.hanbingSet.clear();
+    return;
+  }
+
+  if (action === 'respond-card') {
+    sendAction({ type: 'respond', cardId: btn.dataset.cardId });
+    return;
+  }
+
+  if (action === 'respond-card') {
+    sendAction({ type: 'respond', cardId: btn.dataset.cardId });
     return;
   }
 
