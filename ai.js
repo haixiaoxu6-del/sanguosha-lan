@@ -105,7 +105,8 @@ function aiAct(game) {
         if (r.ok) continue;
       }
       // 3. 杀（含武圣/龙胆转化）
-      const canShaLimit = ai.general.skills.includes('paoxiao') || ai.flags.shaUsed < 1;
+      const canShaLimit = ai.general.skills.includes('paoxiao') || ai.general.skills.includes('re_paoxiao')
+        || (ai.equips && ai.equips.weapon && ai.equips.weapon.key === 'zhuge') || ai.flags.shaUsed < 1;
       if (canShaLimit) {
         const sha = ai.hand.find(c => game.canUseAs(ai, c, 'sha'));
         if (tryPlay(sha, 'sha', target.id)) continue;

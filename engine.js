@@ -109,7 +109,11 @@ class Game {
 
   currentPlayer() { return this.players[this.current]; }
   findPlayer(id) { return this.players.find(p => p.id === id); }
-  hasSkill(p, s) { return !!(p && p.general && p.general.skills.includes(s)); }
+  hasSkill(p, s) {
+    if (!(p && p.general && p.general.skills.includes(s))) return false;
+    if (p.skillSealed && !['paoxiao', 're_paoxiao'].includes(s)) return false;
+    return true;
+  }
 
   distance(a, b) {
     let d = Math.abs(a.seat - b.seat);
@@ -214,6 +218,8 @@ class Game {
     p.flags.shaUsed = 0;
     p.flags.jiuUsed = 0;
     p.flags.jiu = false;
+    p.flags.liyong = false;
+    p.skillSealed = false;
     this.phase = 'judge';
 
     let skipDraw = false;
@@ -434,6 +440,8 @@ class Game {
       const range = (p.equips && p.equips.weapon && p.equips.weapon.range) || 1;
       if (this.distance(p, target) > range) return err('目标不在攻击范围内');
       if (!this.hasSkill(p, 'paoxiao') && !this.hasSkill(p, 're_paoxiao') && !(p.equips && p.equips.weapon && p.equips.weapon.key === 'zhuge') && p.flags.shaUsed >= 1) return err('本回合已经使用过【杀】');
+      const noRange = this.hasSkill(p, 're_paoxiao') && p.flags.shaUsed >= 1;
+      if (!noRange && this.distance(p, target) > range) return err('目标不在攻击范围内');
     } else if (useAs === 'juedou') {
       if (!target || !target.alive || target.id === p.id) return err('请选择一名其他角色');
     } else if (useAs === 'guohe') {
@@ -504,16 +512,25 @@ class Game {
       }
       this.discard.push(card);
       p.flags.shaUsed++;
-      if (this.hasSkill(p, 're_paoxiao') && p.flags.shaUsed === 2) {
-        this.draw(p, 1);
-        this.pushLog(`${p.name} 发动【咆哮】，摸一张牌`);
-      }
       if (this.hasSkill(p, 're_longdan') && card.key === 'shan') {
         this.draw(p, 1);
         this.pushLog(`${p.name} 发动【龙胆】，摸一张牌`);
       }
       const wushengBoost = this.hasSkill(p, 're_wusheng') && card.color === 'red' && card.key !== 'sha';
       this.pushLog(`${p.name} 对 ${target.name} 使用【杀】${fire ? '（火杀）' : ''}`);
+      // 厉勇：上一张【杀】被【闪】抵消后，本阶段下一张【杀】目标非锁定技失效、不可响应、伤害+1
+      if (this.hasSkill(p, 'liyong') && p.flags.liyong) {
+        p.flags.liyong = false;
+        target.skillSealed = true;
+        this.pushLog(`${p.name} 发动【厉勇】：${target.name} 本回合非锁定技失效，此【杀】不可响应且伤害+1`);
+        this.damage(target, 2, p, card, null);
+        if (target.alive) {
+          p.hp -= 1;
+          this.pushLog(`${p.name} 因【厉勇】失去1点体力（${p.hp}/${p.maxHp}）`);
+          if (p.hp <= 0) this.enterDying(p, null, null, null);
+        }
+        return ok();
+      }
       // 雌雄双股剑：异性目标，摸一张
       if (weapon && weapon.key === 'cixiong' && p.general && target.general && p.general.gender !== target.general.gender) {
         this.draw(p, 1);
@@ -872,6 +889,12 @@ class Game {
       p.hand.splice(p.hand.indexOf(card), 1);
       this.discard.push(card);
       this.pushLog(`${p.name} 打出【闪】`);
+      const liyongSrc = this.findPlayer(pend.sourceId);
+      if (liyongSrc && this.hasSkill(liyongSrc, 'liyong') && this.phase === 'play'
+        && this.currentPlayer() && this.currentPlayer().id === liyongSrc.id) {
+        liyongSrc.flags.liyong = true;
+        this.pushLog(`${liyongSrc.name} 的【杀】被【闪】抵消，触发【厉勇】`);
+      }
       if (this.hasSkill(p, 're_longdan') && card.key === 'sha') {
         this.draw(p, 1);
         this.pushLog(`${p.name} 发动【龙胆】，摸一张牌`);
