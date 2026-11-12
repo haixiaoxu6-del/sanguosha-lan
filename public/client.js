@@ -28,6 +28,7 @@ const ui = {
   zhangba: false,
   zhangbaCards: [],
   jiedaoFirst: null,
+  activeSkill: null,
   selectedGeneral: null,
   skillView: null,
   error: '',
@@ -533,6 +534,7 @@ window.__startDuel = () => {
 };
 
 async function sendAction(action) {
+  if (action && (action.type === 'play' || action.type === 'respond')) ui.activeSkill = null;
   const r = await post('/api/action', { room: ui.room, player: ui.playerId, action });
   if (!r.ok) { ui.error = r.error; render(); return; }
   if (r.state) {
@@ -697,7 +699,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v70</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v72</div>
   </div></div>`;
 }
 
@@ -756,7 +758,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v70</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v72</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -765,7 +767,7 @@ function generalHtml() {
           <div class="general-info">
             <div class="g-name">${g.name}</div>
             <div class="g-faction">${g.faction} · ${g.hp} 血</div>
-            <div class="general-skills">${g.desc}</div>
+            <div class="general-skills">${(g.skills || []).map(id => `<div class="general-skill-line"><b>${skillName(id)}</b>：${escapeHtml((g.skillDescs && g.skillDescs[id]) || (g.skills.length === 1 ? (g.desc || '') : ''))}</div>`).join('')}</div>
             ${taken ? '<div class="g-taken">对手已选</div>' : ''}
           </div>
         </div>`;
@@ -779,7 +781,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v70</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v72</div>
   </div></div>`;
 }
 
@@ -884,7 +886,7 @@ function tableGameHtml() {
       <section class="dz-self">
         <div class="dz-hand">${you.hand.map(c => cardHtml(c, s)).join('') || '<div class="empty">没有手牌</div>'}</div>
         <div class="dz-skill-col">
-          ${(me.general.skills || []).map(x => `<button class="skill-btn" data-skill-view="1">${skillName(x)}</button>`).join('')}
+          ${(me.general.skills || []).map(x => `<button class="skill-btn ${ui.activeSkill === x ? 'active' : ''}" data-skill-act="${x}">${skillName(x)}</button>`).join('')}
         </div>
         ${generalCardHtml(me, s, 'gc-self')}
       </section>
@@ -1022,8 +1024,9 @@ function canUseAsSha(card) {
   const g = ui.state?.you?.general;
   if (!g) return false;
   if (['sha', 'huosha', 'leisha'].includes(card.key)) return true;
-  if ((g.skills.includes('wusheng') || g.skills.includes('re_wusheng')) && card.color === 'red') return true;
-  if ((g.skills.includes('longdan') || g.skills.includes('re_longdan')) && card.key === 'shan') return true;
+  const a = ui.activeSkill;
+  if ((a === 'wusheng' || a === 're_wusheng') && card.color === 'red') return true;
+  if ((a === 'longdan' || a === 're_longdan') && card.key === 'shan') return true;
   return false;
 }
 
@@ -1031,7 +1034,8 @@ function canUseAsShan(card) {
   const g = ui.state?.you?.general;
   if (!g) return false;
   if (card.key === 'shan') return true;
-  if ((g.skills.includes('longdan') || g.skills.includes('re_longdan')) && card.key === 'sha') return true;
+  const a = ui.activeSkill;
+  if ((a === 'longdan' || a === 're_longdan') && card.key === 'sha') return true;
   return false;
 }
 
@@ -1055,7 +1059,13 @@ function playActions(card) {
   const zhuge = you.equips && you.equips.weapon && you.equips.weapon.key === 'zhuge';
   const shaAllowed = you.general.skills.includes('paoxiao') || you.general.skills.includes('re_paoxiao') || zhuge || you.shaUsed < 1;
   const fangtian = !!(you.equips && you.equips.weapon && you.equips.weapon.key === 'fangtian' && card.key === 'sha' && you.hand.length === 1);
-  if (canSha && shaAllowed) acts.push({ label: fangtian ? '出【杀】（方天画戟·双目标）' : '出【杀】', as: 'sha', needsTarget: true, fangtian });
+  const a = ui.activeSkill;
+  let shaLabel = fangtian ? '出【杀】（方天画戟·双目标）' : '出【杀】';
+  if (!['sha', 'huosha', 'leisha'].includes(card.key)) {
+    if ((a === 'wusheng' || a === 're_wusheng') && card.color === 'red') shaLabel = '武圣：当【杀】使用';
+    else if ((a === 'longdan' || a === 're_longdan') && card.key === 'shan') shaLabel = '龙胆：当【杀】使用';
+  }
+  if (canSha && shaAllowed) acts.push({ label: shaLabel, as: 'sha', needsTarget: true, fangtian });
   if (card.type === 'equip') acts.push({ label: `装备【${card.name}】`, as: card.key, needsTarget: false });
   if (card.key === 'jiu' && (you.jiuUsed || 0) < 1) acts.push({ label: '使用【酒】', as: 'jiu', needsTarget: false });
   if (card.key === 'tiesuo') acts.push({ label: '重铸【铁索连环】', as: 'tiesuo_recast', needsTarget: false });
@@ -1149,7 +1159,7 @@ function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
   }
   if (s.phase === 'play' && isMyTurn) {
     const selected = you.hand.find(c => c.id === ui.selectedCard);
-    let tip = '出牌阶段，请选择1张牌';
+    let tip = ui.activeSkill ? `已发动【${skillName(ui.activeSkill)}】，请选择对应的牌` : '出牌阶段，请选择1张牌';
     if (selected) {
       const act = playActions(selected)[0];
       if (!act) tip = `已选【${selected.name}】，这张牌现在不能使用`;
@@ -1219,9 +1229,20 @@ document.addEventListener('mouseup', (e) => {
 document.addEventListener('click', (e) => {
   if (ui.skillView) { ui.skillView = null; render(); return; }
   if (ui.suppressClick) { ui.suppressClick = false; return; }
-  if (e.target.closest('[data-skill-view]') && ui.state && ui.state.started) {
+  if (e.target.closest('[data-skill-act]') && ui.state && ui.state.started) {
     const me = ui.state.players.find(p => p.id === myId(ui.state));
-    if (me) { ui.skillView = me; render(); return; }
+    const id = e.target.closest('[data-skill-act]').dataset.skillAct;
+    const LOCK = ['paoxiao', 're_paoxiao', 'liyong', 'yingzi'];
+    if (LOCK.includes(id)) {
+      if (me) { ui.skillView = me; render(); }
+      return;
+    }
+    ui.activeSkill = ui.activeSkill === id ? null : id;
+    ui.selectedCard = null;
+    ui.pendingAction = null;
+    ui.jiedaoFirst = null;
+    render();
+    return;
   }
 
   const modeEl = e.target.closest('[data-mode]');

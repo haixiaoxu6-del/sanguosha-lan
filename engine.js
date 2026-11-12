@@ -303,6 +303,8 @@ class Game {
 
   endTurn() {
     if (this.gameOver) return;
+    // 【厉勇】“本回合非锁定技失效”随本回合结束到期
+    for (const q of this.players) q.skillSealed = false;
     const p = this.currentPlayer();
     if (p && p.alive && this.hasSkill(p, 'biyue')) {
       this.draw(p, 1);
@@ -361,6 +363,35 @@ class Game {
     const p = this.currentPlayer();
     if (!p || p.id !== playerId) return err('还没轮到你');
     if (this.pending) return err('请先等待当前响应结束');
+
+    // 丈八蛇矛：两张手牌当杀（无实体单牌，必须在查找 cardId 之前处理）
+    if (action.as === 'zhangba_sha') {
+      const ids = Array.isArray(action.cardIds) ? action.cardIds : [];
+      if (ids.length !== 2) return err('请选择两张手牌');
+      const c1 = p.hand.find(c => c.id === ids[0]);
+      const c2 = p.hand.find(c => c.id === ids[1]);
+      if (!c1 || !c2 || c1.id === c2.id) return err('请选择两张不同的手牌');
+      if (!p.equips || !p.equips.weapon || p.equips.weapon.key !== 'zhangba') return err('没有装备【丈八蛇矛】');
+      const target = action.targetId ? this.findPlayer(action.targetId) : null;
+      if (!target || !target.alive || target.id === p.id) return err('请选择一名其他角色');
+      if (this.distance(p, target) > 3) return err('目标不在攻击范围内');
+      if (!this.hasSkill(p, 'paoxiao') && !this.hasSkill(p, 're_paoxiao') && p.flags.shaUsed >= 1) return err('本回合已经使用过【杀】');
+      p.hand.splice(p.hand.findIndex(c => c.id === c1.id), 1);
+      p.hand.splice(p.hand.findIndex(c => c.id === c2.id), 1);
+      this.discard.push(c1, c2);
+      p.flags.shaUsed++;
+      this.pushLog(`${p.name} 发动【丈八蛇矛】，将两张手牌当【杀】对 ${target.name} 使用`);
+      this.pending = {
+        type: 'shan',
+        playerId: target.id,
+        sourceId: p.id,
+        cardId: c1.id,
+        boost: false,
+        queue: [],
+        prompt: `${target.name} 请出【闪】`,
+      };
+      return ok();
+    }
 
     const card = p.hand.find(c => c.id === action.cardId);
     if (!card) return err('你没有这张牌');
@@ -509,6 +540,10 @@ class Game {
             if (judge.color === 'red') {
               this.discard.push(card);
               this.pushLog(`${target.name} 的【八卦阵】判定为红色，视为出【闪】`);
+              if (this.hasSkill(p, 'liyong') && this.phase === 'play' && this.currentPlayer() && this.currentPlayer().id === p.id) {
+                p.flags.liyong = true;
+                this.pushLog(`${p.name} 的【杀】被【八卦阵】闪避，触发【厉勇】`);
+              }
               return ok();
             }
           }
