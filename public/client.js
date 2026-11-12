@@ -166,7 +166,7 @@ function fxImg(name, cls) {
 
 function playFx(ev) {
   if (!ev || !ev.playerId) return;
-  if (ev.type === 'draw') { playDrawFx(ev); return; }
+  // 摸牌牌背动画暂时关闭：它会在中心留下深色牌背，先保证出牌展示干净
   if (ev.type === 'card') {
     const s = ui.state;
     const self = s && ev.playerId === myId(s);
@@ -722,7 +722,8 @@ function addToast(msg) {
 
 function showCenterCard(card, fromEl, persist) {
   if (!card) return;
-  document.querySelectorAll('.play-card[data-card-id="' + card.id + '"]').forEach(e => e.remove());
+  // 先清空中心所有旧的牌/牌背层，保证后面不会藏着一张深色牌
+  document.querySelectorAll('.play-card, .center-card, .draw-fly, .df-card').forEach(e => e.remove());
   const mask = document.createElement('div');
   mask.className = 'play-card' + (persist ? ' persist' : '');
   mask.dataset.cardId = card.id;
@@ -1005,7 +1006,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v109</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v111</div>
   </div></div>`;
 }
 
@@ -1064,7 +1065,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v109</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v111</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1093,7 +1094,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v109</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v111</div>
   </div></div>`;
 }
 
@@ -2234,6 +2235,10 @@ function wuguHtml(s) {
     </div>
   </div></div>`;
 }
+
+
+
+
 
 
 
