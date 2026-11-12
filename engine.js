@@ -574,7 +574,7 @@ class Game {
       const weapon = p.equips && p.equips.weapon;
       const armor = target.equips && target.equips.armor;
       const ignoreArmor = weapon && weapon.key === 'qinggang';
-      const fire = weapon && weapon.key === 'zhuque';
+      const fire = card.key === 'huosha' || (weapon && weapon.key === 'zhuque' && card.key === 'sha' && action.fire === true);
       const liyongActive = this.hasSkill(p, 'liyong') && p.flags.liyong;
       if (armor && !ignoreArmor) {
         if (armor.key === 'renwang' && !fire && card.color === 'black') {
@@ -626,22 +626,28 @@ class Game {
         }
         return ok();
       }
-      // 雌雄双股剑：异性目标，摸一张
-      if (weapon && weapon.key === 'cixiong' && p.general && target.general && p.general.gender !== target.general.gender) {
-        this.draw(p, 1);
-        this.pushLog(`${p.name} 发动【雌雄双股剑】，摸一张牌`);
-      }
+      // 雌雄双股剑：异性目标先选择弃一张手牌或让使用者摸一张牌
       const fangtian = !!(weapon && weapon.key === 'fangtian' && p.hand.length === 0 && targets.length > 1);
-      const shaTargets = fangtian ? targets : [target];
+      const shaTargets = fangtian ? targets.slice(0, 3) : [target];
       const first = shaTargets[0];
       const rest = shaTargets.slice(1).map(x => x.id);
+      const boost = jiuBoost + yijueBoost;
+      if (weapon && weapon.key === 'cixiong' && p.general && first.general
+        && p.general.gender !== first.general.gender && first.hand.length > 0) {
+        this.pending = {
+          type: 'cixiong', playerId: first.id, sourceId: p.id, targetId: first.id,
+          cardId: card.id, fire, boost, queue: rest,
+          prompt: `【雌雄双股剑】：弃一张手牌，或让 ${p.name} 摸一张牌`,
+        };
+        return ok();
+      }
       this.pending = {
         type: 'shan',
         playerId: first.id,
         sourceId: p.id,
         cardId: card.id,
         fire,
-        boost: jiuBoost + yijueBoost,
+        boost,
         queue: rest,
         prompt: `${first.name} 请出【闪】`,
       };
@@ -1032,6 +1038,81 @@ class Game {
       return ok();
     }
 
+    if (pend.type === 'cixiong') {
+      const src = this.findPlayer(pend.sourceId);
+      if (action.pass) {
+        if (src) { this.draw(src, 1); this.pushLog(`${p.name} 选择让 ${src.name} 摸一张牌`); }
+      } else {
+        const card = p.hand.find(c => c.id === action.cardId);
+        if (!card) return err('请选择一张手牌弃置');
+        p.hand.splice(p.hand.indexOf(card), 1);
+        this.discard.push(card);
+        this.pushLog(`${p.name} 弃置【${card.name}】`);
+      }
+      const t = this.findPlayer(pend.targetId);
+      this.pending = {
+        type: 'shan', playerId: t.id, sourceId: pend.sourceId, cardId: pend.cardId,
+        fire: pend.fire, boost: pend.boost || 0, queue: pend.queue || [],
+        prompt: `${t.name} 请出【闪】`,
+      };
+      return ok();
+    }
+
+    if (pend.type === 'guanshi') {
+      if (action.pass) { this.pending = null; return ok(); }
+      const ids = Array.isArray(action.cardIds) ? action.cardIds : [];
+      if (ids.length !== 2) return err('请选择两张牌');
+      const removed = [];
+      for (const id of ids) {
+        const c = this.findCardById(id);
+        if (!c) return err('没有这张牌');
+        const owned = p.hand.includes(c) || p.judge.includes(c) || Object.values(p.equips || {}).includes(c);
+        if (!owned) return err('只能弃置自己的牌');
+        this.removeFromPlayer(p, c);
+        this.discard.push(c);
+        removed.push(c.name);
+      }
+      this.pushLog(`${p.name} 发动【贯石斧】，弃置【${removed.join('】【')}】令【杀】依然造成伤害`);
+      this.pending = null;
+      const t = this.findPlayer(pend.targetId);
+      const gsRef = this.findCardById(pend.cardId);
+      const gsCard = gsRef ? (pend.fire ? { ...gsRef, fire: true } : gsRef) : null;
+      this.damage(t, 1 + (pend.boost || 0), p, gsCard, null);
+      return ok();
+    }
+
+    if (pend.type === 'qinglong') {
+      if (action.pass) { this.pending = null; return ok(); }
+      const sha = p.hand.find(c => this.canUseAs(p, c, 'sha'));
+      if (!sha) { this.pending = null; return ok(); }
+      p.hand.splice(p.hand.indexOf(sha), 1);
+      this.discard.push(sha);
+      this.pushLog(`${p.name} 发动【青龙偃月刀】，继续使用【${sha.name}】`);
+      const t = this.findPlayer(pend.targetId);
+      this.pending = {
+        type: 'shan', playerId: t.id, sourceId: p.id, cardId: sha.id,
+        fire: sha.key === 'huosha', boost: 0, queue: [],
+        prompt: `${t.name} 请出【闪】`,
+      };
+      return ok();
+    }
+
+    if (pend.type === 'qilin') {
+      if (action.pass) { this.pending = null; return ok(); }
+      const t = this.findPlayer(pend.targetId);
+      if (t && t.equips) {
+        const slot = t.equips.horse1 ? 'horse1' : (t.equips.horse2 ? 'horse2' : null);
+        if (slot) {
+          const h = t.equips[slot];
+          t.equips[slot] = null;
+          this.discard.push(h);
+          this.pushLog(`${p.name} 发动【麒麟弓】，弃置 ${t.name} 的【${h.name}】`);
+        }
+      }
+      this.pending = null;
+      return ok();
+    }
+
     if (pend.type === 'jiedao') {
       if (action.pass) {
         const w = p.equips && p.equips.weapon;
@@ -1106,7 +1187,9 @@ class Game {
       if (action.pass) {
         this.pending = null;
         this.pushLog(`${p.name} 没有出【闪】`);
-        this.damage(p, 1 + (pend.boost || 0), this.findPlayer(pend.sourceId), this.findCardById(pend.cardId), null);
+        const hitRef = this.findCardById(pend.cardId);
+        const hitCard = hitRef ? (pend.fire ? { ...hitRef, fire: true } : hitRef) : null;
+        this.damage(p, 1 + (pend.boost || 0), this.findPlayer(pend.sourceId), hitCard, null);
         if (!this.pending) nextSha();
         return ok();
       }
@@ -1122,35 +1205,28 @@ class Game {
         this.pushLog(`${liyongSrc.name} 的【杀】被【闪】抵消，触发【厉勇】`);
       }
       this.pending = null;
-      nextSha();
-      // 青龙偃月刀：被闪抵消后可以继续使用一张杀
+      const hadNext = nextSha();
+      if (hadNext) return ok();
       const src = this.findPlayer(pend.sourceId);
+      // 青龙偃月刀：被闪抵消后可以选择继续使用一张杀
       if (src && src.equips && src.equips.weapon && src.equips.weapon.key === 'qinglong') {
         const sha = src.hand.find(c => this.canUseAs(src, c, 'sha'));
         if (sha) {
-          this.removeFromPlayer(src, sha);
-          this.discard.push(sha);
-          this.pushLog(`${src.name} 发动【青龙偃月刀】，继续使用【杀】`);
           this.pending = {
-            type: 'shan',
-            playerId: p.id,
-            sourceId: src.id,
-            cardId: sha.id,
-            prompt: `${p.name} 请出【闪】`,
+            type: 'qinglong', playerId: src.id, targetId: p.id,
+            prompt: '【青龙偃月刀】：是否继续使用一张【杀】？',
           };
           return ok();
         }
       }
-      // 贯石斧：被闪抵消后弃两张牌，强行造成伤害
+      // 贯石斧：被闪抵消后可以选择弃两张牌强行造成伤害
       if (src && src.equips && src.equips.weapon && src.equips.weapon.key === 'guanshi' && this.cardCount(src) >= 2) {
-        const pool = [...src.hand, ...src.judge];
-        for (let i = 0; i < 2 && pool.length; i++) {
-          const c = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
-          this.removeFromPlayer(src, c);
-          this.discard.push(c);
-        }
-        this.pushLog(`${src.name} 发动【贯石斧】，弃两张牌令【杀】依然造成伤害`);
-        this.damage(p, 1 + (pend.boost || 0), src, this.findCardById(pend.cardId), null);
+        this.pending = {
+          type: 'guanshi', playerId: src.id, targetId: p.id,
+          cardId: pend.cardId, boost: pend.boost, count: 2,
+          prompt: '【贯石斧】：是否弃两张牌令此【杀】依然造成伤害？',
+        };
+        return ok();
       }
       return ok();
     }
@@ -1278,15 +1354,13 @@ class Game {
     if (target.equips && target.equips.armor && target.equips.armor.key === 'tengjia' && card && (card.fire || card.element === 'fire')) amount += 1;
     target.hp -= amount;
     this.pushLog(`${target.name} 受到${amount}点伤害（${target.hp}/${target.maxHp}）`);
-    // 麒麟弓：造成伤害后弃置目标一匹马
-    if (source && source.equips && source.equips.weapon && source.equips.weapon.key === 'qilin' && target.equips) {
-      const slot = target.equips.horse1 ? 'horse1' : (target.equips.horse2 ? 'horse2' : null);
-      if (slot) {
-        const horse = target.equips[slot];
-        target.equips[slot] = null;
-        this.discard.push(horse);
-        this.pushLog(`${source.name} 发动【麒麟弓】，弃置 ${target.name} 的【${horse.name}】`);
-      }
+    // 麒麟弓：造成伤害后可以选择弃置目标一匹马
+    if (source && source.equips && source.equips.weapon && source.equips.weapon.key === 'qilin'
+      && target.alive && target.equips && (target.equips.horse1 || target.equips.horse2) && !this.pending) {
+      this.pending = {
+        type: 'qilin', playerId: source.id, targetId: target.id,
+        prompt: '【麒麟弓】：是否弃置目标的一匹马？',
+      };
     }
     // 连环：属性伤害传导给其他横置角色
     if (target.chained && card && (card.element === 'fire' || card.element === 'thunder' || card.fire)) {
@@ -1319,7 +1393,7 @@ class Game {
 
     if (target.hp <= 0) {
       this.enterDying(target, source, card, parent);
-    } else {
+    } else if (!this.pending) {
       this.pending = parent;
     }
     this.checkWin();
@@ -1518,3 +1592,4 @@ class Game {
 }
 
 module.exports = { Game };
+

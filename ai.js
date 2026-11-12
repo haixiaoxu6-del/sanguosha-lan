@@ -38,6 +38,24 @@ function aiAct(game) {
         continue;
       }
 
+      if (pend.type === 'cixiong') {
+        if (ai.hand.length >= 3) game.respond(ai.id, { cardId: ai.hand[0].id });
+        else game.respond(ai.id, { pass: true });
+        continue;
+      }
+
+      if (pend.type === 'guanshi') {
+        const pool = [...ai.hand, ...Object.values(ai.equips || {}).filter(Boolean), ...ai.judge];
+        if (pool.length >= 2) game.respond(ai.id, { cardIds: pool.slice(0, 2).map(c => c.id) });
+        else game.respond(ai.id, { pass: true });
+        continue;
+      }
+
+      if (pend.type === 'qinglong' || pend.type === 'qilin') {
+        game.respond(ai.id, {});
+        continue;
+      }
+
       if (pend.type === 'jiedao') {
         const sha = ai.hand.find(c => game.canUseAs(ai, c, 'sha'));
         game.respond(ai.id, sha ? { cardId: sha.id } : { pass: true });

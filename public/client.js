@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 const $ = (sel) => document.querySelector(sel);
 const SUIT_CN = { spade: '♠', heart: '♥', club: '♣', diamond: '♦' };
@@ -889,7 +889,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v85</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v86</div>
   </div></div>`;
 }
 
@@ -948,7 +948,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v85</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v86</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -971,7 +971,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v85</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v86</div>
   </div></div>`;
 }
 
@@ -1268,6 +1268,9 @@ function playActions(card) {
     // 已发动武圣/龙胆时，转化【杀】优先于卡牌原本功能（装备/锦囊等）
     if (conversion) acts.unshift(act); else acts.push(act);
   }
+  if (canSha && shaAllowed && you.equips && you.equips.weapon && you.equips.weapon.key === 'zhuque' && card.key === 'sha') {
+    acts.push({ label: '火【杀】（朱雀羽扇）', as: 'sha', fire: true, needsTarget: true });
+  }
   if (card.type === 'equip') acts.push({ label: `装备【${card.name}】`, as: card.key, needsTarget: false });
   if (card.key === 'jiu' && (you.jiuUsed || 0) < 1) acts.push({ label: '使用【酒】', as: 'jiu', needsTarget: false });
   if (card.key === 'tiesuo') acts.push({ label: '重铸【铁索连环】', as: 'tiesuo_recast', needsTarget: false });
@@ -1285,6 +1288,8 @@ function isCardUsable(card, s) {
     const type = s.pending.type;
     if (type === 'discard') return true;
     if (type === 'yajiao_discard') return true;
+    if (type === 'cixiong') return true;
+    if (type === 'guanshi') return true;
     if (type === 'yijue') return true;
     if (type === 'shan' || type === 'wanjian') return canUseAsShan(card);
     if (type === 'duel' || type === 'nanman') return canUseAsSha(card);
@@ -1426,6 +1431,36 @@ function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
       </div>`;
     }
 
+    if (pending.type === 'cixiong') {
+      return `<div class="control-box">
+        <div class="prompt">${escapeHtml(pending.prompt || '')}</div>
+        <div class="sub">点击一张手牌弃置，或点下方让对方摸牌</div>
+        <div class="btn-row"><button class="btn ghost" data-action="cixiong-pass">让其摸一张牌</button></div>
+      </div>`;
+    }
+
+    if (pending.type === 'guanshi') {
+      return `<div class="control-box">
+        <div class="prompt">${escapeHtml(pending.prompt || '')}</div>
+        <div class="sub">已选 ${ui.discardSet.size} / 2</div>
+        <div class="btn-row">
+          <button class="btn primary" data-action="guanshi-confirm" ${ui.discardSet.size === 2 ? '' : 'disabled'}>弃两张牌并强制命中</button>
+          <button class="btn ghost" data-action="guanshi-pass">放弃</button>
+        </div>
+      </div>`;
+    }
+
+    if (pending.type === 'qinglong' || pending.type === 'qilin') {
+      const prefix = pending.type === 'qinglong' ? 'qinglong' : 'qilin';
+      return `<div class="control-box">
+        <div class="prompt">${escapeHtml(pending.prompt || '')}</div>
+        <div class="btn-row">
+          <button class="btn primary" data-action="${prefix}-yes">发动</button>
+          <button class="btn ghost" data-action="${prefix}-no">放弃</button>
+        </div>
+      </div>`;
+    }
+
     if (pending.type === 'pick') {
       const pick = s.pick;
       if (!pick) return `<div class="control-box waiting"><div class="prompt">${escapeHtml(pending.prompt || '')}</div></div>`;
@@ -1454,8 +1489,13 @@ function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
       else tip = `已选【${selected.name}】，再点一次使用，或点其他牌换选`;
     }
     const zhangba = you.equips && you.equips.weapon && you.equips.weapon.key === 'zhangba' && you.hand.length >= 2;
+    const fangtianPick = !!(ui.pendingAction && ui.pendingAction.fangtian);
+    const fireOpt = !!selected && !ui.pendingAction && you.equips && you.equips.weapon
+      && you.equips.weapon.key === 'zhuque' && selected.key === 'sha';
     return `<div class="play-bar">
       <div class="play-timer"><div class="pt-fill" id="ptFill"></div><div class="pt-text">${ui.zhangba ? '丈八蛇矛：请点选两张手牌' : tip}</div></div>
+      ${fangtianPick ? `<button class="btn primary" data-action="fangtian-confirm">确定目标（${ui.pendingAction.fangtianIds.length}）</button>` : ''}
+      ${fireOpt ? '<button class="btn ghost" data-action="fire-sha">火【杀】</button>' : ''}
       ${zhangba ? '<button class="btn ghost" data-action="zhangba">丈八蛇矛</button>' : ''}
       <button class="btn endplay-text" data-action="end-play">结束出牌</button>
     </div>`;
@@ -1596,7 +1636,7 @@ document.addEventListener('click', (e) => {
       renderLocal();
       return;
     }
-    if (s.pending && s.pending.playerId === myId(s) && (s.pending.type === 'discard' || s.pending.type === 'yajiao_discard')) {
+    if (s.pending && s.pending.playerId === myId(s) && (s.pending.type === 'discard' || s.pending.type === 'yajiao_discard' || s.pending.type === 'guanshi')) {
       if (ui.discardSet.has(id)) ui.discardSet.delete(id);
       else if (ui.discardSet.size < s.pending.count) ui.discardSet.add(id);
       renderLocal();
@@ -1609,6 +1649,7 @@ document.addEventListener('click', (e) => {
           : (s.pending.type === 'duel' || s.pending.type === 'nanman') ? canUseAsSha(responseCard)
           : s.pending.type === 'jiedao' ? canUseAsSha(responseCard)
           : s.pending.type === 'yijue' ? true
+          : s.pending.type === 'cixiong' ? true
           : s.pending.type === 'wuxie' ? responseCard.key === 'wuxie'
           : s.pending.type === 'tao' ? (responseCard.key === 'tao' || (responseCard.key === 'jiu' && s.pending.dyingId === myId(s))) : false;
         if (valid) { sendAction({ type: 'respond', cardId: id }); return; }
@@ -1716,7 +1757,7 @@ document.addEventListener('click', (e) => {
           renderLocal();
           return;
         }
-        sendAction({ type: 'play', cardId: card.id, as: act.as, targetId: id });
+        sendAction({ type: 'play', cardId: card.id, as: act.as, fire: !!act.fire, targetId: id });
         return;
       }
     }
@@ -1730,19 +1771,15 @@ document.addEventListener('click', (e) => {
         return;
       }
       if (ui.pendingAction.fangtian) {
-        if (!ui.pendingAction.fangtianIds.includes(id)) ui.pendingAction.fangtianIds.push(id);
-        if (ui.pendingAction.fangtianIds.length >= 2) {
-          const ids = ui.pendingAction.fangtianIds.slice();
-          ui.pendingAction = null;
-          sendAction({ type: 'play', cardId: ui.selectedCard, as: 'sha', targetIds: ids });
-        } else {
-          renderLocal();
+        if (!ui.pendingAction.fangtianIds.includes(id) && ui.pendingAction.fangtianIds.length < 3) {
+          ui.pendingAction.fangtianIds.push(id);
         }
+        renderLocal();
         return;
       }
       ui.selectedTarget = id;
       renderLocal();
-      sendAction({ type: 'play', cardId: ui.selectedCard, as: ui.pendingAction.as, targetId: id });
+      sendAction({ type: 'play', cardId: ui.selectedCard, as: ui.pendingAction.as, fire: !!ui.pendingAction.fire, targetId: id });
       return;
     }
     return;
@@ -1776,6 +1813,45 @@ document.addEventListener('click', (e) => {
 
   if (action === 'jiedao-pass') {
     sendAction({ type: 'respond', pass: true });
+    return;
+  }
+
+  if (action === 'cixiong-pass') {
+    sendAction({ type: 'respond', pass: true });
+    return;
+  }
+
+  if (action === 'guanshi-confirm') {
+    sendAction({ type: 'respond', cardIds: [...ui.discardSet] });
+    ui.discardSet.clear();
+    return;
+  }
+
+  if (action === 'guanshi-pass') {
+    sendAction({ type: 'respond', pass: true });
+    return;
+  }
+
+  if (action === 'qinglong-yes' || action === 'qilin-yes') {
+    sendAction({ type: 'respond' });
+    return;
+  }
+
+  if (action === 'qinglong-no' || action === 'qilin-no') {
+    sendAction({ type: 'respond', pass: true });
+    return;
+  }
+
+  if (action === 'fangtian-confirm') {
+    const ids = (ui.pendingAction && ui.pendingAction.fangtianIds) || [];
+    if (ids.length) sendAction({ type: 'play', cardId: ui.selectedCard, as: 'sha', targetIds: ids });
+    ui.pendingAction = null;
+    return;
+  }
+
+  if (action === 'fire-sha') {
+    ui.pendingAction = { as: 'sha', fire: true, needsTarget: true };
+    renderLocal();
     return;
   }
 
@@ -1944,4 +2020,5 @@ loadModes().then(() => {
   if (ui.room && ui.playerId) connect();
   else render();
 });
+
 
