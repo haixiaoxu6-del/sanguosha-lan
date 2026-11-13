@@ -123,12 +123,25 @@ function applyState(ns) {
   const oldLog = ui.state && Array.isArray(ui.state.log) ? ui.state.log : [];
   const newLines = diffLog(oldLog, ns.log || []);
   ui.state = ns;
+  if (ns.lastJudgment && ns.lastJudgment.seq > (ui.judgmentSeen || 0)) {
+    if (ui.judgeTimer) clearTimeout(ui.judgeTimer);
+    const seq = ns.lastJudgment.seq;
+    ui.judgeTimer = setTimeout(() => {
+      ui.judgmentSeen = seq;
+      const b = ui.pendingState;
+      ui.pendingState = null;
+      if (b) applyState(b); else render();
+    }, 3000);
+  }
   if (!(ns.pending && ns.pending.type === 'huogong')) {
     document.querySelectorAll('.play-card.persist').forEach(e => e.remove());
   }
-  if (!ns.started && ui.centerCards && ui.centerCards.length) {
-    ui.centerCards.forEach(x => { if (x.timer) clearTimeout(x.timer); if (x.el) x.el.remove(); });
-    ui.centerCards = [];
+  if (ns.gameOver || !ns.started) {
+    if (ui.centerCards) {
+      ui.centerCards.forEach(x => { if (x.timer) clearTimeout(x.timer); if (x.el) x.el.remove(); });
+      ui.centerCards = [];
+    }
+    document.querySelectorAll('.center-slot, #centerRow, .play-card, .center-card').forEach(e => e.remove());
   }
   ui.connecting = false;
   ui.starting = false;
@@ -1060,7 +1073,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v121</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v123</div>
   </div></div>`;
 }
 
@@ -1119,7 +1132,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v121</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v123</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1148,7 +1161,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v121</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v123</div>
   </div></div>`;
 }
 
@@ -1272,13 +1285,16 @@ function tableGameHtml() {
 function judgmentHtml(s) {
   const j = s.lastJudgment;
   if (!j || ui.judgmentSeen === j.seq) return '';
-  const card = j.card ? `${SUIT_CN[j.card.suit]}${j.card.number}` : '';
-  return `<div class="modal-mask"><div class="modal judge-modal">
-    <h2>判定</h2>
-    <div class="judge-card">${j.card ? `<span class="jc-suit ${j.card.color === 'red' ? 'red' : ''}">${card}</span><b>${j.card.name}</b>` : '无牌'}</div>
-    <p class="judge-text ${j.skipPlay ? 'skip' : ''}">${escapeHtml(j.text)}</p>
-    ${j.skipPlay ? '<p class="judge-skip">本回合跳过出牌阶段</p>' : ''}
-    <button class="btn primary" data-action="close-judgment">确定</button>
+  const m = /【([^】]+)】/.exec(j.text || '');
+  const reason = m ? m[1] : '判定';
+  const result = j.card ? `${SUIT_CN[j.card.suit]}${j.card.number} ${j.card.name}` : '无牌';
+  return `<div class="judge-overlay"><div class="judge-panel">
+    <div class="judge-title">判定</div>
+    <div class="judge-row">
+      <div class="judge-col"><div class="judge-card reason">${reason}</div><small>判定牌</small></div>
+      <div class="judge-col"><div class="judge-card">${result}</div><small>判定结果</small></div>
+    </div>
+    <div class="judge-text">${escapeHtml(j.text || '')}</div>
   </div></div>`;
 }
 
@@ -2294,6 +2310,8 @@ function wuguHtml(s) {
     </div>
   </div></div>`;
 }
+
+
 
 
 

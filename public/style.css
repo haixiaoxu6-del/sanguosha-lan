@@ -1539,3 +1539,15 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 .center-slot { width: 150px; height: 210px; flex: 0 0 auto; }
 .center-slot .card { width: 150px; height: 210px; }
 
+
+/* 判定窗口：左侧判定牌、右侧结果，3 秒自动消失，无按钮 */
+.judge-overlay { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.judge-panel { background: rgba(20,14,10,.95); border: 1px solid #a98145; border-radius: 14px; padding: 18px 26px 16px; text-align: center; min-width: 360px; }
+.judge-title { color: #e8cf9a; font-size: 20px; font-weight: 800; margin-bottom: 10px; }
+.judge-row { display: flex; gap: 18px; justify-content: center; }
+.judge-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.judge-col small { color: #b9a887; font-size: 12px; }
+.judge-card { width: 130px; height: 178px; border-radius: 8px; border: 2px solid #a98145; background: linear-gradient(180deg, #f4ead1, #ddc9a6); color: #2a1c10;
+  display: flex; align-items: center; justify-content: center; text-align: center; font-size: 17px; font-weight: 800; padding: 8px; }
+.judge-card.reason { background: linear-gradient(180deg, #3a2a1e, #22170f); color: #e8cf9a; }
+.judge-text { color: #cdbb9a; font-size: 13px; margin-top: 8px; }
