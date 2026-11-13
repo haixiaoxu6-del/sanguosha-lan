@@ -1,0 +1,24 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face { font-family: 'HYZLSJ'; src: url('/assets/fonts/HYZLSJ.woff2') format('woff2'); font-display: swap; }
+body { margin:0; background:#8a6a4a; padding:30px; display:flex; gap:26px; font-family:"FZBWKSJW",serif; }
+.c { width:164px; height:230px; background:linear-gradient(180deg,#f3ead2,#e2d2ad); border:1px solid #8c6b3f; border-radius:6px;
+  box-shadow:0 6px 16px rgba(0,0,0,.45); position:relative; overflow:hidden; color:#241a10; }
+.c .top { position:absolute; top:5px; left:4px; width:30px; text-align:center; z-index:4; }
+.c .num { font-size:20px; font-weight:800; line-height:1; color:#a52626; }
+.c .suit { font-size:17px; line-height:1; color:#a52626; }
+.c.black .num, .c.black .suit { color:#241a10; }
+.c .band { position:absolute; top:2px; left:32px; right:3px; height:30px; z-index:3;
+  background:url('/assets/ui/cardname.png') center/100% 100% no-repeat; display:flex; align-items:center; justify-content:center; }
+.c .name { font-family:'HYZLSJ',"华文行楷",serif; font-size:25px; font-weight:700; line-height:1; white-space:nowrap; }
+.c .tag { position:absolute; top:36px; left:32px; right:3px; z-index:3; text-align:center; }
+.c .tag span { display:inline-block; border:1px solid #8a6a3a; border-radius:3px; padding:1px 6px; font-size:10px; color:#6b4a24; background:rgba(255,248,230,.7); }
+.c .art { position:absolute; left:5px; right:5px; top:60px; bottom:5px; z-index:1; background-size:cover; background-position:center; border:1px solid rgba(140,107,63,.45); }
+</style></head>
+<body>
+  <div class="c"><div class="top"><span class="num">Q</span><br><span class="suit">♥</span></div><div class="band"><span class="name">桃</span></div><div class="tag"><span>基本</span></div><div class="art" style="background-image:url('/assets/cards/tao.png')"></div></div>
+  <div class="c black"><div class="top"><span class="num">6</span><br><span class="suit">♣</span></div><div class="band"><span class="name">乐不思蜀</span></div><div class="tag"><span>锦囊</span></div><div class="art" style="background-image:url('/assets/cards/lebu.png')"></div></div>
+  <div class="c"><div class="top"><span class="num">K</span><br><span class="suit">♦</span></div><div class="band"><span class="name">骅骝</span></div><div class="tag"><span>装备</span></div><div class="art" style="background-image:url('/assets/cards/hualiu.png')"></div></div>
+  <div class="c black"><div class="top"><span class="num">9</span><br><span class="suit">♠</span></div><div class="band"><span class="name">酒</span></div><div class="tag"><span>基本</span></div><div class="art" style="background-image:url('/assets/cards/jiu.png')"></div></div>
+</body></html>

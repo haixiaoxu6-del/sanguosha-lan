@@ -1,0 +1,18 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="/style.css">
+<style>
+body { margin:0; background:#241a14; padding:40px 24px 24px; font-family:"FZBWKSJW",serif; display:flex; gap:40px; align-items:flex-start; }
+.col { text-align:center; }
+.cap { color:#c9b184; font-size:13px; margin-top:10px; }
+/* 卡片就是立绘矩形：180 x 330（138:253 等比放大） */
+.card { position:relative; width:180px; height:330px; background:transparent; }
+.card .art { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; }
+/* 框：从 c=36 开始到 b，无顶线 */
+.card .frame { position:absolute; left:0; right:0; top:36px; bottom:0; border-left:2px solid #a98145; border-right:2px solid #a98145; border-bottom:2px solid #a98145;
+  border-radius:0 0 12px 12px; background:transparent; pointer-events:none; }
+</style></head>
+<body>
+  <div class="col"><div class="card"><img class="art" src="/assets/generals/re_zhaoyun.jpg"><div class="frame"></div></div><div class="cap">界赵云 180×330（立绘矩形）</div></div>
+  <div class="col"><div class="card"><img class="art" src="/assets/generals/re_zhangfei.jpg"><div class="frame"></div></div><div class="cap">界张飞</div></div>
+  <div class="col"><div class="card"><img class="art" src="/assets/generals/re_guanyu.jpg"><div class="frame"></div></div><div class="cap">界关羽</div></div>
+</body></html>

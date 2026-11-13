@@ -1,0 +1,17 @@
+﻿<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="/style.css">
+<style>
+body { margin:0; background:#241a14; padding:50px 24px 24px; font-family:"FZBWKSJW",serif; display:flex; gap:40px; align-items:flex-start; }
+.col { text-align:center; }
+.cap { color:#c9b184; font-size:13px; margin-top:10px; }
+/* 框在立绘后面，立绘压住框顶 */
+.card { position:relative; width:180px; height:330px; }
+.frame { position:absolute; inset:0; border:2px solid #a98145; border-radius:12px; z-index:1; }
+.art { position:absolute; left:2px; top:-30px; width:176px; height:360px; object-fit:cover; object-position:center top; z-index:2; border-radius:10px; display:block; }
+</style></head>
+<body>
+  <div class="col"><div class="card"><div class="frame"></div><img class="art" src="/assets/generals/re_zhaoyun.jpg"></div><div class="cap">界赵云</div></div>
+  <div class="col"><div class="card"><div class="frame"></div><img class="art" src="/assets/generals/re_zhangfei.jpg"></div><div class="cap">界张飞</div></div>
+  <div class="col"><div class="card"><div class="frame"></div><img class="art" src="/assets/generals/re_guanyu.jpg"></div><div class="cap">界关羽</div></div>
+</body></html>
+

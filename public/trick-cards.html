@@ -1,0 +1,21 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face { font-family: 'HYZLSJ'; src: url('/assets/fonts/HYZLSJ.woff2') format('woff2'); }
+body { margin:0; background:#2a1e15; width:100vw; height:100vh; position:relative; font-family:"FZBWKSJW",serif; display:flex; align-items:center; justify-content:center; gap:30px; }
+.c { width:164px; height:230px; background:linear-gradient(180deg,#e2d0a8,#c9ad7c); border:1px solid #8c6b3f; border-radius:6px; position:relative; overflow:hidden; color:#1c140c; }
+.c .top { position:absolute; top:4px; left:5px; width:24px; text-align:center; z-index:3; }
+.c .num { font-size:19px; font-weight:800; color:#a52626; line-height:1; }
+.c .suit { font-size:16px; color:#a52626; line-height:1; }
+.c.black .num, .c.black .suit { color:#1c140c; }
+.c .name { position:absolute; top:14px; left:0; right:0; text-align:center; font-family:'HYZLSJ',serif; font-size:36px; line-height:1; color:#120c06; z-index:3; }
+.c .tag { position:absolute; top:56px; left:0; right:0; text-align:center; z-index:3; }
+.c .tag span { display:inline-block; border:1px solid #6b4a24; border-radius:3px; padding:0 6px; font-size:11px; color:#5a3d1c; background:rgba(255,248,230,.5); }
+.c .art2 { position:absolute; left:5px; right:5px; top:80px; bottom:5px; background-size:cover; background-position:center;
+  -webkit-mask-image:radial-gradient(ellipse 92% 92% at 50% 50%, #000 74%, transparent 100%); mask-image:radial-gradient(ellipse 92% 92% at 50% 50%, #000 74%, transparent 100%);
+  filter:contrast(1.28) brightness(.9); }
+</style></head>
+<body>
+  <div class="c"><div class="top"><span class="num">3</span><br><span class="suit">♥</span></div><div class="name">五谷丰登</div><div class="tag"><span>锦囊</span></div><div class="art2" style="background-image:url('/assets/cards/wugu.png'); background-size:145% auto;"></div></div>
+  <div class="c black"><div class="top"><span class="num">A</span><br><span class="suit">♠</span></div><div class="name">闪电</div><div class="tag"><span>延时锦囊</span></div><div class="art2" style="background-image:url('/assets/cards/shandian.png'); background-size:145% auto;"></div></div>
+</body></html>

@@ -131,8 +131,6 @@ function applyState(ns) {
     const seq = ns.lastJudgment.seq;
     ui.judgeTimer = setTimeout(() => {
       ui.judgmentSeen = seq;
-      ui.fxDeferred = false;
-      try { processFx(ui.state); } catch (e) {}
       const b = ui.pendingState;
       ui.pendingState = null;
       if (b) applyState(b); else render();
@@ -157,11 +155,7 @@ function applyState(ns) {
   ui.discardSet.clear();
   ui.error = '';
   render();
-  if (ns.lastJudgment && ns.lastJudgment.seq > (ui.judgmentSeen || 0)) {
-    ui.fxDeferred = true;
-  } else {
-    processFx(ns);
-  }
+  processFx(ns);
   if (ns.lastReveal && ns.lastReveal.seq > (ui.revealSeen || 0)) {
     ui.revealSeen = ns.lastReveal.seq;
     const rv = ns.lastReveal;
@@ -183,10 +177,8 @@ function processFx(s) {
   if (!ui.fxStarted || ui.fxKey !== key) {
     ui.fxStarted = true;
     ui.fxKey = key;
-    ui.fxLastId = 0;
-    ui.drawHidden = 0;
-    ui.drawQueue = [];
-    ui.drawBusy = false;
+    ui.fxLastId = maxId;
+    return;
   }
   if (maxId < ui.fxLastId) { ui.fxLastId = maxId; return; }
   for (const ev of evs) {
@@ -205,7 +197,7 @@ function fxImg(name, cls) {
 
 function playFx(ev) {
   if (!ev || !ev.playerId) return;
-  if (ev.type === 'draw') { enqueueDraw(ev); return; }
+  if (ev.type === 'draw') { playDrawFx(ev); return; }
   if (ev.type === 'card') {
     const s = ui.state;
     const self = s && ev.playerId === myId(s);
@@ -1107,7 +1099,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v175</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v153</div>
   </div></div>`;
 }
 
@@ -1166,7 +1158,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v175</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v153</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1195,7 +1187,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v175</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v153</div>
   </div></div>`;
 }
 
@@ -1230,9 +1222,8 @@ function generalCardHtml(p, s, extra = '') {
   const canTarget = !!(ui.pendingAction && ui.pendingAction.needsTarget)
     || !!(selected && playActions(selected).some(a => a.needsTarget));
   const hp = Math.max(0, p.hp);
-  const shownHand = p.handCount;
   const eq = p.equips || {};
-  const eqRow = (slot, c, label, range) => `<div class="gc-equip ${slot}${c && ui.yijueStage === 'card' ? ' pickable' : ''}${c && ui.yijueCard === c.id ? ' selected' : ''}" data-equip-slot="${slot}"${c ? ` data-equip-id="${c.id}"` : ''}>${
+  const eqRow = (slot, c, label, range) => `<div class="gc-equip ${slot}">${
     c ? `<b>${label}${c.name}</b>${range && c.range ? `<span>${c.range}</span>` : ''}` : ''
   }</div>`;
   const eqHtml = `<div class="gc-equips">
@@ -1251,7 +1242,7 @@ function generalCardHtml(p, s, extra = '') {
       <div class="gc-side-hand">
         <span class="hand-fan">
           <span class="fan-card c1"></span>
-          <span class="fan-card c2"><span class="hand-num">${shownHand}</span></span>
+          <span class="fan-card c2"><span class="hand-num">${p.handCount}</span></span>
           <span class="fan-card c3"></span>
         </span>
       </div>
@@ -1304,7 +1295,7 @@ function tableGameHtml() {
         ${controlsHtml(s, you, current, pending, myPending, isMyTurn)}
       </section>
       <section class="dz-self">
-        <div class="dz-hand">${you.hand.map((c, i) => cardHtml(c, s, i)).join('') || '<div class="empty">没有手牌</div>'}</div>
+        <div class="dz-hand">${you.hand.map(c => cardHtml(c, s)).join('') || '<div class="empty">没有手牌</div>'}</div>
         <div class="dz-skill-col">
           ${(me.general.skills || []).map(x => { const used = (x === 'yijue' && s.you && s.you.yijueUsed); return `<button class="skill-btn ${ui.activeSkill === x || (x === 'yijue' && ui.yijueStage) ? 'active' : ''} ${used ? 'used' : ''}" data-skill-act="${x}" ${used ? 'disabled' : ''}>${skillName(x)}${used ? '（已用）' : ''}</button>`; }).join('')}
         </div>
@@ -1389,7 +1380,7 @@ function duelGameHtml() {
         </div>
         <div class="self-hp">${hearts(you.hp, you.maxHp)}</div>
       </div>
-      <div class="hand">${you.hand.map((c, i) => cardHtml(c, s, i)).join('') || '<div class="empty">没有手牌</div>'}</div>
+      <div class="hand">${you.hand.map(c => cardHtml(c, s)).join('') || '<div class="empty">没有手牌</div>'}</div>
       ${you.judge.length ? `<div class="judge-area">判定区：${you.judge.map(c => `<span class="judge-tag">${c.name}</span>`).join('')}</div>` : ''}
     </section>
     <section class="controls">${controlsHtml(s, you, current, pending, myPending, isMyTurn)}</section>
@@ -1428,14 +1419,13 @@ function playerHtml(p, s) {
   </div>`;
 }
 
-function cardHtml(c, s, idx) {
+function cardHtml(c, s) {
   const selected = ui.selectedCard === c.id;
   const discardSelected = ui.discardSet.has(c.id);
   const usable = isCardUsable(c, s);
   const color = c.color === 'red' ? 'red' : 'black';
   const long = c.name.length >= 4;
-  const hiddenByDraw = ui.drawHidden && typeof idx === 'number' && idx >= s.you.hand.length - ui.drawHidden;
-  return `<div class="card ${color} namelen-${c.name.length} ${hiddenByDraw ? 'draw-hidden' : ''} ${selected ? 'selected' : ''} ${discardSelected ? 'discard-selected' : ''} ${usable ? 'usable' : 'muted'}" data-card-id="${c.id}" style="--art:url('/assets/cards/${c.art}')">
+  return `<div class="card ${color} namelen-${c.name.length} ${selected ? 'selected' : ''} ${discardSelected ? 'discard-selected' : ''} ${usable ? 'usable' : 'muted'}" data-card-id="${c.id}" style="--art:url('/assets/cards/${c.art}')">
     <div class="c-top">
       <span class="c-num">${c.number}</span>
       <span class="c-suit">${SUIT_CN[c.suit]}</span>
@@ -1783,7 +1773,7 @@ document.addEventListener('mouseup', (e) => {
   ui.drag = null;
   if (!d.moved) return;
   const playerEl = e.target.closest('[data-player-id]');
-  if (playerEl && !e.target.closest('.gc-equip[data-equip-id]')) {
+  if (playerEl) {
     if (tryDragPlay(d.id, playerEl.dataset.playerId)) {
       ui.suppressClick = true;
       setTimeout(() => { ui.suppressClick = false; }, 0);
@@ -1872,13 +1862,6 @@ document.addEventListener('click', (e) => {
     sendAction({ type: 'respond', cardId: pickEl.dataset.pickId });
     return;
   }
-  const eqEl = e.target.closest('.gc-equip[data-equip-id]');
-  if (eqEl && ui.yijueStage === 'card') {
-    ui.yijueCard = eqEl.dataset.equipId;
-    ui.yijueStage = 'target';
-    renderLocal();
-    return;
-  }
 
     const cardEl = e.target.closest('[data-card-id]');
   if (cardEl) {
@@ -1890,8 +1873,6 @@ document.addEventListener('click', (e) => {
       if (cc) { ui.yijueCard = id; ui.yijueStage = 'card'; renderLocal(); return; }
     }
     if (ui.yijueStage === 'card') {
-      const eq = e.target.closest('.gc-equip[data-equip-id]');
-      if (eq) { ui.yijueCard = eq.dataset.equipId; ui.yijueStage = 'target'; renderLocal(); return; }
       const c = s.you.hand.find(x => x.id === id);
       if (!c) return;
       ui.yijueCard = id;
@@ -2312,7 +2293,7 @@ loadModes().then(() => {
 
 
 // 摸牌：两张重叠牌背从屏幕中心飞向手牌区
-function playDrawFx(ev, done) {
+function playDrawFx(ev) {
   const s = ui.state;
   if (!s) return;
   const self = ev.playerId === myId(s);
@@ -2330,7 +2311,6 @@ function playDrawFx(ev, done) {
     faces.push(el);
   }
   if (self) document.body.classList.add('draw-pending');
-  if (self) renderLocal();
   ui.drawUntil = Date.now() + 2500;
   // 尺寸对齐手牌
   if (self) {
@@ -2342,13 +2322,11 @@ function playDrawFx(ev, done) {
     }
   }
   setTimeout(() => {
-    const handRect = self ? (document.querySelector('.dz-hand') || {}).getBoundingClientRect?.() : null;
-    const handCards = self ? [...document.querySelectorAll('.dz-hand .card')] : [];
-    const lastRect = handCards.length ? handCards[handCards.length - 1].getBoundingClientRect() : handRect;
+    const handCards = self ? [...document.querySelectorAll('.dz-hand .card')].slice(-n) : [];
     faces.forEach((el, i) => {
       const r = el.getBoundingClientRect();
       let t = null;
-      if (self && lastRect) t = { left: lastRect.right - r.width * 0.25 + i * r.width * 0.5, top: lastRect.top, width: r.width, height: r.height };
+      if (self && handCards[i]) t = handCards[i].getBoundingClientRect();
       else {
         const gc = document.querySelector('.gc-wrap[data-player-id="' + ev.playerId + '"]');
         if (gc) t = gc.getBoundingClientRect();
@@ -2362,16 +2340,10 @@ function playDrawFx(ev, done) {
     setTimeout(() => {
       wrap.remove();
       document.body.classList.remove('draw-pending');
-      ui.drawHidden = Math.max(0, (ui.drawHidden || 0) - n);
-      ui.drawHidden = 0;
-      ui.handLock = null;
-      renderLocal();
       ui.drawUntil = 0;
       const b = ui.pendingState;
       ui.pendingState = null;
       if (b) applyState(b); else renderLocal();
-      if (self && ui.state && ui.state.pending && ui.state.pending.type === 'draw_ack') sendAction({ type: 'respond' });
-      if (done) done();
     }, 850);
   }, 1500);
 }
@@ -2490,63 +2462,6 @@ setInterval(() => {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// 义绝：捕获阶段处理装备点击，避免被拖拽/其他点击处理吞掉
-document.addEventListener('click', (e) => {
-  const eq = e.target.closest('.gc-equip[data-equip-id]');
-  if (!eq) return;
-  if (!ui.state || !ui.state.started) return;
-  if (ui.yijueStage !== 'card' && ui.yijueStage !== 'target') return;
-  const wrap = eq.closest('[data-player-id]');
-  if (!wrap || wrap.dataset.playerId !== myId(ui.state)) return;
-  e.stopPropagation();
-  e.preventDefault();
-  ui.yijueCard = eq.dataset.equipId;
-  ui.yijueStage = 'target';
-  render();
-}, true);
-
-
-
-ui.drawQueue = [];
-ui.drawBusy = false;
-function enqueueDraw(ev) {
-  const s = ui.state;
-  if (!s) return;
-  // 开局 4 张直接到手，不播动画；只播后续摸牌
-  if ((ev.count || 0) >= 4 && s.turn === 1) return;
-  if (ui.pendingState) { ui.state = ui.pendingState; ui.pendingState = null; }
-  ui.drawQueue.push(ev);
-  if (!ui.drawBusy) runDrawQueue();
-}
-function runDrawQueue() {
-  if (!ui.drawQueue.length) { ui.drawBusy = false; return; }
-  ui.drawBusy = true;
-  const ev = ui.drawQueue.shift();
-  playDrawFx(ev, () => runDrawQueue());
-}
 
 
 

@@ -1,0 +1,24 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face { font-family: 'HYZLSJ'; src: url('/assets/fonts/HYZLSJ.woff2') format('woff2'); font-display: swap; }
+body { margin:0; background:#8a6a4a; padding:30px; display:flex; gap:26px; font-family:"FZBWKSJW",serif; }
+.c { width:164px; height:230px; background:linear-gradient(180deg,#f7efdb,#ead9b8); border:1px solid #8c6b3f; border-radius:6px;
+  box-shadow:0 6px 16px rgba(0,0,0,.4); position:relative; overflow:hidden; color:#1c140c; }
+.c .top { position:absolute; top:4px; left:5px; width:24px; text-align:center; z-index:3; }
+.c .num { font-size:19px; font-weight:800; line-height:1; color:#a52626; }
+.c .suit { font-size:16px; line-height:1; color:#a52626; }
+.c.black .num, .c.black .suit { color:#1c140c; }
+.c .name { position:absolute; top:6px; left:30px; right:5px; z-index:3; text-align:center;
+  font-family:'HYZLSJ',"华文行楷",serif; font-size:26px; font-weight:700; line-height:1.15; white-space:nowrap; }
+.c .tag { position:absolute; top:40px; left:30px; right:5px; text-align:center; z-index:3; }
+.c .tag span { display:inline-block; border:1px solid #8a6a3a; border-radius:3px; padding:0 5px; font-size:10px; color:#6b4a24; background:rgba(255,248,230,.6); }
+.c .art { position:absolute; left:5px; right:5px; top:60px; bottom:5px; z-index:1; background-size:cover; background-position:center; border:1px solid rgba(140,107,63,.4); }
+</style></head>
+<body>
+  <div class="c"><div class="top"><span class="num">9</span><br><span class="suit">♣</span></div><div class="name">杀</div><div class="tag"><span>基本</span></div><div class="art" style="background-image:url('/assets/cards/sha.png')"></div></div>
+  <div class="c"><div class="top"><span class="num">5</span><br><span class="suit">♦</span></div><div class="name">闪</div><div class="tag"><span>基本</span></div><div class="art" style="background-image:url('/assets/cards/shan.png')"></div></div>
+  <div class="c"><div class="top"><span class="num">A</span><br><span class="suit">♦</span></div><div class="name">朱雀羽扇</div><div class="tag"><span>装备</span></div><div class="art" style="background-image:url('/assets/cards/zhuque.png')"></div></div>
+  <div class="c black"><div class="top"><span class="num">8</span><br><span class="suit">♣</span></div><div class="name">杀</div><div class="tag"><span>基本</span></div><div class="art" style="background-image:url('/assets/cards/sha.png')"></div></div>
+  <div class="c"><div class="top"><span class="num">7</span><br><span class="suit">♥</span></div><div class="name">无中生有</div><div class="tag"><span>锦囊</span></div><div class="art" style="background-image:url('/assets/cards/wuzhong.png')"></div></div>
+</body></html>
