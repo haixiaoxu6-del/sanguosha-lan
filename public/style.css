@@ -1532,3 +1532,9 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 
 .play-card-inner { display: flex; justify-content: center; }
 
+
+/* 中心展示队列：最多三张，并排居中 */
+.center-row { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  display: flex; gap: 10px; align-items: center; justify-content: center; z-index: 93; pointer-events: none; }
+.center-slot { width: 150px; height: 210px; flex: 0 0 auto; }
+.center-slot .card { width: 150px; height: 210px; }

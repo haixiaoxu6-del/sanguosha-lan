@@ -121,6 +121,10 @@ function applyState(ns) {
   if (!(ns.pending && ns.pending.type === 'huogong')) {
     document.querySelectorAll('.play-card.persist').forEach(e => e.remove());
   }
+  if (!ns.started && ui.centerCards && ui.centerCards.length) {
+    ui.centerCards.forEach(x => { if (x.timer) clearTimeout(x.timer); if (x.el) x.el.remove(); });
+    ui.centerCards = [];
+  }
   ui.connecting = false;
   ui.starting = false;
   ui.startStatus = '';
@@ -701,22 +705,61 @@ function addToast(msg) {
   setTimeout(() => el.remove(), 2200);
 }
 
+function centerFaceHtml(card) {
+  return `<div class="card ${card.color === 'red' ? 'red' : 'black'}" style="--art:url('/assets/cards/${card.art}')">
+    <div class="c-top"><span class="c-suit">${SUIT_CN[card.suit]}</span><span class="c-num">${card.number}</span><span class="c-type">${CARD_TYPE_CN[card.type] || ''}</span></div>
+    <div class="c-name">${card.name}</div><div class="c-art"></div>
+  </div>`;
+}
+
+function centerRowEl() {
+  let row = document.getElementById('centerRow');
+  if (!row) {
+    row = document.createElement('div');
+    row.id = 'centerRow';
+    row.className = 'center-row';
+    document.body.appendChild(row);
+  }
+  return row;
+}
+
+function removeCenterSlot(slot) {
+  if (slot.timer) clearTimeout(slot.timer);
+  if (slot.el) slot.el.remove();
+  ui.centerCards = (ui.centerCards || []).filter(x => x !== slot);
+}
+
 function showCenterCard(card, fromEl, persist) {
   if (!card) return;
-  // 先清空中心所有旧的牌/牌背层，保证后面不会藏着一张深色牌
-  document.querySelectorAll('.play-card, .center-card, .draw-fly, .df-card').forEach(e => e.remove());
-  const mask = document.createElement('div');
-  mask.className = 'play-card' + (persist ? ' persist' : '');
-  mask.dataset.cardId = card.id;
-  mask.innerHTML = `<div class="play-card-inner">
-    <div class="card ${card.color === 'red' ? 'red' : 'black'}" style="--art:url('/assets/cards/${card.art}')">
-      <div class="c-top"><span class="c-suit">${SUIT_CN[card.suit]}</span><span class="c-num">${card.number}</span><span class="c-type">${CARD_TYPE_CN[card.type] || ''}</span></div>
-      <div class="c-name">${card.name}</div><div class="c-art"></div>
-    </div>
-  </div>`;
-  document.body.appendChild(mask);
+  if (!ui.centerCards) ui.centerCards = [];
+  // 火攻展示：单独持久层，不占中心队列
+  if (persist) {
+    document.querySelectorAll('.play-card.persist').forEach(e => e.remove());
+    const mask = document.createElement('div');
+    mask.className = 'play-card persist';
+    mask.dataset.cardId = card.id;
+    mask.innerHTML = `<div class="play-card-inner">${centerFaceHtml(card)}</div>`;
+    document.body.appendChild(mask);
+    return;
+  }
+  if (ui.centerCards.some(x => x.id === card.id)) return;
+  // 最多三张；第四张进来时，最早的一张直接消失
+  if (ui.centerCards.length >= 3) {
+    const first = ui.centerCards.shift();
+    if (first.timer) clearTimeout(first.timer);
+    if (first.el) first.el.remove();
+  }
+  const row = centerRowEl();
+  const el = document.createElement('div');
+  el.className = 'center-slot';
+  el.dataset.cardId = card.id;
+  el.innerHTML = centerFaceHtml(card);
+  row.appendChild(el);
+  const entry = { id: card.id, el, timer: null };
+  entry.timer = setTimeout(() => removeCenterSlot(entry), 4000);
+  ui.centerCards.push(entry);
   if (fromEl && fromEl.getBoundingClientRect) {
-    const face = mask.querySelector('.card');
+    const face = el.querySelector('.card');
     if (face) {
       const tr = face.getBoundingClientRect();
       const sr = fromEl.getBoundingClientRect();
@@ -734,8 +777,8 @@ function showCenterCard(card, fromEl, persist) {
       }
     }
   }
-  if (!persist) setTimeout(() => mask.remove(), 4000);
 }
+
 function startPlayTimerTick() {
   if (ui.playTimerRaf) return;
   ui.playTimerRaf = requestAnimationFrame(function tick() {
@@ -1006,7 +1049,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v115</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v116</div>
   </div></div>`;
 }
 
@@ -1065,7 +1108,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v115</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v116</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1094,7 +1137,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v115</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v116</div>
   </div></div>`;
 }
 
@@ -2235,6 +2278,7 @@ function wuguHtml(s) {
     </div>
   </div></div>`;
 }
+
 
 
 
