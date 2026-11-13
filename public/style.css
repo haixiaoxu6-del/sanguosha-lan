@@ -1522,7 +1522,7 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 .center-face .cf-art { position: absolute; inset: 0; z-index: 1; background-image: var(--art); background-size: cover; background-position: center; }
 
 /* 出牌展示：直接复刻五谷的浅色大牌，独立于旧 center-card */
-.play-card { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 93; pointer-events: none; }
+.play-card { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 30; pointer-events: none; }
 .play-card .wugu-modal { background: none; border: 0; padding: 0; }
 .play-card .card { width: 150px; height: 210px; flex: 0 0 auto; }
 
@@ -1535,6 +1535,7 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 
 /* 中心展示队列：最多三张，并排居中 */
 .center-row { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  display: flex; gap: 10px; align-items: center; justify-content: center; z-index: 93; pointer-events: none; }
+  display: flex; gap: 10px; align-items: center; justify-content: center; z-index: 30; pointer-events: none; }
 .center-slot { width: 150px; height: 210px; flex: 0 0 auto; }
 .center-slot .card { width: 150px; height: 210px; }
+

@@ -1347,7 +1347,7 @@ class Game {
         } else {
           pend.playerId = pend.queue[pend.index];
           const q = this.findPlayer(pend.playerId);
-          pend.prompt = `${q ? q.name : '?'} 是否使用【桃】救${dying.name}？`;
+          pend.prompt = `${q ? q.name : '?'} 是否使用【桃】救${dying.name}？（还需${1 - dying.hp}张）`;
         }
         return ok();
       }
@@ -1361,7 +1361,7 @@ class Game {
       if (dying.hp > 0) {
         this.pending = pend.parent || null;
       } else {
-        pend.prompt = `${p.name} 是否继续使用【桃】？`;
+        pend.prompt = `${p.name} 是否继续使用【桃】？（还需${1 - dying.hp}张）`;
       }
       return ok();
     }
@@ -1496,7 +1496,7 @@ class Game {
       index: 0,
       parent: parent || null,
       damageCardId: card ? card.id : null,
-      prompt: `${target.name} 濒死，是否使用【桃】？`,
+      prompt: `${target.name} 濒死，还需${1 - target.hp}张【桃】，是否使用？`,
     };
     this.pushLog(`${target.name} 濒死！`);
   }
