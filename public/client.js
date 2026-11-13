@@ -115,6 +115,11 @@ function stateSignature(ns) {
 }
 
 function applyState(ns) {
+  // 判定结果未确认前，暂停应用后续状态（AI 的后续动作也等确认后再播）
+  if (ui.state && ui.state.lastJudgment && ui.judgmentSeen < ui.state.lastJudgment.seq) {
+    ui.pendingState = ns;
+    return;
+  }
   const oldLog = ui.state && Array.isArray(ui.state.log) ? ui.state.log : [];
   const newLines = diffLog(oldLog, ns.log || []);
   ui.state = ns;
@@ -1055,7 +1060,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v119</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v120</div>
   </div></div>`;
 }
 
@@ -1114,7 +1119,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v119</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v120</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1143,7 +1148,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v119</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v120</div>
   </div></div>`;
 }
 
@@ -2151,6 +2156,11 @@ document.addEventListener('click', (e) => {
   }
   if (action === 'close-judgment') {
     if (ui.state && ui.state.lastJudgment) ui.judgmentSeen = ui.state.lastJudgment.seq;
+    const buffered = ui.pendingState;
+    ui.pendingState = null;
+    render();
+    if (buffered) applyState(buffered);
+    return;
     render();
     return;
   }
@@ -2284,6 +2294,7 @@ function wuguHtml(s) {
     </div>
   </div></div>`;
 }
+
 
 
 
