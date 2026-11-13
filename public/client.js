@@ -124,6 +124,7 @@ function applyState(ns) {
   const newLines = diffLog(oldLog, ns.log || []);
   ui.state = ns;
   if (ns.lastJudgment && ns.lastJudgment.seq > (ui.judgmentSeen || 0)) {
+    ui.judgeShownAt = Date.now();
     if (ui.judgeTimer) clearTimeout(ui.judgeTimer);
     const seq = ns.lastJudgment.seq;
     ui.judgeTimer = setTimeout(() => {
@@ -1314,7 +1315,7 @@ function judgmentHtml(s) {
     <div class="judge-title">判定</div>
     <div class="judge-row">
       <div class="judge-col"><div class="judge-card reason">${reason}</div><small>判定牌</small></div>
-      <div class="judge-col"><div class="judge-card">${result}</div><small>判定结果</small></div>
+      <div class="judge-col"><div class="judge-card ${j.card && j.card.color === 'red' ? 'red' : ''}">${result}</div><small>判定结果</small></div>
     </div>
     <div class="judge-text">${escapeHtml(j.text || '')}</div>
   </div></div>`;
@@ -2422,6 +2423,17 @@ setInterval(() => {
     try { onTimerExpired(); } catch (e) { /* ignore */ }
   }
 }, 100);
+
+// 判定窗口兜底：显示超过 3 秒强制关闭
+setInterval(() => {
+  if (!document.querySelector('.judge-overlay')) return;
+  if (ui.judgeShownAt && Date.now() - ui.judgeShownAt > 3000) {
+    if (ui.state && ui.state.lastJudgment) ui.judgmentSeen = ui.state.lastJudgment.seq;
+    render();
+  }
+}, 300);
+
+
 
 
 

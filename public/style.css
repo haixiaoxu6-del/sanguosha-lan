@@ -1594,3 +1594,6 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 
 /* 每回合限一次技能：用后变暗、不可点击 */
 .skill-btn.used { opacity: .4; filter: grayscale(1); cursor: not-allowed; }
+
+/* 判定结果牌：红色花色显示红色 */
+.judge-card.red { color: #a52626; }
