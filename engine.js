@@ -918,6 +918,7 @@ class Game {
       || target.judge.find(c => c.id === cardId)
       || Object.values(target.equips || {}).find(c => c && c.id === cardId);
     if (!card) return err('目标没有这张牌');
+    this.lastReveal = { seq: ++this.revealSeq, playerId: target.id, card: { id: card.id, name: card.name, suit: card.suit, number: card.number, color: card.color, type: card.type, art: card.art } };
     this.removeFromPlayer(target, card);
     if (this.pending.mode === 'guohe') {
       this.discard.push(card);
