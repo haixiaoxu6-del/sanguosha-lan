@@ -1588,3 +1588,6 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 /* 装备牌：手牌 -> 中心停留2秒 -> 武将牌中心 -> 消失 */
 .equip-fly { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 93; pointer-events: none; }
 .equip-fly .card { width: 150px; height: 210px; }
+
+/* 手牌牌名也居中，覆盖旧的左对齐规则 */
+.dz-hand .card .c-name { left: 30px; right: 4px; text-align: center; }

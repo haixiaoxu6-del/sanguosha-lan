@@ -202,8 +202,7 @@ function playFx(ev) {
     const src = exact || (self
       ? (document.querySelector('.dz-hand') || document.querySelector('.gc-self'))
       : document.querySelector('.gc-wrap[data-player-id="' + ev.playerId + '"]'));
-    if (ev.card.type === 'equip') { showEquipFlight(ev.card, ev.playerId, src); return; }
-    showCenterCard(ev.card, src, false);
+    showCenterCard(ev.card, src, false, ev.playerId);
     return;
   }
   if (ev.type === 'sha') {
@@ -751,11 +750,24 @@ function centerRowEl() {
 
 function removeCenterSlot(slot) {
   if (slot.timer) clearTimeout(slot.timer);
-  if (slot.el) slot.el.remove();
   ui.centerCards = (ui.centerCards || []).filter(x => x !== slot);
+  if (slot.equip && slot.ownerId && slot.el) {
+    const gc = document.querySelector('.gc-wrap[data-player-id="' + slot.ownerId + '"]');
+    const face = slot.el.querySelector('.card');
+    if (gc && face) {
+      const tr = face.getBoundingClientRect();
+      const gr = gc.getBoundingClientRect();
+      const dx = (gr.left + gr.width / 2) - (tr.left + tr.width / 2);
+      const dy = (gr.top + gr.height / 2) - (tr.top + tr.height / 2);
+      try { face.animate([{ transform: 'translate(0,0) scale(1)', opacity: 1 }, { transform: `translate(${dx}px,${dy}px) scale(.45)`, opacity: 0 }], { duration: 800, easing: 'ease-in', fill: 'forwards' }); } catch (e) {}
+      setTimeout(() => slot.el.remove(), 850);
+      return;
+    }
+  }
+  if (slot.el) slot.el.remove();
 }
 
-function showCenterCard(card, fromEl, persist) {
+function showCenterCard(card, fromEl, persist, ownerId) {
   if (!card) return;
   if (!ui.centerCards) ui.centerCards = [];
   // 火攻展示：单独持久层，不占中心队列
@@ -772,8 +784,7 @@ function showCenterCard(card, fromEl, persist) {
   // 最多三张；第四张进来时，最早的一张直接消失
   if (ui.centerCards.length >= 3) {
     const first = ui.centerCards.shift();
-    if (first.timer) clearTimeout(first.timer);
-    if (first.el) first.el.remove();
+    removeCenterSlot(first);
   }
   const row = centerRowEl();
   const el = document.createElement('div');
@@ -781,8 +792,9 @@ function showCenterCard(card, fromEl, persist) {
   el.dataset.cardId = card.id;
   el.innerHTML = centerFaceHtml(card);
   row.appendChild(el);
-  const entry = { id: card.id, el, timer: null };
-  entry.timer = setTimeout(() => removeCenterSlot(entry), 4000);
+  const isEquip = card.type === 'equip';
+  const entry = { id: card.id, el, timer: null, equip: isEquip, ownerId: ownerId || null };
+  entry.timer = setTimeout(() => removeCenterSlot(entry), isEquip ? 1500 : 4000);
   ui.centerCards.push(entry);
   if (fromEl && fromEl.getBoundingClientRect) {
     const face = el.querySelector('.card');
@@ -1075,7 +1087,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v131</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v133</div>
   </div></div>`;
 }
 
@@ -1134,7 +1146,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v131</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v133</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1163,7 +1175,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v131</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v133</div>
   </div></div>`;
 }
 
@@ -2402,4 +2414,6 @@ setInterval(() => {
     try { onTimerExpired(); } catch (e) { /* ignore */ }
   }
 }, 100);
+
+
 
