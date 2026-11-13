@@ -1104,7 +1104,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v167</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v168</div>
   </div></div>`;
 }
 
@@ -1163,7 +1163,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v167</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v168</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1192,7 +1192,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v167</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v168</div>
   </div></div>`;
 }
 
@@ -1227,6 +1227,7 @@ function generalCardHtml(p, s, extra = '') {
   const canTarget = !!(ui.pendingAction && ui.pendingAction.needsTarget)
     || !!(selected && playActions(selected).some(a => a.needsTarget));
   const hp = Math.max(0, p.hp);
+  const shownHand = (p.id === meId && ui.drawHidden) ? Math.max(0, p.handCount - ui.drawHidden) : p.handCount;
   const eq = p.equips || {};
   const eqRow = (slot, c, label, range) => `<div class="gc-equip ${slot}${c && ui.yijueStage === 'card' ? ' pickable' : ''}${c && ui.yijueCard === c.id ? ' selected' : ''}" data-equip-slot="${slot}"${c ? ` data-equip-id="${c.id}"` : ''}>${
     c ? `<b>${label}${c.name}</b>${range && c.range ? `<span>${c.range}</span>` : ''}` : ''
@@ -1247,7 +1248,7 @@ function generalCardHtml(p, s, extra = '') {
       <div class="gc-side-hand">
         <span class="hand-fan">
           <span class="fan-card c1"></span>
-          <span class="fan-card c2"><span class="hand-num">${p.handCount}</span></span>
+          <span class="fan-card c2"><span class="hand-num">${shownHand}</span></span>
           <span class="fan-card c3"></span>
         </span>
       </div>
@@ -1300,7 +1301,7 @@ function tableGameHtml() {
         ${controlsHtml(s, you, current, pending, myPending, isMyTurn)}
       </section>
       <section class="dz-self">
-        <div class="dz-hand">${you.hand.map((c, i) => cardHtml(c, s, i)).join('') || '<div class="empty">没有手牌</div>'}</div>
+        <div class="dz-hand">${you.hand.slice(0, you.hand.length - (ui.drawHidden || 0)).map((c, i) => cardHtml(c, s, i)).join('') || '<div class="empty">没有手牌</div>'}</div>
         <div class="dz-skill-col">
           ${(me.general.skills || []).map(x => { const used = (x === 'yijue' && s.you && s.you.yijueUsed); return `<button class="skill-btn ${ui.activeSkill === x || (x === 'yijue' && ui.yijueStage) ? 'active' : ''} ${used ? 'used' : ''}" data-skill-act="${x}" ${used ? 'disabled' : ''}>${skillName(x)}${used ? '（已用）' : ''}</button>`; }).join('')}
         </div>
@@ -1385,7 +1386,7 @@ function duelGameHtml() {
         </div>
         <div class="self-hp">${hearts(you.hp, you.maxHp)}</div>
       </div>
-      <div class="hand">${you.hand.map((c, i) => cardHtml(c, s, i)).join('') || '<div class="empty">没有手牌</div>'}</div>
+      <div class="hand">${you.hand.slice(0, you.hand.length - (ui.drawHidden || 0)).map((c, i) => cardHtml(c, s, i)).join('') || '<div class="empty">没有手牌</div>'}</div>
       ${you.judge.length ? `<div class="judge-area">判定区：${you.judge.map(c => `<span class="judge-tag">${c.name}</span>`).join('')}</div>` : ''}
     </section>
     <section class="controls">${controlsHtml(s, you, current, pending, myPending, isMyTurn)}</section>
@@ -2338,11 +2339,11 @@ function playDrawFx(ev, done) {
     }
   }
   setTimeout(() => {
-    const handCards = self ? [...document.querySelectorAll('.dz-hand .card')].slice(-n) : [];
+    const handRect = self ? (document.querySelector('.dz-hand') || {}).getBoundingClientRect?.() : null;
     faces.forEach((el, i) => {
       const r = el.getBoundingClientRect();
       let t = null;
-      if (self && handCards[i]) t = handCards[i].getBoundingClientRect();
+      if (self && handRect) t = { left: handRect.right - 40 - i * (r.width * 0.5), top: handRect.top + handRect.height / 2 - r.height / 2, width: r.width, height: r.height };
       else {
         const gc = document.querySelector('.gc-wrap[data-player-id="' + ev.playerId + '"]');
         if (gc) t = gc.getBoundingClientRect();
@@ -2539,6 +2540,7 @@ function runDrawQueue() {
   const ev = ui.drawQueue.shift();
   playDrawFx(ev, () => runDrawQueue());
 }
+
 
 
 
