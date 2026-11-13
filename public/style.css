@@ -1551,3 +1551,40 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
   display: flex; align-items: center; justify-content: center; text-align: center; font-size: 17px; font-weight: 800; padding: 8px; }
 .judge-card.reason { background: linear-gradient(180deg, #3a2a1e, #22170f); color: #e8cf9a; }
 .judge-text { color: #cdbb9a; font-size: 13px; margin-top: 8px; }
+
+/* ===== 新牌面样式（无名杀素材：赵体行楷 + 深色牌面图 + 类型标签） ===== */
+@font-face { font-family: 'HYZLSJ'; src: url('/assets/fonts/HYZLSJ.woff2') format('woff2'); font-display: swap; }
+
+.card { background: linear-gradient(180deg, #e2d0a8, #c9ad7c); border: 1px solid #8c6b3f; color: #1c140c; }
+.card .c-top { position: absolute; top: 4px; left: 5px; width: 24px; display: flex; flex-direction: column; align-items: center; gap: 0;
+  padding: 0; background: none; border: 0; }
+.card .c-num { font-size: 19px; line-height: 1; font-weight: 800; color: #a52626; }
+.card .c-suit { font-size: 16px; line-height: 1; color: #a52626; }
+.card.red .c-num, .card.red .c-suit { color: #a52626; }
+.card.black .c-num, .card.black .c-suit { color: #1c140c; }
+.card .c-name { position: absolute; top: 16px; left: 30px; right: 4px; z-index: 3; text-align: center;
+  font-family: 'HYZLSJ', serif; font-weight: 700; font-size: 30px; line-height: 1; color: #120c06;
+  background: none; border: 0; padding: 0; white-space: nowrap; }
+.card.namelen-1 .c-name, .card.namelen-2 .c-name { top: 6px; font-size: 74px; }
+.card.namelen-3 .c-name { top: 12px; font-size: 36px; }
+.card.namelen-4 .c-name, .card.namelen-5 .c-name { top: 16px; font-size: 25px; }
+.card .c-tag { position: absolute; top: 52px; left: 0; right: 0; z-index: 3; text-align: center; }
+.card .c-tag span { display: inline-block; border: 1px solid #6b4a24; border-radius: 3px; padding: 1px 8px; font-size: 12px;
+  color: #5a3d1c; background: rgba(255, 248, 230, .55); }
+.card .c-art { position: absolute; left: 5px; right: 5px; top: 74px; bottom: 5px; z-index: 1;
+  background-image: var(--art); background-size: 145% auto; background-position: center; background-repeat: no-repeat;
+  -webkit-mask-image: radial-gradient(ellipse 92% 92% at 50% 50%, #000 74%, transparent 100%);
+  mask-image: radial-gradient(ellipse 92% 92% at 50% 50%, #000 74%, transparent 100%);
+  filter: contrast(1.28) brightness(.9); }
+
+.center-face { background: linear-gradient(180deg, #e2d0a8, #c9ad7c); border-color: #8c6b3f; }
+.center-face .cf-name { font-family: 'HYZLSJ', serif; }
+.center-face .cf-art { background-size: 145% auto; background-position: center; background-repeat: no-repeat;
+  -webkit-mask-image: radial-gradient(ellipse 92% 92% at 50% 50%, #000 74%, transparent 100%);
+  mask-image: radial-gradient(ellipse 92% 92% at 50% 50%, #000 74%, transparent 100%);
+  filter: contrast(1.28) brightness(.9); }
+.center-face .cf-top { background: none; border: 0; }
+
+/* 装备牌：手牌 -> 中心停留2秒 -> 武将牌中心 -> 消失 */
+.equip-fly { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 93; pointer-events: none; }
+.equip-fly .card { width: 150px; height: 210px; }

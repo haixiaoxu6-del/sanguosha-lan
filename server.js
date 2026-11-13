@@ -325,6 +325,7 @@ const server = http.createServer(async (req, res) => {
 setInterval(() => {
   for (const room of rooms.values()) {
     if (room.mode !== 'duel' || !room.game || room.game.gameOver) continue;
+    if (room.game.pauseUntil && Date.now() < room.game.pauseUntil) continue;
     const ai = room.game.players.find(p => p.role === 'ai');
     if (!ai) continue;
     const pend = room.game.pending;

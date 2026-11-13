@@ -198,9 +198,11 @@ function playFx(ev) {
   if (ev.type === 'card') {
     const s = ui.state;
     const self = s && ev.playerId === myId(s);
-    const src = self
+    const exact = self ? document.querySelector('.dz-hand .card[data-card-id="' + ev.card.id + '"]') : null;
+    const src = exact || (self
       ? (document.querySelector('.dz-hand') || document.querySelector('.gc-self'))
-      : document.querySelector('.gc-wrap[data-player-id="' + ev.playerId + '"]');
+      : document.querySelector('.gc-wrap[data-player-id="' + ev.playerId + '"]'));
+    if (ev.card.type === 'equip') { showEquipFlight(ev.card, ev.playerId, src); return; }
     showCenterCard(ev.card, src, false);
     return;
   }
@@ -804,7 +806,7 @@ function showCenterCard(card, fromEl, persist) {
 }
 
 function startPlayTimerTick() {
-  if (ui.playTimerRaf) return;
+  if (ui.playTimerRaf) { cancelAnimationFrame(ui.playTimerRaf); ui.playTimerRaf = null; }
   ui.playTimerRaf = requestAnimationFrame(function tick() {
     ui.playTimerRaf = null;
     const fill = document.getElementById('ptFill');
@@ -1073,7 +1075,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v123</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v128</div>
   </div></div>`;
 }
 
@@ -1132,7 +1134,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v123</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v128</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1161,7 +1163,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v123</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v128</div>
   </div></div>`;
 }
 
@@ -1398,13 +1400,14 @@ function cardHtml(c, s) {
   const discardSelected = ui.discardSet.has(c.id);
   const usable = isCardUsable(c, s);
   const color = c.color === 'red' ? 'red' : 'black';
-  return `<div class="card ${color} ${selected ? 'selected' : ''} ${discardSelected ? 'discard-selected' : ''} ${usable ? 'usable' : 'muted'}" data-card-id="${c.id}" style="--art:url('/assets/cards/${c.art}')">
+  const long = c.name.length >= 4;
+  return `<div class="card ${color} namelen-${c.name.length} ${selected ? 'selected' : ''} ${discardSelected ? 'discard-selected' : ''} ${usable ? 'usable' : 'muted'}" data-card-id="${c.id}" style="--art:url('/assets/cards/${c.art}')">
     <div class="c-top">
-      <span class="c-suit">${SUIT_CN[c.suit]}</span>
       <span class="c-num">${c.number}</span>
-      <span class="c-type">${c.type === 'equip' ? `装备${c.range ? ' ' + c.range : ''}` : (CARD_TYPE_CN[c.type] || '')}</span>
+      <span class="c-suit">${SUIT_CN[c.suit]}</span>
     </div>
     <div class="c-name">${c.name}</div>
+    ${c.type === 'basic' ? '' : `<div class="c-tag"><span>${c.type === 'equip' ? '装备' : CARD_TYPE_CN[c.type] || ''}</span></div>`}
     <div class="c-art"></div>
   </div>`;
 }
@@ -1843,6 +1846,10 @@ document.addEventListener('click', (e) => {
     const id = cardEl.dataset.cardId;
     const s = ui.state;
     if (!s) return;
+    if (ui.yijueStage === 'target') {
+      const cc = s.you.hand.find(x => x.id === id);
+      if (cc) { ui.yijueCard = id; ui.yijueStage = 'card'; renderLocal(); return; }
+    }
     if (ui.yijueStage === 'card') {
       const c = s.you.hand.find(x => x.id === id);
       if (!c) return;
@@ -2343,4 +2350,40 @@ function wuguHtml(s) {
 
 
 
+
+
+
+
+
+
+
+function showEquipFlight(card, playerId, fromEl) {
+  if (!card) return;
+  const holder = document.createElement('div');
+  holder.className = 'equip-fly';
+  holder.innerHTML = centerFaceHtml(card);
+  document.body.appendChild(holder);
+  const face = holder.querySelector('.card');
+  if (!face) { holder.remove(); return; }
+  const tr = face.getBoundingClientRect();
+  if (fromEl && fromEl.getBoundingClientRect) {
+    const sr = fromEl.getBoundingClientRect();
+    if (sr.width > 0) {
+      const dx = (sr.left + sr.width / 2) - (tr.left + tr.width / 2);
+      const dy = (sr.top + sr.height / 2) - (tr.top + tr.height / 2);
+      const sc = Math.max(0.2, Math.min(1, sr.width / Math.max(1, tr.width)));
+      try { face.animate([{ transform: `translate(${dx}px,${dy}px) scale(${sc})`, opacity: .5 }, { transform: 'translate(0,0) scale(1)', opacity: 1 }], { duration: 1200, easing: 'cubic-bezier(.2,.7,.3,1)' }); } catch (e) {}
+    }
+  }
+  setTimeout(() => {
+    const gc = document.querySelector('.gc-wrap[data-player-id="' + playerId + '"]');
+    if (gc) {
+      const gr = gc.getBoundingClientRect();
+      const dx = (gr.left + gr.width / 2) - (tr.left + tr.width / 2);
+      const dy = (gr.top + gr.height / 2) - (tr.top + tr.height / 2);
+      try { face.animate([{ transform: 'translate(0,0) scale(1)', opacity: 1 }, { transform: `translate(${dx}px,${dy}px) scale(.45)`, opacity: 0 }], { duration: 900, easing: 'ease-in', fill: 'forwards' }); } catch (e) {}
+    }
+    setTimeout(() => holder.remove(), 950);
+  }, 3200);
+}
 

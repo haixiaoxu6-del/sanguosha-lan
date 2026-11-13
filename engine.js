@@ -399,6 +399,7 @@ class Game {
   judge(p, reason) {
     const c = this.drawCard();
     if (c) this.discard.push(c);
+    this.pauseUntil = Date.now() + 3000;
     this.lastJudgment = {
       seq: (this.judgmentSeq = (this.judgmentSeq || 0) + 1),
       playerId: p.id,
