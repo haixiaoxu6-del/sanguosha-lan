@@ -1607,3 +1607,6 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 
 /* 摸牌动画期间隐藏手牌区新摸的牌，等动画飞入后再显示 */
 body.draw-pending .dz-hand .card:nth-last-child(-n+2) { visibility: hidden; }
+
+/* 摸牌动画期间不显示出牌倒计时 */
+body.draw-pending .play-timer { visibility: hidden; }

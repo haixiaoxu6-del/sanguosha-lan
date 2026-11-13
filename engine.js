@@ -174,7 +174,7 @@ class Game {
       p.hand.push(c);
       cards.push(c);
     }
-    if (cards.length) { this.pauseUntil = Math.max(this.pauseUntil || 0, Date.now() + 1500); this.pauseReason = 'draw'; }
+    if (cards.length) { this.pauseUntil = Math.max(this.pauseUntil || 0, Date.now() + 2500); this.pauseReason = 'draw'; }
     if (cards.length) this.pushEvent('draw', { playerId: p.id, count: cards.length, cards: cards.map(c => ({ id: c.id, name: c.name, suit: c.suit, number: c.number, color: c.color, type: c.type, art: c.art })) });
     return cards;
   }
@@ -335,7 +335,10 @@ class Game {
     const next = this.nextAliveIndex(this.current);
     this.current = next;
     this.turn++;
-    this.beginTurn();
+    // 回合交接：等上一回合的弃牌/结束展示完成后再开始下一回合
+    this.pauseUntil = Math.max(this.pauseUntil || 0, Date.now() + 1500);
+    this.pauseReason = 'turn';
+    setTimeout(() => { if (!this.gameOver) this.beginTurn(); }, 1500);
   }
 
   checkDiscard() {
