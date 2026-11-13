@@ -1628,14 +1628,14 @@ body.draw-ack .pending-wrap, body.draw-ack .prompt, body.draw-ack .prompt-action
 /* 胜负播报：无名杀风格书法 + 右上角返回大厅 */
 .gameover { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center;
   background: rgba(18, 10, 5, .55); }
-.go-result { font-family: 'HYZLSJ', serif; font-size: clamp(96px, 16vw, 190px); line-height: 1; letter-spacing: -6px;
+.go-result { font-family: 'HYZLSJ', serif; font-size: clamp(180px, 30vw, 380px); line-height: 1; letter-spacing: -8px;
   background: linear-gradient(180deg, #fff6c8 0%, #ffd85a 38%, #c98a1e 64%, #7d4408 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
   -webkit-text-stroke: 9px #2f1a05; paint-order: stroke fill;
   filter: drop-shadow(0 0 26px rgba(255,180,60,.6)) drop-shadow(0 6px 0 rgba(0,0,0,.35));
-  transform: rotate(-5deg); animation: goIn .6s ease-out; }
+  transform: none; animation: goIn .6s ease-out; }
 .go-result.lose { background: linear-gradient(180deg, #f2f5ff 0%, #bcd0ef 40%, #7f95bb 66%, #3d4a66 100%);
   -webkit-background-clip: text; background-clip: text; -webkit-text-stroke: 9px #101826;
   filter: drop-shadow(0 0 26px rgba(160,190,255,.55)) drop-shadow(0 6px 0 rgba(0,0,0,.35)); }
-@keyframes goIn { from { transform: scale(.6) rotate(-5deg); opacity: 0; } to { transform: scale(1) rotate(-5deg); opacity: 1; } }
+@keyframes goIn { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .go-leave { position: fixed; top: 30px; right: 36px; z-index: 201; font-size: 22px; padding: 14px 30px; }
