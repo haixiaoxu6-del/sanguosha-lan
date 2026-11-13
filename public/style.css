@@ -1613,3 +1613,6 @@ body.draw-pending .play-timer { visibility: hidden; }
 
 /* 服务端扣牌：摸牌期间手牌不再隐藏 */
 body.draw-pending .dz-hand .card:nth-last-child(-n+2) { visibility: visible; }
+
+/* draw_ack 阶段不显示任何等待按钮 */
+body.draw-ack .pending-wrap, body.draw-ack .prompt, body.draw-ack .prompt-actions, body.draw-ack .cancel { display: none !important; }
