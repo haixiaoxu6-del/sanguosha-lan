@@ -45,6 +45,8 @@ class Game {
     this.log = [];
     this.events = [];
     this.eventSeq = 0;
+    this.revealSeq = 0;
+    this.lastReveal = null;
     this.gameOver = null;
     this.started = false;
     this.assignRoles();
@@ -1035,6 +1037,7 @@ class Game {
         return err('请选择一张手牌展示');
       }
       this.pending = null;
+      this.lastReveal = { seq: ++this.revealSeq, playerId: p.id, card: { id: shown.id, name: shown.name, suit: shown.suit, number: shown.number, color: shown.color, type: shown.type, art: shown.art } };
       if (shown.color === 'black') {
         p.yijueSealed = true;
         p.skillSealed = true;
@@ -1673,6 +1676,7 @@ class Game {
         : null,
       log: this.log.slice(-30),
       events: this.events.slice(-20),
+      lastReveal: this.lastReveal,
       gameOver: this.gameOver,
     };
   }
