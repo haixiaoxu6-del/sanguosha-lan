@@ -117,13 +117,73 @@ function shuffle(arr) {
   return arr;
 }
 
+
+// 基本牌的花色/点数（spade, heart, club, diamond）
+const BASIC_SPEC = {
+  sha: [
+    [0,7],[0,8],[0,8],[0,9],[0,9],[0,10],[0,10],
+    [1,10],[1,10],[1,11],
+    [2,2],[2,3],[2,4],[2,5],[2,6],[2,7],[2,8],[2,8],[2,9],[2,9],[2,10],[2,10],[2,11],[2,11],
+    [3,6],[3,7],[3,8],[3,9],[3,10],[3,13],
+  ],
+  huosha: [[1,4],[1,7],[1,10],[3,4],[3,5]],
+  leisha: [[0,4],[0,5],[0,6],[0,7],[0,8],[2,5],[2,6],[2,7],[2,8]],
+  shan: [
+    [1,2],[1,2],[1,13],
+    [3,2],[3,2],[3,3],[3,4],[3,5],[3,6],[3,7],[3,8],[3,9],[3,10],[3,11],[3,11],
+    [1,8],[1,9],[1,11],[1,12],
+    [3,6],[3,7],[3,8],[3,10],[3,11],
+  ],
+  tao: [[1,3],[1,4],[1,6],[1,7],[1,8],[1,9],[1,12],[3,12],[1,5],[1,6],[3,2],[3,3]],
+  jiu: [[0,3],[0,9],[2,3],[2,9],[3,9]],
+  wuxie: [[0,11],[2,12],[2,13],[3,12],[0,13],[1,1],[1,13]],
+  huogong: [[1,2],[1,3],[3,12]],
+  jiedao: [[2,12],[2,13]],
+  wuzhong: [[1,7],[1,8],[1,9],[1,11]],
+  shunshou: [[0,3],[0,4],[0,11],[3,3],[3,4]],
+  guohe: [[0,3],[0,4],[0,12],[1,12],[2,3],[2,4]],
+  juedou: [[0,1],[2,1],[3,1]],
+  tiesuo: [[0,11],[0,12],[2,10],[2,11],[2,12],[2,13]],
+  taoyuan: [[1,1]],
+  wugu: [[1,3],[1,4]],
+  nanman: [[0,7],[0,13],[2,13]],
+  wanjian: [[1,1]],
+  bingliang: [[0,10],[2,4]],
+  lebu: [[0,6],[1,6],[2,6]],
+  shandian: [[0,1],[1,12]],
+  zhuge: [[2,1],[3,1]],
+  qinggang: [[0,6]],
+  cixiong: [[0,2]],
+  qinglong: [[0,5]],
+  zhangba: [[0,12]],
+  guanshi: [[3,5]],
+  fangtian: [[3,12]],
+  qilin: [[1,5]],
+  hanbing: [[0,2]],
+  guding: [[0,1]],
+  zhuque: [[3,1]],
+  bagua: [[0,2],[2,2]],
+  renwang: [[2,2]],
+  tengjia: [[0,2],[2,2]],
+  baiyin: [[2,1]],
+  dilu: [[2,5]],
+  jueying: [[0,5]],
+  zhuahuang: [[1,13]],
+  hualiu: [[3,13]],
+  chitu: [[1,5]],
+  dawan: [[0,13]],
+  zixing: [[3,13]],
+};
+
 function buildDeck() {
   const deck = [];
   let id = 0;
   for (const def of CARD_DEFS) {
+    const spec = BASIC_SPEC[def.key];
     for (let i = 0; i < def.count; i++) {
-      const suit = SUITS[Math.floor(Math.random() * SUITS.length)];
-      const number = 1 + Math.floor(Math.random() * 13);
+      const fixed = spec && spec[i];
+      const suit = fixed ? SUITS[fixed[0]] : SUITS[Math.floor(Math.random() * SUITS.length)];
+      const number = fixed ? fixed[1] : 1 + Math.floor(Math.random() * 13);
       deck.push({
         id: 'c' + id++,
         key: def.key,
