@@ -1617,3 +1617,5 @@ body.draw-pending .play-timer { visibility: hidden; }
 
 /* 摸牌动画期间隐藏对应数量的手牌 */
 body.draw-pending .dz-hand .card.draw-hidden { visibility: hidden; }
+
+.dz-hand .card.draw-hidden { visibility: hidden; }
