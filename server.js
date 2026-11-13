@@ -301,7 +301,7 @@ const server = http.createServer(async (req, res) => {
       if (!p) return json(res, 403, { ok: false, error: '你不在这个房间' });
       if (!room.game) return json(res, 400, { ok: false, error: '游戏还没开始' });
       if (room.game.pauseUntil && Date.now() < room.game.pauseUntil) {
-        return json(res, 200, { ok: false, error: '判定中，请稍候' });
+        return json(res, 200, { ok: false, error: room.game.pauseReason === 'draw' ? '摸牌中，请稍候' : '判定中，请稍候' });
       }
 
       const result = room.game.handle(p.id, body.action || {});
