@@ -300,6 +300,9 @@ const server = http.createServer(async (req, res) => {
       const p = room.get(body.player);
       if (!p) return json(res, 403, { ok: false, error: '你不在这个房间' });
       if (!room.game) return json(res, 400, { ok: false, error: '游戏还没开始' });
+      if (room.game.pauseUntil && Date.now() < room.game.pauseUntil) {
+        return json(res, 200, { ok: false, error: '判定中，请稍候' });
+      }
 
       const result = room.game.handle(p.id, body.action || {});
       if (result.ok && room.mode === 'duel') aiAct(room.game);

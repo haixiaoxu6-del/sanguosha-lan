@@ -115,6 +115,8 @@ function stateSignature(ns) {
 }
 
 function applyState(ns) {
+  // 摸牌动画/判定窗口期间，暂缓应用后续状态
+  if (ui.drawUntil && Date.now() < ui.drawUntil) { ui.pendingState = ns; return; }
   // 判定结果未确认前，暂停应用后续状态（AI 的后续动作也等确认后再播）
   if (ui.state && ui.state.lastJudgment && ui.judgmentSeen < ui.state.lastJudgment.seq) {
     ui.pendingState = ns;
@@ -132,7 +134,7 @@ function applyState(ns) {
       const b = ui.pendingState;
       ui.pendingState = null;
       if (b) applyState(b); else render();
-    }, 3000);
+    }, 2000);
   }
   if (!(ns.pending && ns.pending.type === 'huogong')) {
     document.querySelectorAll('.play-card.persist').forEach(e => e.remove());
@@ -1096,7 +1098,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v145</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v149</div>
   </div></div>`;
 }
 
@@ -1155,7 +1157,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v145</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v149</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1184,7 +1186,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v145</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v149</div>
   </div></div>`;
 }
 
@@ -2294,35 +2296,42 @@ function playDrawFx(ev) {
   const s = ui.state;
   if (!s) return;
   const self = ev.playerId === myId(s);
-  const target = self
-    ? document.querySelector('.dz-hand')
-    : document.querySelector('.gc-wrap[data-player-id="' + ev.playerId + '"]');
-  if (!target) return;
-  const tr = target.getBoundingClientRect();
-  const cx = window.innerWidth / 2;
-  const cy = window.innerHeight / 2;
+  const cards = ev.cards || [];
+  const n = Math.max(1, cards.length || ev.count || 1);
+  ui.drawUntil = Date.now() + 2900;
   const wrap = document.createElement('div');
-  wrap.className = 'draw-fly';
-  wrap.style.left = cx + 'px';
-  wrap.style.top = cy + 'px';
-  wrap.innerHTML = '<img class="df-card a" src="/assets/ui/cardback3.png"><img class="df-card b" src="/assets/ui/cardback3.png">';
+  wrap.className = 'draw-row';
   (document.getElementById('fx') || document.body).appendChild(wrap);
-  const dx = (tr.left + tr.width / 2) - cx;
-  const dy = (tr.top + tr.height / 2) - cy;
-  requestAnimationFrame(() => {
-    wrap.style.transition = 'transform 1.8s cubic-bezier(.2,.7,.3,1), opacity 1.8s ease';
-    wrap.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(.55)';
-    wrap.style.opacity = '0';
-  });
-  setTimeout(() => wrap.remove(), 2100);
+  const faces = [];
+  for (let i = 0; i < n; i++) {
+    const el = document.createElement('div');
+    el.className = 'draw-card' + (self ? '' : ' back');
+    if (self && cards[i]) el.innerHTML = centerFaceHtml(cards[i]);
+    wrap.appendChild(el);
+    faces.push(el);
+  }
+  setTimeout(() => {
+    const target = self
+      ? document.querySelector('.dz-hand')
+      : document.querySelector('.gc-wrap[data-player-id="' + ev.playerId + '"]');
+    const tr = target ? target.getBoundingClientRect() : null;
+    faces.forEach(el => {
+      if (!tr) return;
+      const r = el.getBoundingClientRect();
+      const dx = (tr.left + tr.width / 2) - (r.left + r.width / 2);
+      const dy = (tr.top + tr.height / 2) - (r.top + r.height / 2);
+      try { el.animate([{ transform: 'translate(0,0)', opacity: 1 }, { transform: `translate(${dx}px,${dy}px) scale(.4)`, opacity: 0 }], { duration: 900, easing: 'ease-in', fill: 'forwards' }); } catch (e) {}
+    });
+    setTimeout(() => {
+      wrap.remove();
+      ui.drawUntil = 0;
+      const b = ui.pendingState;
+      ui.pendingState = null;
+      if (b) applyState(b);
+    }, 950);
+  }, 2000);
 }
 
-
-
-
-
-
-// 五谷丰登：屏幕中央的大号待选牌（手牌同款牌面）
 function wuguHtml(s) {
   if (!(s.pending && s.pending.type === 'wugu' && s.pending.playerId === myId(s) && s.wugu)) return '';
   const cards = s.wugu.cards || [];
@@ -2425,11 +2434,15 @@ setInterval(() => {
 // 判定窗口兜底：显示超过 3 秒强制关闭
 setInterval(() => {
   if (!document.querySelector('.judge-overlay')) return;
-  if (ui.judgeShownAt && Date.now() - ui.judgeShownAt > 3000) {
+  if (ui.judgeShownAt && Date.now() - ui.judgeShownAt > 2000) {
     if (ui.state && ui.state.lastJudgment) ui.judgmentSeen = ui.state.lastJudgment.seq;
     render();
   }
 }, 300);
+
+
+
+
 
 
 

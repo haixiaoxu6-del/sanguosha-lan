@@ -1597,3 +1597,10 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 
 /* 判定结果牌：红色花色显示红色 */
 .judge-card.red { color: #a52626; }
+
+/* 摸牌展示：自己正面、他人牌背，2秒后飞向手牌/武将牌 */
+.draw-row { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; z-index: 93; pointer-events: none; }
+.draw-card { width: 120px; height: 168px; flex: 0 0 auto; margin-left: -46px; }
+.draw-card:first-child { margin-left: 0; }
+.draw-card .card { width: 120px; height: 168px; }
+.draw-card.back { background: url('/assets/ui/cardback3.png') center/cover no-repeat; border: 2px solid #a98145; border-radius: 6px; box-shadow: 0 6px 16px rgba(0,0,0,.55); }

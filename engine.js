@@ -174,7 +174,8 @@ class Game {
       p.hand.push(c);
       cards.push(c);
     }
-    if (cards.length) this.pushEvent('draw', { playerId: p.id, count: cards.length });
+    if (cards.length) this.pauseUntil = Math.max(this.pauseUntil || 0, Date.now() + 2400);
+    if (cards.length) this.pushEvent('draw', { playerId: p.id, count: cards.length, cards: cards.map(c => ({ id: c.id, name: c.name, suit: c.suit, number: c.number, color: c.color, type: c.type, art: c.art })) });
     return cards;
   }
 
@@ -399,7 +400,7 @@ class Game {
   judge(p, reason) {
     const c = this.drawCard();
     if (c) this.discard.push(c);
-    this.pauseUntil = Date.now() + 3000;
+    this.pauseUntil = Date.now() + 2000;
     this.lastJudgment = {
       seq: (this.judgmentSeq = (this.judgmentSeq || 0) + 1),
       playerId: p.id,
@@ -649,6 +650,7 @@ class Game {
           if (judge) {
             this.discard.push(judge);
             this.lastJudgment = { seq: Date.now(), card: judge, text: `【八卦阵】判定：${judge.name}` };
+            this.pauseUntil = Date.now() + 2000;
             if (judge.color === 'red') {
               this.discard.push(card);
               this.pushLog(`${target.name} 的【八卦阵】判定为红色，视为出【闪】`);
