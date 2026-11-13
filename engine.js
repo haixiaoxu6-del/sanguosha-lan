@@ -95,7 +95,7 @@ class Game {
   start() {
     if (this.started) return;
     this.started = true;
-    for (const p of this.players) this.draw(p, 4);
+    for (const p of this.players) this.draw(p, 4, true);
     this.current = 0;
     this.turn = 1;
     const firstText = this.mode === 'duel'
@@ -166,7 +166,7 @@ class Game {
     return this.deck.pop();
   }
 
-  draw(p, n) {
+  draw(p, n, silent) {
     const cards = [];
     for (let i = 0; i < n; i++) {
       const c = this.drawCard();
@@ -174,8 +174,8 @@ class Game {
       p.hand.push(c);
       cards.push(c);
     }
-    if (cards.length) { this.pauseUntil = Math.max(this.pauseUntil || 0, Date.now() + 2500); this.pauseReason = 'draw'; }
-    if (cards.length) this.pushEvent('draw', { playerId: p.id, count: cards.length, cards: cards.map(c => ({ id: c.id, name: c.name, suit: c.suit, number: c.number, color: c.color, type: c.type, art: c.art })) });
+    if (cards.length && !silent) { this.pauseUntil = Math.max(this.pauseUntil || 0, Date.now() + 2500); this.pauseReason = 'draw'; }
+    if (cards.length && !silent) this.pushEvent('draw', { playerId: p.id, count: cards.length, cards: cards.map(c => ({ id: c.id, name: c.name, suit: c.suit, number: c.number, color: c.color, type: c.type, art: c.art })) });
     return cards;
   }
 
