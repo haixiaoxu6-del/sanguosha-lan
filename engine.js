@@ -1235,6 +1235,7 @@ class Game {
           pend.index++;
         }
         if (pend.index >= pend.queue.length) {
+          pend.canceled = ((pend.wuxieCount || 0) % 2) === 1;
           this.resolveTrick(pend);
         } else {
           pend.playerId = pend.queue[pend.index];
@@ -1249,8 +1250,18 @@ class Game {
       p.hand.splice(p.hand.indexOf(card), 1);
       this.discard.push(card);
       this.pushLog(`${p.name} 使用【无懈可击】`);
-      pend.canceled = true;
-      this.resolveTrick(pend);
+      const used = (pend.wuxieCount || 0) + 1;
+      const q2 = this.othersInSeatOrder(p).filter(x => x.alive && x.hand.some(c => c.key === 'wuxie')).map(x => x.id);
+      if (q2.length) {
+        this.pending = {
+          type: 'wuxie', playerId: q2[0], sourceId: p.id, cardId: pend.cardId, cardRef: pend.cardRef,
+          queue: q2, index: 0, canceled: false, trick: pend.trick, wuxieCount: used,
+          prompt: `是否对${p.name}的【无懈可击】使用【无懈可击】？`,
+        };
+      } else {
+        pend.canceled = used % 2 === 1;
+        this.resolveTrick(pend);
+      }
       return ok();
     }
 
