@@ -1,5 +1,6 @@
-{
+﻿{
   "name": "sanguosha-lan",
+  "license": "MIT",
   "version": "1.0.0",
   "private": true,
   "description": "三国杀局域网版（斗地主 + 1v1 AI）",
@@ -11,3 +12,4 @@
     "node": ">=18"
   }
 }
+

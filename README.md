@@ -1,78 +1,36 @@
-# 三国杀 · 局域网版
+﻿# 三国杀 · 网页联机版
 
-3 人斗地主 + 1v1 人机对战的网页版三国杀，同一 WiFi 下用浏览器联机。
+一个基于 Node.js + 原生前端的《三国杀》网页游戏，支持：
+
+- 斗地主（3 人）
+- 1v1 人机对战
+- 1v1 网页联机
+- 身份局（占位）
 
 ## 运行
 
-需要 Node.js（建议 18+）。
-
 ```bash
-cd /d D:\三国杀
-node server.js
+npm install
+npm start
 ```
 
-看到 `三国杀已启动: http://localhost:3123` 即可。
-
-- 本机打开：`http://127.0.0.1:3123/`
-- 同一 WiFi 的手机/电脑打开：`http://<房主电脑 IP>:3123/`
-- 房主 IP 用 `ipconfig` 查看，一般是 `192.168.x.x` 或 `172.17.x.x`。
-
-## 模式
-
-### 斗地主
-
-- 3 人：1 地主 + 2 农民。
-- 地主：+1 血、先手、额外【英姿】（摸牌 +1）。
-- 农民：一个农民阵亡，另一个摸 2 张。
-- 地主死 → 农民胜；两个农民死 → 地主胜。
-
-### 人机对战
-
-- 2 人：玩家 vs AI。
-- 玩家先选将，AI 从剩下随机选。
-- 双方满血，玩家先手，谁先 0 血谁输。
-
-## 操作
-
-- 点手牌 → 点目标 → 出牌。
-- 按住手牌拖到目标，松开即出牌。
-- 无目标牌（桃/无中生有/南蛮/万箭）：点牌后点“使用”。
-- 任何选择都有“取消”；响应窗口有“放弃”。
-- 锁定技自动触发。
+默认监听 `process.env.PORT || 3000`，浏览器打开对应地址即可。
 
 ## 目录
 
-```
-D:\三国杀\
-  server.js          # HTTP + SSE + 房间
-  engine.js          # 核心引擎
-  ai.js              # 1v1 AI
-  data.js            # 牌/将/模式数据
-  public/            # 前端
-    index.html
-    style.css
-    client.js
-    assets/
-      generals/
-      cards/
-      ui/
-  docs/
-  PROGRESS.md
-```
+- `server.js`：HTTP 服务、房间与接口
+- `engine.js`：对局引擎（回合、技能、判定、结算）
+- `ai.js`：人机 AI
+- `data.js`：牌堆、武将、模式定义
+- `public/`：前端（client.js、style.css、index.html、素材）
 
-## 加牌 / 加将
+## 许可
 
-- 牌：改 `data.js` 的 `CARD_DEFS`，加 `key/name/type/count/art`。
-- 将：改 `data.js` 的 `GENERALS`，加 `id/name/faction/hp/skills/desc/portrait`。
-- 技能逻辑目前写在 `engine.js` 的 `canUseAs` / `play` 里；后续会拆成 `data/skills`。
+代码以 MIT License 发布，见 [LICENSE](LICENSE)。
 
-## 素材
+## 素材说明
 
-立绘、牌图来自本机无名杀，仅自用局域网，不公开传播。已转成真正的 PNG，放在 `public/assets/`。
+游戏内部分字体、卡牌插画、界面素材来源于《无名杀》（Noname）及《三国杀》相关素材，
+版权归原作者/权利人所有，仅用于学习与交流；如权利人要求，请移除相关内容。
 
-## 连不上
-
-1. 确认手机和电脑在**同一个 WiFi**。
-2. 确认地址是房主电脑的局域网 IP，端口 `3123`。
-3. 校园网可能开 AP 隔离；如果打不开，用手机热点组局域网。
-4. Windows 防火墙放行 Node（专用/公用网络都勾上）。
+《三国杀》为游卡桌游的商标与作品，本项目为非官方粉丝作品，与官方无关。
