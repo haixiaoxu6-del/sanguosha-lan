@@ -1639,3 +1639,7 @@ body.draw-ack .pending-wrap, body.draw-ack .prompt, body.draw-ack .prompt-action
   filter: drop-shadow(0 0 26px rgba(160,190,255,.55)) drop-shadow(0 6px 0 rgba(0,0,0,.35)); }
 @keyframes goIn { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .go-leave { position: fixed; top: 30px; right: 36px; z-index: 201; font-size: 22px; padding: 14px 30px; }
+
+/* 义绝：可选装备虚线金框，选中后实线金框 */
+.gc-equip.pickable { outline: 2px dashed #e8c274; outline-offset: -2px; cursor: pointer; }
+.gc-equip.selected { outline: 2px solid #ffd76a; box-shadow: 0 0 14px rgba(255,215,106,.85); }
