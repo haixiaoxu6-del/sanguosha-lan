@@ -1614,3 +1614,6 @@ body.draw-pending .play-timer { visibility: hidden; }
 /* 义绝可选装备：可选状态高亮、选中更亮 */
 .gc-equip.pickable { outline: 1px dashed rgba(240,207,142,.7); cursor: pointer; }
 .gc-equip.selected { outline: 2px solid #f0cf8e; box-shadow: 0 0 12px rgba(240,207,142,.8); }
+
+/* 摸牌动画期间隐藏对应数量的手牌 */
+body.draw-pending .dz-hand .card.draw-hidden { visibility: hidden; }
