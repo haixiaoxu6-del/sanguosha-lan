@@ -1109,7 +1109,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v186</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v187</div>
   </div></div>`;
 }
 
@@ -1168,7 +1168,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v186</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v187</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1197,7 +1197,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v186</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v187</div>
   </div></div>`;
 }
 
@@ -1233,7 +1233,7 @@ function generalCardHtml(p, s, extra = '') {
     || !!(selected && playActions(selected).some(a => a.needsTarget));
   const hp = Math.max(0, p.hp);
   const eq = p.equips || {};
-  const eqRow = (slot, c, label, range) => `<div class="gc-equip ${slot}${c && ui.yijueStage === 'card' ? ' pickable' : ''}${c && ui.yijueCard === c.id ? ' selected' : ''}" data-equip-slot="${slot}"${c ? ` data-equip-id="${c.id}"` : ''}>${
+  const eqRow = (slot, c, label, range) => `<div class="gc-equip ${slot}${c && ui.yijueStage === 'card' ? ' pickable' : ''}${c && ui.yijueCard === c.id ? ' selected' : ''}" data-equip-slot="${slot}"${c ? ` data-equip-id="${c.id}" onclick="window.__pickEquip && window.__pickEquip('${c.id}', event)"` : ''}>${
     c ? `<b>${label}${c.name}</b>${range && c.range ? `<span>${c.range}</span>` : ''}` : ''
   }</div>`;
   const eqHtml = `<div class="gc-equips">
@@ -2522,4 +2522,15 @@ document.addEventListener('click', (e) => {
   ui.yijueStage = 'target';
   render();
 }, true);
+
+
+
+window.__pickEquip = function (id, e) {
+  if (e) { e.stopPropagation(); e.preventDefault(); }
+  if (!ui.state || !ui.state.started) return;
+  if (ui.yijueStage !== 'card' && ui.yijueStage !== 'target') return;
+  ui.yijueCard = id;
+  ui.yijueStage = 'target';
+  render();
+};
 
