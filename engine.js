@@ -495,9 +495,16 @@ class Game {
       if (!target || !target.alive || target.id === p.id) return err('请选择一名其他角色');
       if (target.hand.length === 0) return err('目标没有手牌');
       const ids = Array.isArray(action.cardIds) ? action.cardIds : [];
-      const cost = p.hand.find(c => c.id === ids[0]);
+      let cost = p.hand.find(c => c.id === ids[0]);
+      let fromEquip = false;
+      if (!cost) {
+        for (const slot of ['weapon', 'armor', 'horse1', 'horse2']) {
+          const e = p.equips[slot];
+          if (e && e.id === ids[0]) { cost = e; fromEquip = true; p.equips[slot] = null; break; }
+        }
+      }
       if (!cost) return err('请选择一张要弃置的牌');
-      p.hand.splice(p.hand.indexOf(cost), 1);
+      if (!fromEquip) p.hand.splice(p.hand.indexOf(cost), 1);
       this.discard.push(cost);
       p.flags.yijueUsed = 1;
       this.pushLog(`${p.name} 发动【义绝】，弃【${cost.name}】，令 ${target.name} 展示一张手牌`);
@@ -1259,6 +1266,7 @@ class Game {
       p.hand.splice(p.hand.indexOf(card), 1);
       this.discard.push(card);
       this.pushLog(`${p.name} 使用【无懈可击】`);
+      this.pushEvent('card', { playerId: p.id, card: { id: card.id, name: card.name, suit: card.suit, number: card.number, color: card.color, type: card.type, art: card.art } });
       const used = (pend.wuxieCount || 0) + 1;
       const q2 = this.othersInSeatOrder(p).filter(x => x.alive && x.hand.some(c => c.key === 'wuxie')).map(x => x.id);
       if (q2.length) {
