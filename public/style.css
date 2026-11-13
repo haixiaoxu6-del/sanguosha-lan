@@ -1604,3 +1604,6 @@ h1 span { color: var(--text); font-size: 17px; letter-spacing: 1px; }
 .draw-card:first-child { margin-left: 0; }
 .draw-card .card { width: 120px; height: 168px; }
 .draw-card.back { background: url('/assets/ui/cardback3.png') center/cover no-repeat; border: 2px solid #a98145; border-radius: 6px; box-shadow: 0 6px 16px rgba(0,0,0,.55); }
+
+/* 摸牌动画期间隐藏手牌区新摸的牌，等动画飞入后再显示 */
+body.draw-pending .dz-hand .card:nth-last-child(-n+2) { visibility: hidden; }

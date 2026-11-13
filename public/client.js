@@ -1098,7 +1098,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v151</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v152</div>
   </div></div>`;
 }
 
@@ -1157,7 +1157,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v151</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v152</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1186,7 +1186,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v151</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v152</div>
   </div></div>`;
 }
 
@@ -2298,7 +2298,6 @@ function playDrawFx(ev) {
   const self = ev.playerId === myId(s);
   const cards = ev.cards || [];
   const n = Math.max(1, cards.length || ev.count || 1);
-  ui.drawUntil = Date.now() + 2900;
   const wrap = document.createElement('div');
   wrap.className = 'draw-row';
   (document.getElementById('fx') || document.body).appendChild(wrap);
@@ -2310,26 +2309,42 @@ function playDrawFx(ev) {
     wrap.appendChild(el);
     faces.push(el);
   }
+  if (self) document.body.classList.add('draw-pending');
+  ui.drawUntil = Date.now() + 2500;
+  // 尺寸对齐手牌
+  if (self) {
+    const sample = document.querySelector('.dz-hand .card');
+    if (sample) {
+      const sr = sample.getBoundingClientRect();
+      faces.forEach(el => { el.style.width = sr.width + 'px'; el.style.height = sr.height + 'px'; });
+      wrap.querySelectorAll('.card').forEach(c => { c.style.width = sr.width + 'px'; c.style.height = sr.height + 'px'; });
+    }
+  }
   setTimeout(() => {
-    const target = self
-      ? document.querySelector('.dz-hand')
-      : document.querySelector('.gc-wrap[data-player-id="' + ev.playerId + '"]');
-    const tr = target ? target.getBoundingClientRect() : null;
-    faces.forEach(el => {
-      if (!tr) return;
+    const handCards = self ? [...document.querySelectorAll('.dz-hand .card')].slice(-n) : [];
+    faces.forEach((el, i) => {
       const r = el.getBoundingClientRect();
-      const dx = (tr.left + tr.width / 2) - (r.left + r.width / 2);
-      const dy = (tr.top + tr.height / 2) - (r.top + r.height / 2);
-      try { el.animate([{ transform: 'translate(0,0)', opacity: 1 }, { transform: `translate(${dx}px,${dy}px) scale(.4)`, opacity: 0 }], { duration: 900, easing: 'ease-in', fill: 'forwards' }); } catch (e) {}
+      let t = null;
+      if (self && handCards[i]) t = handCards[i].getBoundingClientRect();
+      else {
+        const gc = document.querySelector('.gc-wrap[data-player-id="' + ev.playerId + '"]');
+        if (gc) t = gc.getBoundingClientRect();
+      }
+      if (!t) return;
+      const dx = (t.left + t.width / 2) - (r.left + r.width / 2);
+      const dy = (t.top + t.height / 2) - (r.top + r.height / 2);
+      const sc = Math.max(0.2, t.width / Math.max(1, r.width));
+      try { el.animate([{ transform: 'translate(0,0) scale(1)', opacity: 1 }, { transform: `translate(${dx}px,${dy}px) scale(${sc})`, opacity: 1 }], { duration: 800, easing: 'ease-in-out', fill: 'forwards' }); } catch (e) {}
     });
     setTimeout(() => {
       wrap.remove();
+      document.body.classList.remove('draw-pending');
       ui.drawUntil = 0;
       const b = ui.pendingState;
       ui.pendingState = null;
-      if (b) applyState(b);
-    }, 950);
-  }, 2000);
+      if (b) applyState(b); else renderLocal();
+    }, 850);
+  }, 1500);
 }
 
 function wuguHtml(s) {
@@ -2439,6 +2454,7 @@ setInterval(() => {
     render();
   }
 }, 300);
+
 
 
 
