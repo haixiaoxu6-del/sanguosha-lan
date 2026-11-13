@@ -128,7 +128,7 @@ function applyState(ns) {
   try {
     if (ns.pending && ns.pending.type === 'draw_ack' && ns.pending.playerId === myId(ns) && !ui.ackPending) {
       ui.ackPending = true;
-      setTimeout(() => { ui.ackPending = false; sendAction({ type: 'respond' }); }, 3000);
+      setTimeout(() => { ui.ackPending = false; sendAction({ type: 'respond' }); }, 5000);
     }
     const ack = !!(ns.pending && ns.pending.type === 'draw_ack');
     document.body.classList.toggle('draw-ack', ack);
@@ -624,11 +624,10 @@ async function startGame(generalId) {
       return;
     }
     if (st.state && st.state.started) {
-      ui.state = st.state;
       ui.starting = false;
       ui.startStatus = '';
       ui.error = '';
-      render();
+      applyState(st.state);
       return;
     }
     await new Promise(res => setTimeout(res, 250));
@@ -1108,7 +1107,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v178</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v180</div>
   </div></div>`;
 }
 
@@ -1167,7 +1166,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v178</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v180</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1196,7 +1195,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v178</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v180</div>
   </div></div>`;
 }
 
@@ -2466,6 +2465,8 @@ setInterval(() => {
     render();
   }
 }, 300);
+
+
 
 
 
