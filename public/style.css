@@ -1619,8 +1619,8 @@ body.draw-ack .pending-wrap, body.draw-ack .prompt, body.draw-ack .prompt-action
 
 /* 开局“开战”图 */
 .kai-splash { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 120; pointer-events: none;
-  background: radial-gradient(circle at 50% 50%, rgba(80,30,0,.55), rgba(0,0,0,.75)); animation: kaiIn .4s ease-out; }
-.kai-splash img { width: min(40vw, 420px); filter: drop-shadow(0 0 34px rgba(255,150,40,.85)); animation: kaiZoom 1.8s ease-out; }
+  background: transparent; animation: kaiIn .4s ease-out; }
+.kai-splash img { width: min(40vw, 420px); filter: drop-shadow(0 0 18px rgba(255,190,90,.45)); animation: kaiZoom 1.8s ease-out; }
 .kai-splash.out { opacity: 0; transition: opacity .5s; }
 @keyframes kaiIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes kaiZoom { 0% { transform: scale(.55); opacity: 0; } 25% { opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
