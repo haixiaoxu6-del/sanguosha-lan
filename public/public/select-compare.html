@@ -1,0 +1,26 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="/style.css">
+<style>
+body { margin:0; background:#241a14; padding:24px; font-family:"FZBWKSJW",serif; display:flex; gap:28px; align-items:flex-start; }
+.col { text-align:center; }
+.cap { color:#c9b184; font-size:13px; margin-top:8px; }
+.sel-card { position:relative; width:180px; border:2px solid #a98145; border-radius:12px; overflow:hidden; background:#17110e; }
+.sel-card img { width:100%; height:100%; object-fit:cover; object-position:center top; display:block; }
+.sel-card::after { content:''; position:absolute; inset:0; border-radius:10px; box-shadow:inset 0 0 0 1px rgba(255,220,150,.25); pointer-events:none; }
+.h430 { height:430px; }
+.h330 { height:330px; }
+</style></head>
+<body>
+  <div class="col">
+    <div class="sel-card h430"><img src="/assets/generals/re_zhangfei.jpg"></div>
+    <div class="cap">方案A：180×430（和原卡片同高）</div>
+  </div>
+  <div class="col">
+    <div class="sel-card h330"><img src="/assets/generals/re_zhangfei.jpg"></div>
+    <div class="cap">方案B：180×330（原立绘区大小）</div>
+  </div>
+  <div class="col">
+    <div class="general-card" style="width:180px"><img class="general-portrait" src="/assets/generals/re_zhangfei.jpg" style="height:330px"><div class="general-info"><div class="g-name">界张飞</div><div class="g-faction">蜀 · 4 血</div></div></div>
+    <div class="cap">对照：现在的选将卡</div>
+  </div>
+</body></html>

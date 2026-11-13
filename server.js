@@ -354,10 +354,6 @@ setInterval(() => {
     } else {
       room._aiSig = '';
       room._aiStuck = 0;
-      const cur = room.game.currentPlayer();
-      if (ai.alive && cur && cur.id === ai.id && !room.game.gameOver) {
-        try { aiAct(room.game); room.broadcast(); } catch (e) { /* ignore */ }
-      }
     }
   }
 }, 400);

@@ -1,0 +1,38 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face { font-family: 'HuangCao'; src: url('/assets/fonts/huangcao.woff2') format('woff2'); }
+@font-face { font-family: 'HYZLSJ'; src: url('/assets/fonts/HYZLSJ.woff2') format('woff2'); }
+body { margin:0; background:#2a1e15; padding:24px; font-family:"FZBWKSJW",serif; color:#e8d9b8; }
+.row { display:flex; gap:22px; align-items:flex-end; margin-bottom:22px; }
+.item { text-align:center; }
+.item .lab { font-size:12px; color:#b9a887; margin-top:8px; }
+.art { width:120px; height:120px; background:url('/assets/cards/sha.png') center/cover; border:1px solid #5a4020; box-shadow:inset 0 0 26px rgba(20,12,6,.75); }
+.bar { width:142px; height:25px; background:url('/assets/ui/cardname.png') center/100% 100% no-repeat; }
+.font1 { font-family:'HuangCao',serif; font-size:44px; color:#120c06; background:#f3ead2; padding:4px 18px; border-radius:4px; }
+.font2 { font-family:'HYZLSJ',serif; font-size:40px; color:#120c06; background:#f3ead2; padding:4px 18px; border-radius:4px; }
+.swatch { width:120px; height:70px; background:linear-gradient(180deg,#e2d0a8,#c9ad7c); border:1px solid #8c6b3f; border-radius:4px; }
+.borderbox { width:120px; height:70px; border:2px solid #5a4020; border-radius:4px; background:#f3ead2; }
+.c { width:164px; height:230px; background:linear-gradient(180deg,#e2d0a8,#c9ad7c); border:1px solid #8c6b3f; border-radius:6px; position:relative; overflow:hidden; color:#1c140c; }
+.c .top { position:absolute; top:4px; left:5px; width:24px; text-align:center; z-index:3; }
+.c .num { font-size:19px; font-weight:800; color:#a52626; line-height:1; }
+.c .suit { font-size:16px; color:#a52626; line-height:1; }
+.c .name { position:absolute; top:6px; left:0; right:0; text-align:center; font-family:'HYZLSJ',serif; font-size:82px; line-height:1; color:#120c06; z-index:3; }
+.c .art2 { position:absolute; left:5px; right:5px; top:88px; bottom:5px; overflow:visible; -webkit-mask-image:radial-gradient(ellipse 78% 78% at 50% 50%, #000 58%, transparent 100%); mask-image:radial-gradient(ellipse 78% 78% at 50% 50%, #000 58%, transparent 100%); }
+.c .art2::before { content:''; position:absolute; inset:-24px; background:url('/assets/cards_hd/sha.png') center/145% no-repeat; filter:blur(20px) contrast(1.1) brightness(1.05); transform:scale(1.08); }
+.c .art2::after { content:''; position:absolute; inset:0; background:url('/assets/cards_hd/sha.png') center/145% no-repeat; filter:contrast(1.28) brightness(.9); -webkit-mask-image:radial-gradient(ellipse 68% 68% at 50% 50%, #000 55%, transparent 100%); mask-image:radial-gradient(ellipse 68% 68% at 50% 50%, #000 55%, transparent 100%); }
+
+</style></head>
+<body>
+  <div class="row">
+    <div class="item"><div class="art"></div><div class="lab">牌面图 120×120（image/card/sha.png）</div></div>
+    <div class="item"><div class="bar"></div><div class="lab">牌名条 142×25（cardtempname_bg.png）</div></div>
+    <div class="item"><div class="font1">杀 闪</div><div class="lab">字体：草书 huangcao.woff2</div></div>
+    <div class="item"><div class="font2">杀 闪</div><div class="lab">字体：赵体行楷 HYZLSJ.woff2</div></div>
+  </div>
+  <div class="row">
+    <div class="item"><div class="swatch"></div><div class="lab">底色：米色渐变</div></div>
+    <div class="item"><div class="borderbox"></div><div class="lab">边框：深棕 1px</div></div>
+    <div class="item"><div class="c"><div class="top"><span class="num">9</span><br><span class="suit">♣</span></div><div class="name">杀</div><div class="art2"></div></div><div class="lab">排版：点数/花色 + 牌名 + 牌面图</div></div>
+  </div>
+</body></html>

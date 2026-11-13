@@ -1,0 +1,29 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="/style.css">
+<style>
+body { margin:0; background:#241a14; padding:70px 24px 24px; font-family:"FZBWKSJW",serif; display:flex; gap:40px; align-items:flex-start; }
+.col { text-align:center; }
+.cap { color:#c9b184; font-size:13px; margin-top:10px; }
+.card { position:relative; width:180px; height:430px; }
+.frame { position:absolute; inset:0; border:2px solid #a98145; border-radius:12px; background:#0e0b09; overflow:hidden; }
+.frame img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center 20px; display:block; }
+/* 头发层：与框内立绘同一几何，只显示框顶以上部分 */
+.hair { position:absolute; left:2px; right:2px; top:-46px; height:70px; overflow:hidden; pointer-events:none;
+  -webkit-mask-image:linear-gradient(to bottom, #000 55%, transparent 100%);
+  mask-image:linear-gradient(to bottom, #000 55%, transparent 100%); }
+.hair img { position:absolute; left:0; top:46px; width:100%; height:430px; object-fit:cover; object-position:center 20px; display:block; }
+</style></head>
+<body>
+  <div class="col">
+    <div class="card"><div class="frame"><img src="/assets/generals/re_zhangfei.jpg"></div><div class="hair"><img src="/assets/generals/re_zhangfei.jpg"></div></div>
+    <div class="cap">界张飞</div>
+  </div>
+  <div class="col">
+    <div class="card"><div class="frame"><img src="/assets/generals/re_guanyu.jpg"></div><div class="hair"><img src="/assets/generals/re_guanyu.jpg"></div></div>
+    <div class="cap">界关羽</div>
+  </div>
+  <div class="col">
+    <div class="card"><div class="frame"><img src="/assets/generals/re_zhaoyun.jpg"></div><div class="hair"><img src="/assets/generals/re_zhaoyun.jpg"></div></div>
+    <div class="cap">界赵云</div>
+  </div>
+</body></html>

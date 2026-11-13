@@ -95,7 +95,7 @@ class Game {
   start() {
     if (this.started) return;
     this.started = true;
-    for (const p of this.players) this.draw(p, 4, true);
+    for (const p of this.players) this.draw(p, 4);
     this.current = 0;
     this.turn = 1;
     const firstText = this.mode === 'duel'
@@ -166,7 +166,7 @@ class Game {
     return this.deck.pop();
   }
 
-  draw(p, n, silent) {
+  draw(p, n) {
     const cards = [];
     for (let i = 0; i < n; i++) {
       const c = this.drawCard();
@@ -174,8 +174,8 @@ class Game {
       p.hand.push(c);
       cards.push(c);
     }
-    if (cards.length && !silent) { this.pauseUntil = Math.max(this.pauseUntil || 0, Date.now() + 2500); this.pauseReason = 'draw'; }
-    if (cards.length && !silent) this.pushEvent('draw', { playerId: p.id, count: cards.length, cards: cards.map(c => ({ id: c.id, name: c.name, suit: c.suit, number: c.number, color: c.color, type: c.type, art: c.art })) });
+    if (cards.length) { this.pauseUntil = Math.max(this.pauseUntil || 0, Date.now() + 2500); this.pauseReason = 'draw'; }
+    if (cards.length) this.pushEvent('draw', { playerId: p.id, count: cards.length, cards: cards.map(c => ({ id: c.id, name: c.name, suit: c.suit, number: c.number, color: c.color, type: c.type, art: c.art })) });
     return cards;
   }
 
@@ -306,17 +306,6 @@ class Game {
     } else {
       const bonus = this.drawBonus(p);
       const drawCount = 2 + bonus;
-      if (!skipPlay) {
-        const cards = [];
-        for (let i = 0; i < drawCount; i++) { const c = this.drawCard(); if (c) cards.push(c); }
-        this.pendingDraw = { playerId: p.id, cards };
-        this.pauseUntil = Math.max(this.pauseUntil || 0, Date.now() + 2500);
-        this.pauseReason = 'draw';
-        this.pushEvent('draw', { playerId: p.id, count: cards.length, cards: cards.map(c => ({ id: c.id, name: c.name, suit: c.suit, number: c.number, color: c.color, type: c.type, art: c.art })) });
-        this.pending = { type: 'draw_ack', playerId: p.id, prompt: '' };
-        this.phase = 'play';
-        return;
-      }
       this.draw(p, drawCount);
       this.pushLog(`${p.name} 摸${drawCount}张牌`);
       if (bonus > 0) this.pushLog(`${p.name} 的摸牌阶段额外摸${bonus}张牌`);
@@ -346,10 +335,7 @@ class Game {
     const next = this.nextAliveIndex(this.current);
     this.current = next;
     this.turn++;
-    // 回合交接：等上一回合的弃牌/结束展示完成后再开始下一回合
-    this.pauseUntil = Math.max(this.pauseUntil || 0, Date.now() + 1500);
-    this.pauseReason = 'turn';
-    setTimeout(() => { if (!this.gameOver) this.beginTurn(); }, 1500);
+    this.beginTurn();
   }
 
   checkDiscard() {
@@ -503,16 +489,9 @@ class Game {
       if (!target || !target.alive || target.id === p.id) return err('请选择一名其他角色');
       if (target.hand.length === 0) return err('目标没有手牌');
       const ids = Array.isArray(action.cardIds) ? action.cardIds : [];
-      let cost = p.hand.find(c => c.id === ids[0]);
-      let fromEquip = false;
-      if (!cost) {
-        for (const slot of ['weapon', 'armor', 'horse1', 'horse2']) {
-          const e = p.equips[slot];
-          if (e && e.id === ids[0]) { cost = e; fromEquip = true; p.equips[slot] = null; break; }
-        }
-      }
+      const cost = p.hand.find(c => c.id === ids[0]);
       if (!cost) return err('请选择一张要弃置的牌');
-      if (!fromEquip) p.hand.splice(p.hand.indexOf(cost), 1);
+      p.hand.splice(p.hand.indexOf(cost), 1);
       this.discard.push(cost);
       p.flags.yijueUsed = 1;
       this.pushLog(`${p.name} 发动【义绝】，弃【${cost.name}】，令 ${target.name} 展示一张手牌`);
@@ -995,8 +974,7 @@ class Game {
     const noUse = !!(before && ['pick', 'wugu', 'yijue', 'huogong', 'yajiao', 'yajiao_discard'].includes(before.type));
     const played = (p && action && action.cardId) ? (p.hand.find(c => c.id === action.cardId) || null) : null;
     const res = this._respond(playerId, action);
-    const USE_TYPES = ['shan', 'duel', 'nanman', 'wanjian', 'jiedao', 'sha'];
-    if (res && res.ok && played && outside && before && USE_TYPES.includes(before.type) && !this.pending) {
+    if (res && res.ok && played && outside && !noUse && !this.pending) {
       this.maybeYajiao(p, played);
     }
     return res;
@@ -1250,17 +1228,6 @@ class Game {
       return ok();
     }
 
-    if (pend.type === 'draw_ack') {
-      const pd = this.pendingDraw;
-      if (pd && pd.playerId === p.id) {
-        p.hand.push(...pd.cards);
-        this.pushLog(`${p.name} 摸${pd.cards.length}张牌`);
-        this.pendingDraw = null;
-      }
-      this.pending = null;
-      return ok();
-    }
-
     if (pend.type === 'wuxie') {
       if (action.pass) {
         pend.index++;
@@ -1285,7 +1252,6 @@ class Game {
       p.hand.splice(p.hand.indexOf(card), 1);
       this.discard.push(card);
       this.pushLog(`${p.name} 使用【无懈可击】`);
-      this.pushEvent('card', { playerId: p.id, card: { id: card.id, name: card.name, suit: card.suit, number: card.number, color: card.color, type: card.type, art: card.art } });
       const used = (pend.wuxieCount || 0) + 1;
       const q2 = this.othersInSeatOrder(p).filter(x => x.alive && x.hand.some(c => c.key === 'wuxie')).map(x => x.id);
       if (q2.length) {
