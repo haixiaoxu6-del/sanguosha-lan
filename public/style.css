@@ -1610,3 +1610,6 @@ body.draw-pending .dz-hand .card:nth-last-child(-n+2) { visibility: hidden; }
 
 /* 摸牌动画期间不显示出牌倒计时 */
 body.draw-pending .play-timer { visibility: hidden; }
+
+/* 服务端扣牌：摸牌期间手牌不再隐藏 */
+body.draw-pending .dz-hand .card:nth-last-child(-n+2) { visibility: visible; }

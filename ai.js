@@ -18,6 +18,8 @@ function aiAct(game) {
         continue;
       }
 
+      if (pend.type === 'draw_ack') { game.respond(ai.id, {}); return; }
+
       if (pend.type === 'discard') {
         const ids = ai.hand.slice(0, pend.count).map(c => c.id);
         game.discardCards(ai.id, ids);
