@@ -306,6 +306,17 @@ class Game {
     } else {
       const bonus = this.drawBonus(p);
       const drawCount = 2 + bonus;
+      if (!skipPlay) {
+        const cards = [];
+        for (let i = 0; i < drawCount; i++) { const c = this.drawCard(); if (c) cards.push(c); }
+        this.pendingDraw = { playerId: p.id, cards };
+        this.pauseUntil = Math.max(this.pauseUntil || 0, Date.now() + 2500);
+        this.pauseReason = 'draw';
+        this.pushEvent('draw', { playerId: p.id, count: cards.length, cards: cards.map(c => ({ id: c.id, name: c.name, suit: c.suit, number: c.number, color: c.color, type: c.type, art: c.art })) });
+        this.pending = { type: 'draw_ack', playerId: p.id, prompt: '' };
+        this.phase = 'play';
+        return;
+      }
       this.draw(p, drawCount);
       this.pushLog(`${p.name} 摸${drawCount}张牌`);
       if (bonus > 0) this.pushLog(`${p.name} 的摸牌阶段额外摸${bonus}张牌`);
@@ -1236,6 +1247,17 @@ class Game {
         cardId: card.id, boost: false, queue: [],
         prompt: `${victim.name} 请出【闪】`,
       };
+      return ok();
+    }
+
+    if (pend.type === 'draw_ack') {
+      const pd = this.pendingDraw;
+      if (pd && pd.playerId === p.id) {
+        p.hand.push(...pd.cards);
+        this.pushLog(`${p.name} 摸${pd.cards.length}张牌`);
+        this.pendingDraw = null;
+      }
+      this.pending = null;
       return ok();
     }
 

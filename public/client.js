@@ -124,22 +124,7 @@ function applyState(ns) {
   }
   const oldLog = ui.state && Array.isArray(ui.state.log) ? ui.state.log : [];
   const newLines = diffLog(oldLog, ns.log || []);
-  try {
-    const me0 = myId(ns);
-    const nd = (ns.events || []).filter(e => e.type === 'draw' && e.id > (ui.fxLastId || 0) && e.playerId === me0);
-    if (nd.length && ui.state && ui.state.you && !ui.handLock) {
-      ui.handLock = ui.state.you.hand.slice();
-    }
-  } catch (e) { /* ignore */ }
   ui.state = ns;
-  // 本帧新到的摸牌事件：先算出要隐藏的数量，避免 6 张先闪一下
-  try {
-    const me0 = myId(ns);
-    const newDraws = (ns.events || []).filter(e => e.type === 'draw' && e.id > (ui.fxLastId || 0) && e.playerId === me0);
-    if (newDraws.length) {
-      ui.drawHidden = (ui.drawHidden || 0) + newDraws.reduce((a, e) => a + (e.count || 1), 0);
-    }
-  } catch (e) { /* ignore */ }
   if (ns.lastJudgment && ns.lastJudgment.seq > (ui.judgmentSeen || 0)) {
     ui.judgeShownAt = Date.now();
     if (ui.judgeTimer) clearTimeout(ui.judgeTimer);
@@ -1122,7 +1107,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v173</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v174</div>
   </div></div>`;
 }
 
@@ -1181,7 +1166,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v173</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v174</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1210,7 +1195,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v173</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v174</div>
   </div></div>`;
 }
 
@@ -2378,12 +2363,14 @@ function playDrawFx(ev, done) {
       wrap.remove();
       document.body.classList.remove('draw-pending');
       ui.drawHidden = Math.max(0, (ui.drawHidden || 0) - n);
-      if (!ui.drawQueue || !ui.drawQueue.length) { ui.drawHidden = 0; ui.handLock = null; }
+      ui.drawHidden = 0;
+      ui.handLock = null;
       renderLocal();
       ui.drawUntil = 0;
       const b = ui.pendingState;
       ui.pendingState = null;
       if (b) applyState(b); else renderLocal();
+      if (self && ui.state && ui.state.pending && ui.state.pending.type === 'draw_ack') sendAction({ type: 'respond' });
       if (done) done();
     }, 850);
   }, 1500);
@@ -2560,6 +2547,7 @@ function runDrawQueue() {
   const ev = ui.drawQueue.shift();
   playDrawFx(ev, () => runDrawQueue());
 }
+
 
 
 
