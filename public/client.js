@@ -715,6 +715,25 @@ function showCenterCard(card, fromEl, persist) {
     </div>
   </div>`;
   document.body.appendChild(mask);
+  if (fromEl && fromEl.getBoundingClientRect) {
+    const face = mask.querySelector('.card');
+    if (face) {
+      const tr = face.getBoundingClientRect();
+      const sr = fromEl.getBoundingClientRect();
+      if (sr.width > 0 && tr.width > 0) {
+        const dx = (sr.left + sr.width / 2) - (tr.left + tr.width / 2);
+        const dy = (sr.top + sr.height / 2) - (tr.top + tr.height / 2);
+        const sc = Math.max(0.2, Math.min(1, sr.width / Math.max(1, tr.width)));
+        try {
+          face.animate(
+            [{ transform: `translate(${dx}px, ${dy}px) scale(${sc})`, opacity: .45 },
+             { transform: 'translate(0,0) scale(1)', opacity: 1 }],
+            { duration: 1200, easing: 'cubic-bezier(.2,.7,.3,1)' }
+          );
+        } catch (e) { /* ignore */ }
+      }
+    }
+  }
   if (!persist) setTimeout(() => mask.remove(), 4000);
 }
 function startPlayTimerTick() {
@@ -987,7 +1006,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v114</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v115</div>
   </div></div>`;
 }
 
@@ -1046,7 +1065,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v114</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v115</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1075,7 +1094,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v114</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v115</div>
   </div></div>`;
 }
 
@@ -2216,6 +2235,7 @@ function wuguHtml(s) {
     </div>
   </div></div>`;
 }
+
 
 
 
