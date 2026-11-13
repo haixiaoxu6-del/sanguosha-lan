@@ -105,6 +105,9 @@ class Game {
         : '游戏开始，地主先手';
     this.pushLog(firstText);
     this.beginTurn();
+    // 开局发牌动画期间锁操作
+    this.pauseUntil = Math.max(this.pauseUntil || 0, Date.now() + 2500);
+    this.pauseReason = 'draw';
   }
 
   // ---------------- 基础工具 ----------------
@@ -977,7 +980,8 @@ class Game {
     const noUse = !!(before && ['pick', 'wugu', 'yijue', 'huogong', 'yajiao', 'yajiao_discard'].includes(before.type));
     const played = (p && action && action.cardId) ? (p.hand.find(c => c.id === action.cardId) || null) : null;
     const res = this._respond(playerId, action);
-    if (res && res.ok && played && outside && !noUse && !this.pending) {
+    const USE_TYPES = ['shan', 'duel', 'nanman', 'wanjian', 'jiedao', 'sha'];
+    if (res && res.ok && played && outside && before && USE_TYPES.includes(before.type) && !this.pending) {
       this.maybeYajiao(p, played);
     }
     return res;
