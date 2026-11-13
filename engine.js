@@ -105,9 +105,6 @@ class Game {
         : '游戏开始，地主先手';
     this.pushLog(firstText);
     this.beginTurn();
-    // 开局发牌动画期间锁操作
-    this.pauseUntil = Math.max(this.pauseUntil || 0, Date.now() + 2500);
-    this.pauseReason = 'draw';
   }
 
   // ---------------- 基础工具 ----------------
