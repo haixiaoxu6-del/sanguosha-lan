@@ -13,6 +13,7 @@ function err(msg) { return { ok: false, error: msg }; }
 const PHASE_SKILLS = {
   guanxing: { phase: 'prepare', locked: false },
   biyue: { phase: 'end', locked: true },
+  tuxi: { phase: 'draw', locked: false },
 };
 
 class Game {
@@ -157,6 +158,11 @@ class Game {
           this.gxResume = 'begin';
           return;
         }
+      } else if (sid === 'tuxi') {
+        if (t.locked) continue;
+        if (this._tuxiDone) continue;
+        this.pending = { type: 'tuxi_ask', playerId: p.id };
+        return;
       } else if (sid === 'biyue') {
         this.draw(p, 1);
         this.pushLog(`${p.name} 发动【闭月】摸一张牌`);
@@ -290,6 +296,7 @@ class Game {
     this.pending = { type: 'draw_ack', playerId: p.id, prompt: '' };
     this.phase = 'play';
     this.onPhaseStart('play');
+    this.runPhaseSkills('play');
   }
 
   tuxiFinish(source) {
@@ -331,6 +338,8 @@ class Game {
     this._gxSkip = false;
     this.phase = 'judge';
     this.onPhaseStart('judge');
+    this.runPhaseSkills('judge');
+    if (this.pending) return;
 
     let skipDraw = false;
     let skipPlay = false;
@@ -400,10 +409,8 @@ class Game {
       const bonus = this.drawBonus(p);
       const drawCount = 2 + bonus;
       if (!skipPlay) {
-        if (this.hasSkill(p, 'tuxi') && !this._tuxiDone) {
-          this.pending = { type: 'tuxi_ask', playerId: p.id };
-          return;
-        }
+        this.runPhaseSkills('draw');
+        if (this.pending) return;
         this.startTurnDraw(p, drawCount);
         return;
       }
@@ -455,6 +462,8 @@ class Game {
     if (!p) return;
     this.phase = 'discard';
     this.onPhaseStart('discard');
+    this.runPhaseSkills('discard');
+    if (this.pending) return;
     if (p.hand.length > p.hp) {
       this.pending = {
         type: 'discard',
