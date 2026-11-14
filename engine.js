@@ -846,7 +846,8 @@ class Game {
 
     // 锦囊：先进入【无懈可击】窗口
     if (useAs === 'bingliang' || useAs === 'lebu' || useAs === 'shandian') {
-      this.startWuxie(p, card, { useAs, targetId: useAs === 'shandian' ? p.id : target.id });
+      // 延时锦囊使用时不需要无懈；无懈在判定阶段生效前才询问
+      this.resolveTrick({ sourceId: p.id, cardId: card.id, cardRef: card, trick: { useAs, targetId: useAs === 'shandian' ? p.id : target.id }, canceled: false });
       return ok();
     }
     if (useAs === 'nanman' || useAs === 'wanjian') {
