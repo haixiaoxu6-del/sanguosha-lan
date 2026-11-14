@@ -358,6 +358,10 @@ setInterval(() => {
       const q = room.game.findPlayer(pend.playerId);
       if (q && q.isAI && q.alive) ai = q;
     }
+    if (!ai && pend && Array.isArray(pend.allowed)) {
+      const q = pend.allowed.map(id => room.game.findPlayer(id)).find(x => x && x.isAI && x.alive);
+      if (q) ai = q;
+    }
     if (!ai) {
       const c = room.game.currentPlayer();
       if (c && c.isAI && c.alive) ai = c;

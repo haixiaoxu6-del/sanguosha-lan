@@ -1745,3 +1745,9 @@ body.tuxi-open .gc-wrap.gc-self .gc { outline: none; box-shadow: none; cursor: d
 
 /* 铁链覆盖整张立绘 */
 .gc-chained { left: 0; right: 0; height: 44px; background-size: 100% 100%; }
+
+/* 信息栏：固定阴阳鱼位置 */
+.gc-side { justify-content: flex-start; }
+.gc-side-top { min-height: 104px; }
+.gc-side-hp { margin: 0; }
+.gc-side-hand { margin-top: auto; }
