@@ -349,6 +349,10 @@ setInterval(() => {
     if ((room.mode !== 'duel' && room.mode !== 'doudizhu_ai') || !room.game || room.game.gameOver) continue;
     if (room.game.pauseUntil && Date.now() < room.game.pauseUntil) continue;
     const pend = room.game.pending;
+    if (pend && pend.playerId) {
+      const owner = room.game.findPlayer(pend.playerId);
+      if (!owner || !owner.alive) { room.game.pending = null; room.broadcast(); continue; }
+    }
     let ai = null;
     if (pend && pend.playerId) {
       const q = room.game.findPlayer(pend.playerId);

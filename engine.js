@@ -98,6 +98,7 @@ class Game {
       }
       used.add(g.id);
       p.general = { ...g, skills: g.skills.slice() };
+      if (p.isAI || p.role === 'ai') p.name = g.name;
       p.maxHp = g.hp + (p.role === 'landlord' ? 1 : 0);
       p.hp = p.maxHp;
       // 地主额外获得英姿
