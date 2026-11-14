@@ -292,12 +292,16 @@ class Game {
     this.onPhaseStart('play');
   }
 
+  tuxiFinish(source) {
+    this._tuxiDone = true;
+    const bonus = this.drawBonus(source);
+    const remain = Math.max(0, 2 + bonus - (this._tuxiPicks || 0));
+    this.startTurnDraw(source, remain);
+  }
+
   tuxiAskPick(source, targets, idx) {
     if (idx >= targets.length) {
-      this._tuxiDone = true;
-      const bonus = this.drawBonus(source);
-      const remain = Math.max(0, 2 + bonus - (this._tuxiPicks || 0));
-      this.startTurnDraw(source, remain);
+      this.tuxiFinish(source);
       return;
     }
     const t = targets[idx];
@@ -1480,6 +1484,18 @@ class Game {
       return ok();
     }
 
+    if (pend.type === 'tuxi_more') {
+      const ids = Array.isArray(action.targetIds) ? action.targetIds : [];
+      const t = ids.length ? this.findPlayer(ids[0]) : null;
+      if (t && t.alive && t.hand.length > 0 && t.id !== p.id) {
+        this.tuxiTargets = [t];
+        this.tuxiAskPick(p, [t], 0);
+      } else {
+        this.tuxiFinish(p);
+      }
+      return ok();
+    }
+
     if (pend.type === 'tuxi_pick') {
       const t = this.findPlayer(pend.targetId);
       if (!t || !t.alive || !t.hand.length) {
@@ -1493,8 +1509,13 @@ class Game {
       this.pushLog(`${p.name} 发动【突袭】，获得 ${t.name} 的一张手牌`);
       this.pushEvent('card', { playerId: p.id, card: { id: card.id, name: card.name, suit: card.suit, number: card.number, color: card.color, type: card.type, art: card.art } });
       this._tuxiPicks = (this._tuxiPicks || 0) + 1;
-      const idx = (this.tuxiTargets || []).indexOf(t) + 1;
-      this.tuxiAskPick(p, this.tuxiTargets || [], idx);
+      const used = (this.tuxiTargets || []).map(x => x.id);
+      const others = this.players.filter(x => x.alive && x.id !== p.id && x.hand.length > 0 && !used.includes(x.id));
+      if (this._tuxiPicks < 2 && others.length) {
+        this.pending = { type: 'tuxi_more', playerId: p.id, used, prompt: '突袭：可再选一名角色' };
+        return ok();
+      }
+      this.tuxiFinish(p);
       return ok();
     }
 
@@ -1746,11 +1767,13 @@ class Game {
         prompt: '【麒麟弓】：是否弃置目标的一匹马？',
       };
     }
-    // 连环：属性伤害传导给其他横置角色
+    // 连环：属性伤害传导给其他横置角色，受到属性伤害后解除横置
     if (target.chained && card && (card.element === 'fire' || card.element === 'thunder' || card.fire)) {
+      target.chained = false;
       for (const q of this.players) {
         if (q.id === target.id || !q.alive || !q.chained) continue;
         this.pushLog(`${q.name} 处于连环状态，受到传导的${amount}点伤害`);
+        q.chained = false;
         q.hp -= amount;
         if (q.hp <= 0) this.enterDying(q, source, card, null);
       }
@@ -1816,8 +1839,13 @@ class Game {
       const other = this.players.find(x => x.alive && x.role === 'farmer' && x.id !== player.id);
       if (other) {
         farmerReward = other;
-        this.pending = { type: 'farmer_reward', playerId: other.id, prompt: '农民阵亡补偿：摸两张牌 或 回复1点体力' };
-        this.pushLog(`${other.name} 获得农民阵亡补偿，请选择`);
+        if (other.isAI) {
+          if (other.hp < other.maxHp) { other.hp = Math.min(other.maxHp, other.hp + 1); this.pushLog(`${other.name} 农民阵亡补偿：回复1点体力`); }
+          else { this.draw(other, 2); this.pushLog(`${other.name} 农民阵亡补偿：摸两张牌`); }
+        } else {
+          this.pending = { type: 'farmer_reward', playerId: other.id, prompt: '农民阵亡补偿：摸两张牌 或 回复1点体力' };
+          this.pushLog(`${other.name} 获得农民阵亡补偿，请选择`);
+        }
       }
     }
 

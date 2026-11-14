@@ -138,6 +138,7 @@ function applyState(ns) {
     const ack = !!(ns.pending && ns.pending.type === 'draw_ack');
     document.body.classList.toggle('draw-ack', ack);
     document.body.classList.toggle('gx-open', !!(ns.pending && ns.pending.type === 'guanxing'));
+    document.body.classList.toggle('tuxi-open', !!(ns.pending && String(ns.pending.type).startsWith('tuxi')));
   } catch (e) {}
   if (ns.lastJudgment && ns.lastJudgment.seq > (ui.judgmentSeen || 0)) {
     ui.judgeShownAt = Date.now();
@@ -1113,7 +1114,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v213</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v216</div>
   </div></div>`;
 }
 
@@ -1179,7 +1180,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v213</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v216</div>
     <div class="faction-cols">
       ${[['蜀','shu'],['魏','wei'],['吴','wu'],['群','qun']].map(([cn, key]) => {
         const gs = list.filter(x => x.faction === cn);
@@ -1215,7 +1216,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v213</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v216</div>
   </div></div>`;
 }
 
@@ -2778,15 +2779,8 @@ function tuxiHtml(s) {
       <div class="gx-timer" style="margin-top:10px"><div class="gx-fill" id="tuxiFill" style="width:${pct}%"></div></div>
     </div></div>`;
   }
-  if (p.type === 'tuxi_targets') {
-    const others = (s.players || []).filter(x => x.id !== myId(s) && x.alive && (x.handCount || 0) > 0);
-    const sel = ui.tuxiSel || [];
-    return `<div class="gx-overlay"><div class="gx-box" style="width:520px">
-      <div class="gx-title">突袭：选择 1~2 名角色</div>
-      <div class="tuxi-targets">${others.map(x => `<button class="btn ${sel.includes(x.id) ? 'primary' : 'ghost'}" data-tuxi-target="${x.id}">${escapeHtml(x.name)}（${x.handCount}）</button>`).join('') || '<div class="gc-empty">没有可选目标</div>'}</div>
-      <div class="gx-ask" style="margin-top:10px"><button class="btn primary" data-tuxi-confirm>确定</button></div>
-      <div class="gx-timer" style="margin-top:10px"><div class="gx-fill" id="tuxiFill" style="width:${pct}%"></div></div>
-    </div></div>`;
+  if (p.type === 'tuxi_targets' || p.type === 'tuxi_more') {
+    return `<div class="tuxi-hint">突袭：点击角色立绘${p.type === 'tuxi_more' ? '可再选一名角色' : '选择目标（可点两名）'} <button class="btn primary" data-tuxi-confirm>完成</button><div class="gx-timer" style="width:140px"><div class="gx-fill" id="tuxiFill" style="width:${pct}%"></div></div></div>`;
   }
   if (p.type === 'tuxi_pick') {
     const total = p.total || 0;
@@ -2801,6 +2795,15 @@ function tuxiHtml(s) {
 }
 
 document.addEventListener('click', (e) => {
+  const s0 = ui.state;
+  if (s0 && s0.pending && (s0.pending.type === 'tuxi_targets' || s0.pending.type === 'tuxi_more')) {
+    const gcw = e.target.closest('.gc-wrap[data-player-id]');
+    if (gcw && gcw.dataset.playerId !== myId(s0)) {
+      e.stopPropagation();
+      sendAction({ type: 'respond', targetIds: [gcw.dataset.playerId] });
+      return;
+    }
+  }
   const b = e.target.closest('[data-tuxi]');
   if (b) {
     if (b.dataset.tuxi === 'accept') sendAction({ type: 'respond', accept: true });
@@ -2838,8 +2841,11 @@ setInterval(() => {
     ui.tuxiUntil = 0;
     if (!p || !p.type.startsWith('tuxi')) return;
     if (p.type === 'tuxi_ask') sendAction({ type: 'respond', accept: false });
-    else if (p.type === 'tuxi_targets') sendAction({ type: 'respond', targetIds: [] });
+    else if (p.type === 'tuxi_targets' || p.type === 'tuxi_more') sendAction({ type: 'respond', targetIds: [] });
     else if (p.type === 'tuxi_pick') sendAction({ type: 'respond', index: 0 });
   }
 }, 100);
+
+
+
 
