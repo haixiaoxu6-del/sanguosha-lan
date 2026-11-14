@@ -1759,9 +1759,12 @@ class Game {
             prompt: this.pending.prompt,
             count: this.pending.count,
             dyingId: this.pending.dyingId,
+            stage: this.pending.stage,
+            cards: this.pending.cards ? this.pending.cards.map(c => ({ id: c.id, name: c.name, suit: c.suit, number: c.number, color: c.color, type: c.type })) : undefined,
           }
         : { type: this.pending.type, playerId: this.pending.playerId }) : null,
       lastJudgment: this.lastJudgment || null,
+      deckCount: this.deck.length,
       hanbing: this.pending && this.pending.type === 'hanbing' && this.pending.playerId === playerId
         ? (() => {
             const t = this.findPlayer(this.pending.targetId);

@@ -1112,7 +1112,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v196</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v198</div>
   </div></div>`;
 }
 
@@ -1178,7 +1178,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v196</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v198</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1207,7 +1207,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v196</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v198</div>
   </div></div>`;
 }
 
@@ -1301,6 +1301,7 @@ function tableGameHtml() {
       </div>
       <button class="btn ghost" data-action="toggle-sound" title="音效">${ui.sound ? '🔊' : '🔇'}</button>
     </header>
+    <div class="deck-count" title="牌堆剩余"><div class="dc-card"></div><div class="dc-num">${s.deckCount != null ? s.deckCount : 0}</div></div>
     <button class="btn ghost exit-btn" data-action="leave">退出</button>
     ${ui.connecting ? '<div class="banner reconnect">网络断开，正在重连…</div>' : ''}
     ${s.gameOver ? gameOverHtml() : ''}
@@ -2552,6 +2553,43 @@ window.__pickEquip = function (id, e) {
 
 
 
+function gxEnsure() {
+  const s = ui.state;
+  if (!s || !s.pending || s.pending.type !== 'guanxing' || s.pending.stage !== 'cards') {
+    ui.gxTop = null; ui.gxBottom = null; ui.gxUntil = 0; ui.gxKey = '';
+    return null;
+  }
+  const ids = (s.pending.cards || []).map(c => c.id);
+  const key = ids.join(',');
+  if (ui.gxKey !== key) {
+    ui.gxKey = key;
+    ui.gxTop = ids.slice();
+    ui.gxBottom = [];
+    ui.gxUntil = Date.now() + 20000;
+  }
+  return s;
+}
+
+function gxMove(id, zone, index) {
+  const inTop = (ui.gxTop || []).includes(id);
+  const inBottom = (ui.gxBottom || []).includes(id);
+  if (!inTop && !inBottom) return;
+  ui.gxTop = (ui.gxTop || []).filter(x => x !== id);
+  ui.gxBottom = (ui.gxBottom || []).filter(x => x !== id);
+  const target = zone === 'bottom' ? ui.gxBottom : ui.gxTop;
+  const at = (typeof index === 'number' && index >= 0 && index <= target.length) ? index : target.length;
+  target.splice(at, 0, id);
+}
+
+function gxSubmit() {
+  const s = ui.state;
+  if (!s || !s.pending || s.pending.type !== 'guanxing') return;
+  const top = (ui.gxTop || []).slice();
+  const bottom = (ui.gxBottom || []).slice();
+  ui.gxTop = null; ui.gxBottom = null; ui.gxUntil = 0; ui.gxKey = '';
+  sendAction({ type: 'respond', top, bottom });
+}
+
 function guanxingHtml(s) {
   const p = s.pending;
   if (!p || p.type !== 'guanxing' || p.playerId !== myId(s)) return '';
@@ -2561,40 +2599,64 @@ function guanxingHtml(s) {
       <div class="gx-ask"><button class="btn primary" data-gx-accept>发动</button><button class="btn ghost" data-gx-decline>取消</button></div></div></div>`;
   }
   if (!p.cards) return '';
-  const bottom = ui.gxBottom || [];
+  gxEnsure();
+  const byId = new Map((p.cards || []).map(c => [c.id, c]));
+  const renderZone = (zone, list) => `<div class="gx-zone" data-gx-zone="${zone}">
+      <div class="gx-side">${zone === 'top' ? '牌堆顶' : '牌堆底'}</div>
+      <div class="gx-row">${list.map((id, i) => {
+        const c = byId.get(id);
+        if (!c) return '';
+        return `<div class="gx-card" draggable="true" data-gx-id="${id}" data-gx-index="${i}">${cardHtml(c, s)}</div>`;
+      }).join('')}</div>
+    </div>`;
+  const left = Math.max(0, (ui.gxUntil || 0) - Date.now());
+  const pct = ui.gxUntil ? Math.max(0, Math.min(100, left / 200)) : 100;
   return `<div class="gx-overlay"><div class="gx-box">
-    <div class="gx-title">观星：将牌置于牌堆顶或牌堆底</div>
-    <div class="gx-cards">${p.cards.map(c => `<div class="gx-card ${bottom.includes(c.id) ? 'bot' : ''}" data-gx-id="${c.id}">${cardHtml(c, s)}<div class="gx-tag">${bottom.includes(c.id) ? '牌堆底' : '牌堆顶'}</div></div>`).join('')}</div>
-    <div class="gx-foot">点击牌切换「顶/底」；牌堆顶按从左到右的顺序放置</div>
-    <button class="btn primary big" data-gx-confirm>确定</button>
+    <div class="gx-title">观星</div>
+    ${renderZone('top', ui.gxTop || [])}
+    ${renderZone('bottom', ui.gxBottom || [])}
+    <div class="gx-foot">拖动牌可在「顶 / 底」之间移动（从左到右为抽牌顺序）</div>
+    <div class="gx-bottom-row">
+      <div class="gx-timer"><div class="gx-fill" id="gxFill" style="width:${pct}%"></div></div>
+      <button class="btn primary" data-gx-confirm>确定</button>
+    </div>
   </div></div>`;
 }
 
 document.addEventListener('click', (e) => {
   if (e.target.closest('[data-gx-accept]')) { sendAction({ type: 'respond', accept: true }); return; }
   if (e.target.closest('[data-gx-decline]')) { sendAction({ type: 'respond', accept: false }); return; }
-  const gx = e.target.closest('[data-gx-id]');
-  if (gx) {
+  if (e.target.closest('[data-gx-confirm]')) { gxSubmit(); return; }
+  const gx = e.target.closest('.gx-card[data-gx-id]');
+  if (gx && !e.defaultPrevented) {
     const id = gx.dataset.gxId;
-    ui.gxBottom = ui.gxBottom || [];
-    ui.gxBottom = ui.gxBottom.includes(id) ? ui.gxBottom.filter(x => x !== id) : ui.gxBottom.concat(id);
+    const inTop = (ui.gxTop || []).includes(id);
+    gxMove(id, inTop ? 'bottom' : 'top');
     render();
     return;
   }
-  if (e.target.closest('[data-gx-confirm]')) {
-    const s = ui.state;
-    if (!s || !s.pending || s.pending.type !== 'guanxing') return;
-    const bottom = ui.gxBottom || [];
-    const cards = s.pending.cards || [];
-    sendAction({
-      type: 'respond',
-      top: cards.filter(c => !bottom.includes(c.id)).map(c => c.id),
-      bottom: cards.filter(c => bottom.includes(c.id)).map(c => c.id),
-    });
-    ui.gxBottom = [];
-    return;
-  }
 }, true);
+
+document.addEventListener('dragstart', (e) => {
+  const gx = e.target.closest('.gx-card[data-gx-id]');
+  if (!gx) return;
+  e.dataTransfer.setData('text/plain', gx.dataset.gxId);
+});
+
+document.addEventListener('dragover', (e) => {
+  if (e.target.closest('[data-gx-zone]')) e.preventDefault();
+});
+
+document.addEventListener('drop', (e) => {
+  const zone = e.target.closest('[data-gx-zone]');
+  if (!zone) return;
+  e.preventDefault();
+  const id = e.dataTransfer.getData('text/plain');
+  const cardEl = e.target.closest('.gx-card[data-gx-index]');
+  gxMove(id, zone.dataset.gxZone, cardEl ? parseInt(cardEl.dataset.gxIndex, 10) : undefined);
+  render();
+});
+
 
 
 
@@ -2607,4 +2669,19 @@ document.addEventListener('click', (e) => {
 
 
 
+
+
+
+
+// 观星倒计时：更新进度条，超时按当前摆放提交
+setInterval(() => {
+  if (!ui.gxUntil) return;
+  const fill = document.getElementById('gxFill');
+  const left = ui.gxUntil - Date.now();
+  if (fill) fill.style.width = Math.max(0, Math.min(100, left / 200)) + '%';
+  if (left <= 0) {
+    ui.gxUntil = 0;
+    try { gxSubmit(); } catch (e) { /* ignore */ }
+  }
+}, 100);
 
