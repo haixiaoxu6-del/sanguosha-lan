@@ -21,7 +21,7 @@ function aiAct(game) {
   while (!game.gameOver && guard++ < 200) {
     // ---- 响应窗口 ----
     if (game.pending) {
-      if (game.pending.playerId !== ai.id) break;
+      if (game.pending.playerId !== ai.id && !(game.pending.allowed || []).includes(ai.id)) break;
       const pend = game.pending;
 
       // 被【义绝】封印：不能用/打出手牌，需要出牌的响应全部放弃

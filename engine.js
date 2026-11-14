@@ -1471,6 +1471,12 @@ class Game {
     }
 
     if (pend.type === 'tuxi_targets') {
+      if (action.pass) {
+        this.pending = null;
+        this._tuxiDone = true;
+        this.startTurnDraw(p, 2 + this.drawBonus(p));
+        return ok();
+      }
       const ids = Array.isArray(action.targetIds) ? action.targetIds : [];
       const targets = ids.map(id => this.findPlayer(id)).filter(x => x && x.alive && x.id !== p.id && x.hand.length > 0);
       if (!targets.length) {
@@ -1485,6 +1491,7 @@ class Game {
     }
 
     if (pend.type === 'tuxi_more') {
+      if (action.pass) { this.tuxiFinish(p); return ok(); }
       const ids = Array.isArray(action.targetIds) ? action.targetIds : [];
       const t = ids.length ? this.findPlayer(ids[0]) : null;
       if (t && t.alive && t.hand.length > 0 && t.id !== p.id) {

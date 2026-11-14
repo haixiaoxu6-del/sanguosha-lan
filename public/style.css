@@ -1742,3 +1742,6 @@ body.tuxi-open .gc-wrap.gc-self .gc { outline: none; box-shadow: none; cursor: d
 .gc-side-hp { flex: 0 0 auto; display: flex; justify-content: center; }
 .hp-fish-col { gap: 1px !important; }
 .gc-side-hp .hp-fish { width: 16px; height: 18px; }
+
+/* 铁链覆盖整张立绘 */
+.gc-chained { left: 0; right: 0; height: 44px; background-size: 100% 100%; }
