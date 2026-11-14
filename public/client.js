@@ -138,6 +138,8 @@ function applyState(ns) {
     const ack = !!(ns.pending && ns.pending.type === 'draw_ack');
     document.body.classList.toggle('draw-ack', ack);
     document.body.classList.toggle('gx-open', !!(ns.pending && ns.pending.type === 'guanxing'));
+    if (!(ns.pending && ns.pending.type === 'qianxun')) { ui.qxAskUntil = 0; }
+    if (!(ns.pending && ns.pending.type === 'lianying')) { ui.lyAskUntil = 0; ui.lySel = []; }
     if (!(ns.pending && ns.pending.type === 'guanxing' && ns.pending.stage === 'ask')) ui.gxAskUntil = 0;
     document.body.classList.toggle('tuxi-open', !!(ns.pending && String(ns.pending.type).startsWith('tuxi')));
   } catch (e) {}
@@ -1115,7 +1117,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v240</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v241</div>
   </div></div>`;
 }
 
@@ -1181,7 +1183,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v240</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v241</div>
     <div class="faction-cols">
       ${[['蜀','shu'],['魏','wei'],['吴','wu'],['群','qun']].map(([cn, key]) => {
         const gs = list.filter(x => x.faction === cn);
@@ -1217,7 +1219,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v240</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v241</div>
   </div></div>`;
 }
 
@@ -1287,6 +1289,7 @@ function generalCardHtml(p, s, extra = '') {
     <div class="gc ${p.isCurrent ? 'current' : ''} ${!p.alive ? 'dead' : ''}">
       <div class="gc-art"><img class="gc-portrait" src="/assets/generals/${p.general.portrait}" alt="${p.general.name}" draggable="false"></div>
       <div class="gc-hair"><img class="gc-portrait" src="/assets/generals/${p.general.portrait}" alt="" draggable="false"></div>
+      ${p.qianxunCount ? `<div class="gc-qianxun">谦逊 ${p.qianxunCount}</div>` : ''}
       ${p.chained ? '<div class="gc-chained"></div>' : ''}
       ${p.yijueSealed ? '<div class="gc-seal">义绝·封印</div>' : ''}
       ${p.judges && p.judges.length ? `<div class="gc-judges">判定：${p.judges.map(n => `<span>${n}</span>`).join('')}</div>` : ''}
@@ -2807,6 +2810,18 @@ document.addEventListener('click', (e) => {
       return;
     }
   }
+  if (e.target.closest('[data-qx-accept]')) { sendAction({ type: 'respond', accept: true }); return; }
+  if (e.target.closest('[data-qx-decline]')) { sendAction({ type: 'respond', accept: false }); return; }
+  const lyt = e.target.closest('[data-ly-target]');
+  if (lyt) {
+    ui.lySel = ui.lySel || [];
+    const id = lyt.dataset.lyTarget;
+    if (ui.lySel.includes(id)) ui.lySel = ui.lySel.filter(x => x !== id);
+    else if (ui.lySel.length < (ui.state.pending.x || 0)) ui.lySel.push(id);
+    render();
+    return;
+  }
+  if (e.target.closest('[data-ly-confirm]')) { sendAction({ type: 'respond', targetIds: ui.lySel || [] }); ui.lySel = []; return; }
   const b = e.target.closest('[data-tuxi]');
   if (b) {
     if (b.dataset.tuxi === 'accept') sendAction({ type: 'respond', accept: true });
@@ -2897,6 +2912,16 @@ function askBarHtml(s) {
     if (!ui.tuxiUntil) ui.tuxiUntil = Date.now() + 20000;
     return `<div class="ask-bar"><div class="ask-text">突袭：点击角色立绘选择</div>${bar("tuxiFill")}<div class="ask-btns"><button class="btn primary" data-tuxi-confirm>确定</button></div></div>`;
   }
+  if (p.type === "qianxun") {
+    if (!ui.qxAskUntil) ui.qxAskUntil = Date.now() + 20000;
+    return `<div class="ask-bar"><div class="ask-text">是否发动【谦逊】？</div><div class="ask-timer"><div id="qxFill" class="ask-fill" style="width:100%"></div></div><div class="ask-btns"><button class="btn primary" data-qx-accept>确定</button><button class="btn ghost" data-qx-decline>取消</button></div></div>`;
+  }
+  if (p.type === "lianying") {
+    if (!ui.lyAskUntil) ui.lyAskUntil = Date.now() + 20000;
+    const sel = ui.lySel || [];
+    const btns = (s.players || []).filter(x => x.alive).map(x => `<button class="btn ${sel.includes(x.id) ? 'primary' : 'ghost'}" data-ly-target="${x.id}">${escapeHtml(x.name)}</button>`).join('');
+    return `<div class="ask-bar"><div class="ask-text">连营：至多 ${p.x} 名角色各摸一张牌</div><div class="ask-timer"><div id="lyFill" class="ask-fill" style="width:100%"></div></div><div class="ask-btns">${btns}<button class="btn primary" data-ly-confirm>确定</button></div></div>`;
+  }
   if (p.type === "guanxing" && p.stage === "ask") {
     if (!ui.gxAskUntil) ui.gxAskUntil = Date.now() + 20000;
     return `<div class="ask-bar"><div class="ask-text">是否发动【观星】？</div>${bar("gxAskFill")}<div class="ask-btns"><button class="btn primary" data-gx-accept>确定</button><button class="btn ghost" data-gx-decline>取消</button></div></div>`;
@@ -2906,4 +2931,20 @@ function askBarHtml(s) {
 
 
 
+
+
+
+setInterval(() => {
+  const bars = [['qxFill', ui.qxAskUntil], ['lyFill', ui.lyAskUntil]];
+  for (const [id, until] of bars) {
+    if (!until) continue;
+    const el = document.getElementById(id);
+    const left = until - Date.now();
+    if (el) el.style.width = Math.max(0, Math.min(100, left / 200)) + '%';
+    if (left <= 0) {
+      if (id === 'qxFill') { ui.qxAskUntil = 0; sendAction({ type: 'respond', accept: false }); }
+      else { ui.lyAskUntil = 0; sendAction({ type: 'respond', targetIds: [] }); }
+    }
+  }
+}, 100);
 

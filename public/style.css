@@ -1802,3 +1802,8 @@ body.tuxi-open .gc-wrap.gc-self .gc { outline: none; box-shadow: none; cursor: d
 .ask-bar .ask-btns .btn { min-width: 150px; }
 .ask-bar .ask-timer { flex: 1; height: 14px; background: #3a2a18; border-radius: 7px; overflow: hidden; }
 .ask-bar .ask-fill { height: 100%; width: 100%; background: linear-gradient(90deg,#e06a28,#f2a24a); transition: width .1s linear; }
+
+/* 谦逊标记 */
+.gc-qianxun { position: absolute; left: 4px; right: 4px; top: 46%; z-index: 6; text-align: center;
+  color: #ffe9b0; background: rgba(30,18,8,.82); border: 1px solid #a98145; border-radius: 4px;
+  font-size: 11px; line-height: 16px; }

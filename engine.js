@@ -287,6 +287,37 @@ class Game {
     return from;
   }
 
+  qianxunHide(p) {
+    if (!p.hand.length) return;
+    p.qianxunCards = (p.qianxunCards || []).concat(p.hand.splice(0));
+    this.pushLog(`${p.name} 发动【谦逊】，将${p.qianxunCards.length}张手牌扣置于武将牌上`);
+  }
+
+  qianxunReturn(p) {
+    if (p.qianxunCards && p.qianxunCards.length) {
+      p.hand.push(...p.qianxunCards);
+      this.pushLog(`${p.name} 的【谦逊】${p.qianxunCards.length}张牌回到手中`);
+      p.qianxunCards = [];
+    }
+  }
+
+  checkLianying(p, lost) {
+    if (!p || !this.hasSkill(p, 'lianying')) return;
+    if (lost <= 0 || p.hand.length !== 0) return;
+    this.lianyingQueue = { playerId: p.id, x: lost };
+  }
+
+  flushLianying() {
+    if (this.pending || !this.lianyingQueue) return;
+    const q = this.lianyingQueue;
+    this.lianyingQueue = null;
+    const p = this.findPlayer(q.playerId);
+    if (p && p.alive && this.hasSkill(p, 'lianying') && p.hand.length === 0 && q.x > 0) {
+      this.pending = { type: 'lianying', playerId: p.id, x: q.x, prompt: `连营：令至多${q.x}名角色各摸一张牌` };
+      this.pushLog(`${p.name} 可以发动【连营】`);
+    }
+  }
+
   startTurnDraw(p, count) {
     if (process.env.DSH_DEBUG) console.log('[startTurnDraw]', count, 'picks', this._tuxiPicks);
     const cards = [];
@@ -431,6 +462,7 @@ class Game {
 
   endTurn() {
     if (this.gameOver) return;
+    for (const q of this.players) this.qianxunReturn(q);
     this.phase = 'end';
     this.onPhaseStart('end');
     const gxp = this.currentPlayer();
@@ -479,13 +511,16 @@ class Game {
   // ---------------- 入口 ----------------
   handle(playerId, action) {
     if (this.gameOver) return err('游戏已经结束');
+    let r;
     switch (action.type) {
-      case 'play': return this.play(playerId, action);
-      case 'respond': return this.respond(playerId, action);
-      case 'endPlay': return this.endPlay(playerId);
-      case 'discard': return this.discardCards(playerId, action.cardIds);
-      default: return err('未知操作');
+      case 'play': r = this.play(playerId, action); break;
+      case 'respond': r = this.respond(playerId, action); break;
+      case 'endPlay': r = this.endPlay(playerId); break;
+      case 'discard': r = this.discardCards(playerId, action.cardIds); break;
+      default: r = err('未知操作');
     }
+    if (r && r.ok) this.flushLianying();
+    return r;
   }
 
   canUseAs(p, card, as) {
@@ -759,6 +794,7 @@ class Game {
 
     // 消耗手牌
     p.hand.splice(p.hand.findIndex(c => c.id === card.id), 1);
+    this.checkLianying(p, 1);
 
     // 杀 / 桃：直接结算
     if (useAs === 'sha') {
@@ -963,6 +999,15 @@ class Game {
       return;
     }
     if (!source || !source.alive) return;
+
+    // 谦逊：其他角色的普通锦囊对唯一目标生效时
+    if (target && target.id !== source.id && this.hasSkill(target, 'qianxun')
+      && !trick.skipQianxun && !trick.aoe && !this.aoe
+      && !['lebu', 'bingliang', 'shandian'].includes(trick.useAs)) {
+      this.pending = { type: 'qianxun', playerId: target.id, prompt: '是否发动【谦逊】？' };
+      this.qianxunPend = pend;
+      return;
+    }
 
     if (trick.useAs === 'bingliang' || trick.useAs === 'lebu') {
       if (target && target.alive && card) {
@@ -1172,6 +1217,7 @@ class Game {
       this.discard.push(c);
     }
     this.pushLog(`${p.name} 弃置了 ${cardIds.length} 张牌`);
+    this.checkLianying(p, cardIds.length);
     this.pending = null;
     this.endTurn();
     return ok();
@@ -1467,6 +1513,27 @@ class Game {
         this._gxSkip = true;
         this.beginTurn();
       }
+      return ok();
+    }
+
+    if (pend.type === 'qianxun') {
+      const qp = this.findPlayer(pend.playerId);
+      if (action.accept) this.qianxunHide(qp);
+      this.pending = null;
+      const cp = this.qianxunPend;
+      this.qianxunPend = null;
+      if (cp) { cp.trick.skipQianxun = true; this.resolveTrick(cp); }
+      return ok();
+    }
+
+    if (pend.type === 'lianying') {
+      const ids = Array.isArray(action.targetIds) ? action.targetIds.slice(0, pend.x) : [];
+      for (const id of ids) {
+        const q = this.findPlayer(id);
+        if (q && q.alive) this.draw(q, 1);
+      }
+      if (ids.length) this.pushLog(`${p.name} 发动【连营】，令${ids.length}名角色各摸一张牌`);
+      this.pending = null;
       return ok();
     }
 
@@ -1925,6 +1992,7 @@ class Game {
         hp: p.hp,
         maxHp: p.maxHp,
         handCount: p.hand.length,
+        qianxunCount: (p.qianxunCards || []).length,
         judgeCount: p.judge.length,
         equips: p.equips,
         chained: !!p.chained,
@@ -1948,6 +2016,7 @@ class Game {
         jiu: you.flags.jiu,
         yijueUsed: you.flags.yijueUsed,
         yijueSealed: !!you.yijueSealed,
+        qianxunCount: (you.qianxunCards || []).length,
       } : null,
       pending: this.pending ? ((this.pending.playerId === playerId || (this.pending.allowed || []).includes(playerId))
         ? {
