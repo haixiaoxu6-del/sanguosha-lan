@@ -1793,3 +1793,10 @@ body.tuxi-open .gc-wrap.gc-self .gc { outline: none; box-shadow: none; cursor: d
 /* 阴阳鱼用 SVG 绘制，坐标固定 */
 .gc-side-hp { position: absolute !important; left: 0; right: 0; top: 116px !important; bottom: auto !important; height: auto !important; display: block !important; text-align: center; }
 .gc-side-hp .hp-svg { display: inline-block; }
+
+.ask-bar { position: fixed; left: 50%; top: calc(100vh - 270px); transform: translateX(-50%); z-index: 130;
+  width: min(920px, 94vw); display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+  background: rgba(22,14,8,.92); border: 1px solid #8a6a3a; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.55); }
+.ask-bar .ask-text { color: #f0cf8e; font-size: 15px; white-space: nowrap; }
+.ask-bar .ask-timer { flex: 1; height: 14px; background: #3a2a18; border-radius: 7px; overflow: hidden; }
+.ask-bar .ask-fill { height: 100%; width: 100%; background: linear-gradient(90deg,#e06a28,#f2a24a); transition: width .1s linear; }

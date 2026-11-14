@@ -1115,7 +1115,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v235</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v236</div>
   </div></div>`;
 }
 
@@ -1181,7 +1181,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v235</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v236</div>
     <div class="faction-cols">
       ${[['蜀','shu'],['魏','wei'],['吴','wu'],['群','qun']].map(([cn, key]) => {
         const gs = list.filter(x => x.faction === cn);
@@ -1217,7 +1217,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v235</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v236</div>
   </div></div>`;
 }
 
@@ -1320,6 +1320,7 @@ function tableGameHtml() {
     </header>
     <div class="deck-count" title="牌堆剩余"><div class="dc-card"></div><div class="dc-num">${s.deckCount != null ? s.deckCount : 0}</div></div>
     <button class="btn ghost exit-btn" data-action="leave">退出</button>
+    ${askBarHtml(s)}
     ${ui.connecting ? '<div class="banner reconnect">网络断开，正在重连…</div>' : ''}
     ${s.gameOver ? gameOverHtml() : ''}
     <main class="dz-table">
@@ -2895,4 +2896,20 @@ setInterval(() => {
   }
 }, 100);
 
+
+
+
+function askBarHtml(s) {
+  const p = s && s.pending;
+  if (!p || p.playerId !== myId(s)) return "";
+  if (p.type === "tuxi_ask") {
+    if (!ui.tuxiUntil) ui.tuxiUntil = Date.now() + 20000;
+    return `<div class="ask-bar"><span class="ask-text">是否发动【突袭】？</span><button class="btn primary" data-tuxi="accept">发动突袭</button><button class="btn ghost" data-tuxi="decline">取消</button><div class="ask-timer"><div id="tuxiFill" class="ask-fill" style="width:100%"></div></div></div>`;
+  }
+  if (p.type === "guanxing" && p.stage === "ask") {
+    if (!ui.gxAskUntil) ui.gxAskUntil = Date.now() + 20000;
+    return `<div class="ask-bar"><span class="ask-text">是否发动【观星】？</span><button class="btn primary" data-gx-accept>发动观星</button><button class="btn ghost" data-gx-decline>取消</button><div class="ask-timer"><div id="gxAskFill" class="ask-fill" style="width:100%"></div></div></div>`;
+  }
+  return "";
+}
 
