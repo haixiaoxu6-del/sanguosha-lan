@@ -93,7 +93,7 @@ const GENERALS = [
       qianxun: '当一张延时锦囊牌或其他角色使用的普通锦囊牌对你生效时，若你是此牌唯一目标，你可以将所有手牌扣置于武将牌上，然后此回合结束时，你获得这些牌。',
       lianying: '当你失去手牌后，若你没有手牌，你可以令至多X名角色各摸一张牌（X为你此次失去的手牌数）。',
     },
-    portrait: 're_zhugeliang.jpg',
+    portrait: 're_luxun.jpg',
   },
   {
     id: 're_zhangfei', name: '界张飞', faction: '蜀', gender: 'male', hp: 4,
