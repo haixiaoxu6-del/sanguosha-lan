@@ -24,7 +24,7 @@ class Game {
     this.mode = mode;
     this.n = playerInfos.length;
     // 斗地主随机座位；1v1（含真人联机）保持顺序
-    const shuffled = (mode === 'duel' || mode === 'duel_pvp') ? playerInfos.slice() : shuffle(playerInfos.slice());
+    const shuffled = (mode === 'duel' || mode === 'duel_pvp' || mode === 'doudizhu' || mode === 'doudizhu_ai') ? playerInfos.slice() : shuffle(playerInfos.slice());
     this.players = shuffled.map((info, i) => ({
       id: info.id,
       name: info.name,
@@ -212,7 +212,7 @@ class Game {
       this.discard = [];
       this.pushLog('牌堆已重新洗牌');
     }
-    return this.deck.pop();
+    return this.deck.shift();
   }
 
   draw(p, n, silent) {
