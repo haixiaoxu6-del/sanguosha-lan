@@ -1751,3 +1751,9 @@ body.tuxi-open .gc-wrap.gc-self .gc { outline: none; box-shadow: none; cursor: d
 .gc-side-top { min-height: 104px; }
 .gc-side-hp { margin: 0; }
 .gc-side-hand { margin-top: auto; }
+
+/* 信息栏固定：顶部固定高，血量/手牌绝对定位 */
+.gc-side { justify-content: flex-start; position: relative; }
+.gc-side-top { height: 108px; min-height: 108px; overflow: hidden; }
+.gc-side-hp { position: absolute; left: 0; right: 0; top: 116px; display: flex; justify-content: center; margin: 0; }
+.gc-side-hand { position: absolute; left: 0; right: 0; bottom: 6px; margin: 0; }
