@@ -77,6 +77,15 @@ const GENERALS = [
     portrait: 're_zhugeliang.jpg',
   },
   {
+    id: 're_zhangliao', name: '界张辽', faction: '魏', gender: 'male', hp: 4,
+    skills: ['tuxi'],
+    desc: '突袭：摸牌阶段，你可以少摸任意张牌，然后获得等量其他角色的各一张手牌。',
+    skillDescs: {
+      tuxi: '摸牌阶段，你可以少摸任意张牌，然后获得等量其他角色的各一张手牌。',
+    },
+    portrait: 're_zhangliao.jpg',
+  },
+  {
     id: 're_zhangfei', name: '界张飞', faction: '蜀', gender: 'male', hp: 4,
     skills: ['re_paoxiao', 'liyong'],
     desc: '咆哮：锁定技，你使用【杀】无次数限制；若你于当前出牌阶段使用过【杀】，则你于此阶段使用【杀】无距离限制。厉勇：锁定技，当你于出牌阶段使用的【杀】被【闪】抵消后，你本阶段下一次使用【杀】指定的目标角色本回合非锁定技失效，且此【杀】不能被响应、伤害值+1；此【杀】造成伤害后，若目标角色未死亡，你失去1点体力。',

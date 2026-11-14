@@ -46,6 +46,14 @@ function aiAct(game) {
         return;
       }
 
+      if (pend.type === 'tuxi_ask') { game.respond(ai.id, { accept: true }); return; }
+      if (pend.type === 'tuxi_targets') {
+        const foes = game.players.filter(x => x.alive && x.id !== ai.id && x.role !== ai.role && x.hand.length > 0).slice(0, 2);
+        game.respond(ai.id, { targetIds: foes.map(x => x.id) });
+        return;
+      }
+      if (pend.type === 'tuxi_pick') { game.respond(ai.id, { index: 0 }); return; }
+
       if (pend.type === 'farmer_reward') {
         game.respond(ai.id, { choice: ai.hp < ai.maxHp ? 'heal' : 'draw' });
         return;

@@ -1113,7 +1113,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v210</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v213</div>
   </div></div>`;
 }
 
@@ -1179,23 +1179,30 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v210</div>
-    <div class="general-grid">
-      ${list.map(g => {
-        const taken = isPvp && oppGenId === g.id;
-        return `<div class="general-card ${chosenId === g.id ? 'selected' : ''} ${taken ? 'taken' : ''}" data-general-id="${g.id}"${taken ? ' data-taken="1"' : ''}>
-          <div class="gc-scaler">
-            <div class="gc-wrap">
-              <div class="gc-side">
-                <div class="gc-side-top"><div class="gc-side-faction">${g.faction}</div><div class="gc-side-name">${g.name}</div></div>
-                <div class="gc-side-hp">${hpFishHtml(g.hp, g.hp)}</div>
-              </div>
-              <div class="gc">
-                <div class="gc-art"><img class="gc-portrait" src="/assets/generals/${g.portrait}" alt="${g.name}" draggable="false"></div>
-                <div class="gc-hair"><img class="gc-portrait" src="/assets/generals/${g.portrait}" alt="" draggable="false"></div>
-                ${taken ? '<div class="g-taken">对手已选</div>' : ''}
-              </div>
-            </div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v213</div>
+    <div class="faction-cols">
+      ${[['蜀','shu'],['魏','wei'],['吴','wu'],['群','qun']].map(([cn, key]) => {
+        const gs = list.filter(x => x.faction === cn);
+        return `<div class="faction-col"><div class="faction-col-title">${cn}</div>
+          <div class="faction-col-list" data-fcol="${key}">
+            ${gs.length ? gs.map(g => {
+              const taken = isPvp && oppGenId === g.id;
+              return `<div class="general-card ${chosenId === g.id ? 'selected' : ''} ${taken ? 'taken' : ''}" data-general-id="${g.id}"${taken ? ' data-taken="1"' : ''}>
+                <div class="gc-scaler">
+                  <div class="gc-wrap faction-${key}">
+                    <div class="gc-side">
+                      <div class="gc-side-top"><div class="gc-side-faction">${g.faction}</div><div class="gc-side-name">${g.name}</div></div>
+                      <div class="gc-side-hp">${hpFishHtml(g.hp, g.hp)}</div>
+                    </div>
+                    <div class="gc">
+                      <div class="gc-art"><img class="gc-portrait" src="/assets/generals/${g.portrait}" alt="${g.name}" draggable="false"></div>
+                      <div class="gc-hair"><img class="gc-portrait" src="/assets/generals/${g.portrait}" alt="" draggable="false"></div>
+                      ${taken ? '<div class="g-taken">对手已选</div>' : ''}
+                    </div>
+                  </div>
+                </div>
+              </div>`;
+            }).join('') : '<div class="gc-empty">暂无武将</div>'}
           </div>
         </div>`;
       }).join('')}
@@ -1208,7 +1215,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v210</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v213</div>
   </div></div>`;
 }
 
@@ -1220,7 +1227,7 @@ function skillName(id) {
   return ({
     wusheng: '武圣', paoxiao: '咆哮', longdan: '龙胆', yingzi: '英姿',
     re_wusheng: '武圣', re_paoxiao: '咆哮', re_longdan: '龙胆',
-    liyong: '厉勇', yijue: '义绝', yajiao: '涯角', guanxing: '观星', kongcheng: '空城',
+    liyong: '厉勇', yijue: '义绝', yajiao: '涯角', guanxing: '观星', kongcheng: '空城', tuxi: '突袭',
   })[id] || id;
 }
 
@@ -1253,7 +1260,9 @@ function generalCardHtml(p, s, extra = '') {
     ${eqRow('horse1', eq.horse1, '+1 ')}
     ${eqRow('horse2', eq.horse2, '-1 ')}
   </div>`;
-  return `<div class="gc-wrap ${extra} ${p.jiu ? 'jiu' : ''} ${p.isCurrent ? 'current' : ''} ${ui.selectedTarget === p.id ? 'target' : ''} ${canTarget && p.alive && p.id !== meId ? 'targetable' : ''}" data-player-id="${p.id}">
+  const fmap = { '蜀': 'shu', '魏': 'wei', '吴': 'wu', '群': 'qun' };
+  const factionCls = 'faction-' + (fmap[p.general.faction] || 'qun');
+  return `<div class="gc-wrap ${factionCls} ${extra} ${p.jiu ? 'jiu' : ''} ${p.isCurrent ? 'current' : ''} ${ui.selectedTarget === p.id ? 'target' : ''} ${canTarget && p.alive && p.id !== meId ? 'targetable' : ''}" data-player-id="${p.id}">
     <div class="gc-side">
       <div class="gc-side-top">
         <div class="gc-side-faction">${p.general.faction}</div>
@@ -1319,7 +1328,7 @@ function tableGameHtml() {
       <section class="dz-self">
         <div class="dz-hand">${you.hand.map(c => cardHtml(c, s)).join('') || '<div class="empty">没有手牌</div>'}</div>
         <div class="dz-skill-col">
-          ${(me.general.skills || []).map(x => { const used = (x === 'yijue' && s.you && s.you.yijueUsed); return `<button class="skill-btn ${ui.activeSkill === x || (x === 'yijue' && ui.yijueStage) ? 'active' : ''} ${used ? 'used' : ''}" data-skill-act="${x}" ${used ? 'disabled' : ''}>${skillName(x)}${used ? '（已用）' : ''}</button>`; }).join('')}
+          ${(me.general.skills || []).filter(x => !['tuxi', 'guanxing'].includes(x)).map(x => { const used = (x === 'yijue' && s.you && s.you.yijueUsed); return `<button class="skill-btn ${ui.activeSkill === x || (x === 'yijue' && ui.yijueStage) ? 'active' : ''} ${used ? 'used' : ''}" data-skill-act="${x}" ${used ? 'disabled' : ''}>${skillName(x)}${used ? '（已用）' : ''}</button>`; }).join('')}
           ${(me.equips && me.equips.weapon && me.equips.weapon.key === 'zhangba' && s.phase === 'play' && s.currentPlayer === myId(s) && me.hand.length >= 2) ? `<button class="skill-btn ${ui.zhangba ? 'active' : ''}" data-action="zhangba">丈八蛇矛</button>` : ''}
         </div>
         ${generalCardHtml(me, s, 'gc-self')}
@@ -1330,6 +1339,7 @@ function tableGameHtml() {
     ${wuguHtml(s)}
     ${guanxingHtml(s)}
     ${farmerRewardHtml(s)}
+    ${tuxiHtml(s)}
   </div>`;
 }
 
@@ -2741,4 +2751,95 @@ document.addEventListener('click', (e) => {
 }, true);
 
 
+
+
+
+
+
+
+function tuxiEnsure(s) {
+  const p = s.pending;
+  if (!p || !p.type.startsWith('tuxi') || p.playerId !== myId(s)) { ui.tuxiUntil = 0; return null; }
+  const key = p.type + '|' + (p.targetId || '') + '|' + (p.total || 0);
+  if (ui.tuxiKey !== key) { ui.tuxiKey = key; ui.tuxiUntil = Date.now() + 20000; ui.tuxiSel = []; }
+  return p;
+}
+
+function tuxiHtml(s) {
+  if (ui.kaiUntil && Date.now() < ui.kaiUntil) return '';
+  const p = tuxiEnsure(s);
+  if (!p) return '';
+  const pct = Math.max(0, Math.min(100, ((ui.tuxiUntil || 0) - Date.now()) / 200));
+  if (p.type === 'tuxi_ask') {
+    return `<div class="gx-overlay"><div class="gx-box" style="width:460px">
+      <div class="gx-title">是否发动【突袭】？</div>
+      <div class="gx-foot">少摸任意张牌，获得等量其他角色各一张手牌</div>
+      <div class="gx-ask"><button class="btn primary" data-tuxi="accept">发动</button><button class="btn ghost" data-tuxi="decline">取消</button></div>
+      <div class="gx-timer" style="margin-top:10px"><div class="gx-fill" id="tuxiFill" style="width:${pct}%"></div></div>
+    </div></div>`;
+  }
+  if (p.type === 'tuxi_targets') {
+    const others = (s.players || []).filter(x => x.id !== myId(s) && x.alive && (x.handCount || 0) > 0);
+    const sel = ui.tuxiSel || [];
+    return `<div class="gx-overlay"><div class="gx-box" style="width:520px">
+      <div class="gx-title">突袭：选择 1~2 名角色</div>
+      <div class="tuxi-targets">${others.map(x => `<button class="btn ${sel.includes(x.id) ? 'primary' : 'ghost'}" data-tuxi-target="${x.id}">${escapeHtml(x.name)}（${x.handCount}）</button>`).join('') || '<div class="gc-empty">没有可选目标</div>'}</div>
+      <div class="gx-ask" style="margin-top:10px"><button class="btn primary" data-tuxi-confirm>确定</button></div>
+      <div class="gx-timer" style="margin-top:10px"><div class="gx-fill" id="tuxiFill" style="width:${pct}%"></div></div>
+    </div></div>`;
+  }
+  if (p.type === 'tuxi_pick') {
+    const total = p.total || 0;
+    return `<div class="gx-overlay"><div class="gx-box" style="width:560px">
+      <div class="gx-title">突袭：选择一张手牌</div>
+      <div class="tuxi-hand">${Array.from({ length: total }).map((_, i) => `<div class="back-card" data-tuxi-card="${i}"></div>`).join('') || '<div class="gc-empty">对方没有手牌</div>'}</div>
+      <div class="gx-foot">点击背面牌获得它</div>
+      <div class="gx-timer" style="margin-top:10px"><div class="gx-fill" id="tuxiFill" style="width:${pct}%"></div></div>
+    </div></div>`;
+  }
+  return '';
+}
+
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-tuxi]');
+  if (b) {
+    if (b.dataset.tuxi === 'accept') sendAction({ type: 'respond', accept: true });
+    else sendAction({ type: 'respond', accept: false });
+    return;
+  }
+  const t = e.target.closest('[data-tuxi-target]');
+  if (t) {
+    const id = t.dataset.tuxiTarget;
+    ui.tuxiSel = ui.tuxiSel || [];
+    if (ui.tuxiSel.includes(id)) ui.tuxiSel = ui.tuxiSel.filter(x => x !== id);
+    else if (ui.tuxiSel.length < 2) ui.tuxiSel.push(id);
+    render();
+    return;
+  }
+  if (e.target.closest('[data-tuxi-confirm]')) {
+    sendAction({ type: 'respond', targetIds: ui.tuxiSel || [] });
+    return;
+  }
+  const card = e.target.closest('[data-tuxi-card]');
+  if (card) {
+    sendAction({ type: 'respond', index: parseInt(card.dataset.tuxiCard, 10) || 0 });
+    return;
+  }
+}, true);
+
+setInterval(() => {
+  if (!ui.tuxiUntil) return;
+  const fill = document.getElementById('tuxiFill');
+  const left = ui.tuxiUntil - Date.now();
+  if (fill) fill.style.width = Math.max(0, Math.min(100, left / 200)) + '%';
+  if (left <= 0) {
+    const s = ui.state;
+    const p = s && s.pending;
+    ui.tuxiUntil = 0;
+    if (!p || !p.type.startsWith('tuxi')) return;
+    if (p.type === 'tuxi_ask') sendAction({ type: 'respond', accept: false });
+    else if (p.type === 'tuxi_targets') sendAction({ type: 'respond', targetIds: [] });
+    else if (p.type === 'tuxi_pick') sendAction({ type: 'respond', index: 0 });
+  }
+}, 100);
 

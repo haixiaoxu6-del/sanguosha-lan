@@ -281,11 +281,36 @@ class Game {
     return from;
   }
 
+  startTurnDraw(p, count) {
+    if (process.env.DSH_DEBUG) console.log('[startTurnDraw]', count, 'picks', this._tuxiPicks);
+    const cards = [];
+    for (let i = 0; i < count; i++) { const c = this.drawCard(); if (c) cards.push(c); }
+    this.pendingDraw = { playerId: p.id, cards };
+    this.pushEvent('draw', { playerId: p.id, count: cards.length, cards: cards.map(c => ({ id: c.id, name: c.name, suit: c.suit, number: c.number, color: c.color, type: c.type, art: c.art })) });
+    this.pending = { type: 'draw_ack', playerId: p.id, prompt: '' };
+    this.phase = 'play';
+    this.onPhaseStart('play');
+  }
+
+  tuxiAskPick(source, targets, idx) {
+    if (idx >= targets.length) {
+      this._tuxiDone = true;
+      const bonus = this.drawBonus(source);
+      const remain = Math.max(0, 2 + bonus - (this._tuxiPicks || 0));
+      this.startTurnDraw(source, remain);
+      return;
+    }
+    const t = targets[idx];
+    this.pending = { type: 'tuxi_pick', playerId: source.id, targetId: t.id, index: 0, total: t.hand.length, prompt: `突袭：选择 ${t.name} 的一张手牌` };
+  }
+
   beginTurn() {
     if (this.gameOver) return;
     const p = this.currentPlayer();
     if (!p || !p.alive) { this.endTurn(); return; }
     p.flags.shaUsed = 0;
+    this._tuxiDone = false;
+    this._tuxiPicks = 0;
     p.flags.jiuUsed = 0;
     p.flags.jiu = false;
     p.flags.liyong = false;
@@ -371,13 +396,11 @@ class Game {
       const bonus = this.drawBonus(p);
       const drawCount = 2 + bonus;
       if (!skipPlay) {
-        const cards = [];
-        for (let i = 0; i < drawCount; i++) { const c = this.drawCard(); if (c) cards.push(c); }
-        this.pendingDraw = { playerId: p.id, cards };
-        this.pushEvent('draw', { playerId: p.id, count: cards.length, cards: cards.map(c => ({ id: c.id, name: c.name, suit: c.suit, number: c.number, color: c.color, type: c.type, art: c.art })) });
-        this.pending = { type: 'draw_ack', playerId: p.id, prompt: '' };
-        this.phase = 'play';
-        this.onPhaseStart('play');
+        if (this.hasSkill(p, 'tuxi') && !this._tuxiDone) {
+          this.pending = { type: 'tuxi_ask', playerId: p.id };
+          return;
+        }
+        this.startTurnDraw(p, drawCount);
         return;
       }
       this.draw(p, drawCount);
@@ -1432,6 +1455,49 @@ class Game {
       return ok();
     }
 
+    if (pend.type === 'tuxi_ask') {
+      this.pending = null;
+      if (!action.accept) {
+        this._tuxiDone = true;
+        this.startTurnDraw(p, 2 + this.drawBonus(p));
+        return ok();
+      }
+      this.pending = { type: 'tuxi_targets', playerId: p.id, count: 2, prompt: '突袭：选择 1~2 名其他角色' };
+      return ok();
+    }
+
+    if (pend.type === 'tuxi_targets') {
+      const ids = Array.isArray(action.targetIds) ? action.targetIds : [];
+      const targets = ids.map(id => this.findPlayer(id)).filter(x => x && x.alive && x.id !== p.id && x.hand.length > 0);
+      if (!targets.length) {
+        this.pending = null;
+        this._tuxiDone = true;
+        this.startTurnDraw(p, 2 + this.drawBonus(p));
+        return ok();
+      }
+      this.tuxiTargets = targets.slice(0, 2);
+      this.tuxiAskPick(p, this.tuxiTargets, 0);
+      return ok();
+    }
+
+    if (pend.type === 'tuxi_pick') {
+      const t = this.findPlayer(pend.targetId);
+      if (!t || !t.alive || !t.hand.length) {
+        const next = (this.tuxiTargets || []).indexOf(t) + 1;
+        this.tuxiAskPick(p, this.tuxiTargets || [], Math.max(0, next));
+        return ok();
+      }
+      const i = Math.max(0, Math.min(t.hand.length - 1, Number(action.index) || 0));
+      const card = t.hand.splice(i, 1)[0];
+      p.hand.push(card);
+      this.pushLog(`${p.name} 发动【突袭】，获得 ${t.name} 的一张手牌`);
+      this.pushEvent('card', { playerId: p.id, card: { id: card.id, name: card.name, suit: card.suit, number: card.number, color: card.color, type: card.type, art: card.art } });
+      this._tuxiPicks = (this._tuxiPicks || 0) + 1;
+      const idx = (this.tuxiTargets || []).indexOf(t) + 1;
+      this.tuxiAskPick(p, this.tuxiTargets || [], idx);
+      return ok();
+    }
+
     if (pend.type === 'farmer_reward') {
       const healIt = action.choice === 'heal' && p.hp < p.maxHp;
       if (healIt) {
@@ -1845,6 +1911,8 @@ class Game {
             count: this.pending.count,
             dyingId: this.pending.dyingId,
             stage: this.pending.stage,
+            targetId: this.pending.targetId,
+            total: this.pending.total,
             cards: this.pending.cards ? this.pending.cards.map(c => ({ id: c.id, name: c.name, suit: c.suit, number: c.number, color: c.color, type: c.type })) : undefined,
           }
         : { type: this.pending.type, playerId: this.pending.playerId }) : null,

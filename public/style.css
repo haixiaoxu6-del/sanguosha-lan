@@ -1700,3 +1700,31 @@ body.gx-open .pending-wrap { display: none !important; }
 .gc-wrap.current .gc { border: 6px solid #e23b3b !important;
   box-shadow: 0 0 34px 10px rgba(240,80,80,.65), 0 0 70px 20px rgba(180,20,20,.32), inset 0 0 26px rgba(255,90,90,.22) !important; }
 .gc-equip.gs-pickable { pointer-events: auto; outline: 2px dashed #e8c274; outline-offset: -2px; cursor: pointer; }
+
+/* 信息栏势力渐变 + FZBeiWeiKai 字体 + 势力亮色 */
+.gc-wrap.faction-shu .gc-side { background: linear-gradient(180deg, #5a1410, #c0503f); }
+.gc-wrap.faction-wei .gc-side { background: linear-gradient(180deg, #142a52, #6a8fd0); }
+.gc-wrap.faction-wu .gc-side { background: linear-gradient(180deg, #0f331d, #51a86b); }
+.gc-wrap.faction-qun .gc-side { background: linear-gradient(180deg, #2c2c2c, #9a9a9a); }
+.gc-wrap .gc-side-faction { font-family: 'FZBeiWeiKai', serif; font-size: 14px; line-height: 1; text-shadow: 0 1px 2px #000; }
+.gc-wrap .gc-side-name { font-family: 'FZBeiWeiKai', serif; }
+.gc-wrap.faction-shu .gc-side-faction { color: #ff7a66; }
+.gc-wrap.faction-wei .gc-side-faction { color: #8fb6ff; }
+.gc-wrap.faction-wu .gc-side-faction { color: #8ff0a8; }
+.gc-wrap.faction-qun .gc-side-faction { color: #e6e6e6; }
+
+/* 选将：四个势力竖条，各自滚动 */
+.faction-cols { display: flex; gap: 12px; justify-content: center; align-items: flex-start; }
+.faction-col { width: 186px; flex: 0 0 auto; }
+.faction-col-title { text-align: center; color: #e8c58a; font-family: 'FZBeiWeiKai', serif; font-size: 17px; margin-bottom: 6px; }
+.faction-col-list { max-height: 540px; overflow-y: auto; overscroll-behavior: contain; padding: 6px 4px; display: flex; flex-direction: column; align-items: center; gap: 14px; scrollbar-width: thin; }
+.faction-col-list::-webkit-scrollbar { width: 6px; }
+.faction-col-list::-webkit-scrollbar-thumb { background: #6b5433; border-radius: 3px; }
+.gc-empty { color: #8a7358; font-size: 13px; padding: 46px 0; text-align: center; }
+
+/* 突袭窗口 */
+.tuxi-targets { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 6px; }
+.tuxi-hand { display: flex; gap: 10px; justify-content: center; margin-top: 8px; }
+.back-card { width: 64px; height: 90px; border: 2px solid #a98145; border-radius: 5px;
+  background: url('/assets/ui/cardback3.png') center/cover no-repeat; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,.5); }
+.back-card:hover { box-shadow: 0 0 14px rgba(255,200,120,.7); }
