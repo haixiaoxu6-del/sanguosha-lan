@@ -1778,3 +1778,10 @@ body.tuxi-open .gc-wrap.gc-self .gc { outline: none; box-shadow: none; cursor: d
 /* 阴阳鱼：固定槽位，位置与尺寸完全一致 */
 .gc-side-hp .hp-fish { width: 16px !important; height: 18px !important; margin: 0 auto 2px !important; }
 .gc-side-hp .hp-fish.empty { opacity: .75; }
+
+.tuxi-count { color: #f0cf8e; font-size: 12px; text-align: center; margin-top: 6px; }
+
+/* 阴阳鱼：每个槽位绝对定位，位置永不变化 */
+.gc-side-hp { position: absolute !important; left: 0; right: 0; top: 116px !important; bottom: auto !important; height: auto !important; display: block !important; }
+.gc-side-hp .hp-fish-col { position: relative !important; display: block !important; width: 100% !important; }
+.gc-side-hp .hp-fish { position: absolute !important; width: 16px !important; height: 18px !important; margin: 0 !important; }
