@@ -1774,3 +1774,7 @@ body.tuxi-open .gc-wrap.gc-self .gc { outline: none; box-shadow: none; cursor: d
   height: auto !important; display: block !important; }
 .gc-side-hp .hp-fish-col { display: block !important; }
 .gc-side-hp .hp-fish { display: block !important; flex: none !important; margin: 0 auto 2px !important; }
+
+/* 阴阳鱼：固定槽位，位置与尺寸完全一致 */
+.gc-side-hp .hp-fish { width: 16px !important; height: 18px !important; margin: 0 auto 2px !important; }
+.gc-side-hp .hp-fish.empty { opacity: .75; }
