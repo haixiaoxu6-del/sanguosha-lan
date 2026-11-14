@@ -139,6 +139,7 @@ function applyState(ns) {
     document.body.classList.toggle('draw-ack', ack);
     document.body.classList.toggle('gx-open', !!(ns.pending && ns.pending.type === 'guanxing'));
     if (!(ns.pending && ns.pending.type === 'qianxun')) { ui.qxAskUntil = 0; }
+    if (!(ns.pending && ns.pending.type === 'biyue_ask')) { ui.byAskUntil = 0; }
     if (!(ns.pending && ns.pending.type === 'lianying')) { ui.lyAskUntil = 0; ui.lySel = []; }
     if (!(ns.pending && ns.pending.type === 'guanxing' && ns.pending.stage === 'ask')) ui.gxAskUntil = 0;
     document.body.classList.toggle('tuxi-open', !!(ns.pending && String(ns.pending.type).startsWith('tuxi')));
@@ -1117,7 +1118,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v244</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v245</div>
   </div></div>`;
 }
 
@@ -1183,7 +1184,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v244</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v245</div>
     <div class="faction-cols">
       ${[['蜀','shu'],['魏','wei'],['吴','wu'],['群','qun']].map(([cn, key]) => {
         const gs = list.filter(x => x.faction === cn);
@@ -1219,7 +1220,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v244</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v245</div>
   </div></div>`;
 }
 
@@ -1231,7 +1232,7 @@ function skillName(id) {
   return ({
     wusheng: '武圣', paoxiao: '咆哮', longdan: '龙胆', yingzi: '英姿',
     re_wusheng: '武圣', re_paoxiao: '咆哮', re_longdan: '龙胆',
-    liyong: '厉勇', yijue: '义绝', yajiao: '涯角', guanxing: '观星', kongcheng: '空城', tuxi: '突袭',
+    liyong: '厉勇', yijue: '义绝', yajiao: '涯角', guanxing: '观星', kongcheng: '空城', tuxi: '突袭', lijian: '离间', biyue: '闭月', qianxun: '谦逊', lianying: '连营',
   })[id] || id;
 }
 
@@ -1877,6 +1878,14 @@ document.addEventListener('click', (e) => {
       if (me) { ui.skillView = me; render(); }
       return;
     }
+    if (id === 'lijian') {
+      ui.lijianStage = ui.lijianStage ? null : 'card';
+      ui.lijianCard = null;
+      ui.lijianFirst = null;
+      render();
+      return;
+    }
+
     if (id === 'yijue') {
       ui.yijueStage = ui.yijueStage ? null : 'card';
       ui.yijueCard = null;
@@ -1919,6 +1928,15 @@ document.addEventListener('click', (e) => {
     const id = cardEl.dataset.cardId;
     const s = ui.state;
     if (!s) return;
+    if (ui.lijianStage === 'card') {
+      const cc = s.you.hand.find(x => x.id === id);
+      if (!cc) return;
+      ui.lijianCard = id;
+      ui.lijianStage = 'first';
+      render();
+      return;
+    }
+
     if (ui.yijueStage === 'target') {
       const cc = s.you.hand.find(x => x.id === id);
       if (cc) { ui.yijueCard = id; ui.yijueStage = 'card'; renderLocal(); return; }
@@ -2000,6 +2018,25 @@ document.addEventListener('click', (e) => {
     ui.selectedTarget = null;
     ui.pendingAction = null;
     renderLocal();
+    return;
+  }
+
+  const lijianEl = e.target.closest('[data-player-id]');
+  if (lijianEl && (ui.lijianStage === 'first' || ui.lijianStage === 'second')) {
+    const lid = lijianEl.dataset.playerId;
+    const lp = ui.state.players.find(x => x.id === lid);
+    if (lp && lp.alive && lid !== myId(ui.state)) {
+      if (ui.lijianStage === 'first') {
+        ui.lijianFirst = lid;
+        ui.lijianStage = 'second';
+        render();
+      } else if (lid !== ui.lijianFirst) {
+        sendAction({ type: 'play', as: 'lijian', cardIds: [ui.lijianCard], targetId: ui.lijianFirst, victimId: lid });
+        ui.lijianStage = null;
+        ui.lijianCard = null;
+        ui.lijianFirst = null;
+      }
+    }
     return;
   }
 
@@ -2810,6 +2847,8 @@ document.addEventListener('click', (e) => {
       return;
     }
   }
+  if (e.target.closest('[data-by-accept]')) { sendAction({ type: 'respond', accept: true }); return; }
+  if (e.target.closest('[data-by-decline]')) { sendAction({ type: 'respond', accept: false }); return; }
   if (e.target.closest('[data-qx-accept]')) { sendAction({ type: 'respond', accept: true }); return; }
   if (e.target.closest('[data-qx-decline]')) { sendAction({ type: 'respond', accept: false }); return; }
   const lyt = e.target.closest('[data-ly-target]');
@@ -2912,6 +2951,10 @@ function askBarHtml(s) {
     if (!ui.tuxiUntil) ui.tuxiUntil = Date.now() + 20000;
     return `<div class="ask-bar"><div class="ask-text">突袭：点击角色立绘选择</div>${bar("tuxiFill")}<div class="ask-btns"><button class="btn primary" data-tuxi-confirm>确定</button></div></div>`;
   }
+  if (p.type === "biyue_ask") {
+    if (!ui.byAskUntil) ui.byAskUntil = Date.now() + 20000;
+    return `<div class="ask-bar"><div class="ask-text">是否发动【闭月】？</div><div class="ask-timer"><div id="byFill" class="ask-fill" style="width:100%"></div></div><div class="ask-btns"><button class="btn primary" data-by-accept>确定</button><button class="btn ghost" data-by-decline>取消</button></div></div>`;
+  }
   if (p.type === "qianxun") {
     if (!ui.qxAskUntil) ui.qxAskUntil = Date.now() + 20000;
     return `<div class="ask-bar"><div class="ask-text">是否发动【谦逊】？</div><div class="ask-timer"><div id="qxFill" class="ask-fill" style="width:100%"></div></div><div class="ask-btns"><button class="btn primary" data-qx-accept>确定</button><button class="btn ghost" data-qx-decline>取消</button></div></div>`;
@@ -2950,4 +2993,17 @@ setInterval(() => {
 
 
 
+
+
+
+setInterval(() => {
+  if (!ui.byAskUntil) return;
+  const el = document.getElementById('byFill');
+  const left = ui.byAskUntil - Date.now();
+  if (el) el.style.width = Math.max(0, Math.min(100, left / 200)) + '%';
+  if (left <= 0) {
+    ui.byAskUntil = 0;
+    sendAction({ type: 'respond', accept: false });
+  }
+}, 100);
 

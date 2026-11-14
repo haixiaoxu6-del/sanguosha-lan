@@ -12,7 +12,7 @@ function err(msg) { return { ok: false, error: msg }; }
 // 阶段技能注册表：phase = 触发阶段，locked = 锁定技（自动执行）
 const PHASE_SKILLS = {
   guanxing: { phase: 'prepare', locked: false },
-  biyue: { phase: 'end', locked: true },
+  biyue: { phase: 'end', locked: false },
   tuxi: { phase: 'draw', locked: false },
 };
 
@@ -164,8 +164,9 @@ class Game {
         this.pending = { type: 'tuxi_ask', playerId: p.id };
         return;
       } else if (sid === 'biyue') {
-        this.draw(p, 1);
-        this.pushLog(`${p.name} 发动【闭月】摸一张牌`);
+        if (t.locked) { this.draw(p, 1); continue; }
+        this.pending = { type: 'biyue_ask', playerId: p.id };
+        return;
       }
     }
   }
@@ -353,6 +354,7 @@ class Game {
     p.flags.shaUsed = 0;
     this._tuxiDone = false;
     this._tuxiPicks = 0;
+    p.flags.lijianUsed = 0;
     p.flags.jiuUsed = 0;
     p.flags.jiu = false;
     p.flags.liyong = false;
@@ -489,7 +491,14 @@ class Game {
     // 【酒】的加伤只在本回合有效，未使用的到下回合失效
     for (const q of this.players) q.flags.jiu = false;
     const p = this.currentPlayer();
-    if (p && p.alive) this.runPhaseSkills('end');
+    if (p && p.alive) {
+      this.runPhaseSkills('end');
+      if (this.pending) return;
+    }
+    this.finishEndTurn();
+  }
+
+  finishEndTurn() {
     const next = this.nextAliveIndex(this.current);
     this.current = next;
     this.turn++;
@@ -672,6 +681,36 @@ class Game {
         playerId: target.id,
         sourceId: p.id,
         prompt: `${target.name} 请选择一张手牌展示（义绝）`,
+      };
+      return ok();
+    }
+
+    // 离间：出牌阶段限一次，弃一张牌，令一名男性视为对另一名男性使用【决斗】
+    if (action.as === 'lijian') {
+      if (!this.hasSkill(p, 'lijian')) return err('没有【离间】');
+      if (p.flags.lijianUsed >= 1) return err('本回合已经发动过【离间】');
+      const a = action.targetId ? this.findPlayer(action.targetId) : null;
+      const b = action.victimId ? this.findPlayer(action.victimId) : null;
+      if (!a || !b || !a.alive || !b.alive) return err('请选择两名其他男性角色');
+      if (a.id === b.id || a.id === p.id || b.id === p.id) return err('请选择两名其他男性角色');
+      if (!a.general || a.general.gender !== 'male' || !b.general || b.general.gender !== 'male') return err('只能选择男性角色');
+      const ids = Array.isArray(action.cardIds) ? action.cardIds : [];
+      let cost = p.hand.find(c => c.id === ids[0]);
+      let fromEquip = false;
+      if (!cost) {
+        for (const slot of ['weapon', 'armor', 'horse1', 'horse2']) {
+          const eqp = p.equips[slot];
+          if (eqp && eqp.id === ids[0]) { cost = eqp; fromEquip = true; p.equips[slot] = null; break; }
+        }
+      }
+      if (!cost) return err('请选择一张要弃置的牌');
+      if (!fromEquip) p.hand.splice(p.hand.indexOf(cost), 1);
+      this.discard.push(cost);
+      p.flags.lijianUsed = 1;
+      this.pushLog(`${p.name} 发动【离间】，令 ${a.name} 对 ${b.name} 使用【决斗】`);
+      this.pending = {
+        type: 'duel', playerId: b.id, sourceId: a.id, a: a.id, b: b.id, turn: b.id,
+        cardId: null, prompt: `${b.name} 请出【杀】（离间决斗）`,
       };
       return ok();
     }
@@ -1522,6 +1561,17 @@ class Game {
         this._gxSkip = true;
         this.beginTurn();
       }
+      return ok();
+    }
+
+    if (pend.type === 'biyue_ask') {
+      this.pending = null;
+      if (action.accept) {
+        const n = p.hand.length > 0 ? 1 : 2;
+        this.draw(p, n);
+        this.pushLog(`${p.name} 发动【闭月】摸${n}张牌`);
+      }
+      this.finishEndTurn();
       return ok();
     }
 
