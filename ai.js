@@ -47,6 +47,7 @@ function aiAct(game) {
       }
 
       if (pend.type === 'qianxun') { game.respond(ai.id, { accept: true }); return; }
+      if (pend.type === 'biyue_ask') { game.respond(ai.id, { accept: true }); return; }
       if (pend.type === 'lianying') {
         const ids = [ai.id].concat(game.players.filter(x => x.alive && x.id !== ai.id && x.role === ai.role).map(x => x.id)).slice(0, pend.x);
         game.respond(ai.id, { targetIds: ids });
@@ -220,6 +221,16 @@ function aiAct(game) {
     }
 
     if (target) {
+      // 离间：出牌阶段限一次，弃一张牌令一名男性对另一名男性决斗
+      if (ai.general.skills.includes('lijian') && (ai.flags.lijianUsed || 0) < 1 && ai.hand.length > 1) {
+        const males = game.players.filter(x => x.alive && x.id !== ai.id && x.general && x.general.gender === 'male');
+        if (males.length >= 2) {
+          const cost = ai.hand[ai.hand.length - 1];
+          const r = game.play(ai.id, { as: 'lijian', cardIds: [cost.id], targetId: males[0].id, victimId: males[1].id });
+          if (r.ok) return;
+        }
+      }
+
       // 义绝：本回合未发动、目标有手牌、自己有牌可弃
       if (ai.general.skills.includes('yijue') && ai.flags.yijueUsed < 1 && target.hand.length > 0 && ai.hand.length > 1) {
         const cost = ai.hand[ai.hand.length - 1];
