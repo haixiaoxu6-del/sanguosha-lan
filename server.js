@@ -383,7 +383,17 @@ setInterval(() => {
       room._aiStuck = 0;
       const cur = room.game.currentPlayer();
       if (ai.alive && cur && cur.id === ai.id && !room.game.gameOver && !(room.game.pauseUntil && Date.now() < room.game.pauseUntil)) {
-        try { aiAct(room.game); room.broadcast(); } catch (e) { /* ignore */ }
+        room._aiIdle = (room._aiIdle || 0) + 1;
+        if (room._aiIdle > 15) {
+          // 安全阀：AI 在自己的回合（无响应窗口）超过约 6 秒无动作，强制结束出牌
+          room._aiIdle = 0;
+          try { room.game.handle(ai.id, { type: 'endPlay' }); } catch (e) { /* ignore */ }
+          room.broadcast();
+        } else {
+          try { aiAct(room.game); room.broadcast(); } catch (e) { /* ignore */ }
+        }
+      } else {
+        room._aiIdle = 0;
       }
     }
   }

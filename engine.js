@@ -9,6 +9,12 @@ const { CONVERSIONS, LOCKS, DRAW_TRIGGERS, DAMAGE_TRIGGERS, JUDGE_HOOKS, matchFr
 function ok() { return { ok: true }; }
 function err(msg) { return { ok: false, error: msg }; }
 
+// 阶段技能注册表：phase = 触发阶段，locked = 锁定技（自动执行）
+const PHASE_SKILLS = {
+  guanxing: { phase: 'prepare', locked: false },
+  biyue: { phase: 'end', locked: true },
+};
+
 class Game {
   constructor(playerInfos, mode = 'doudizhu') {
     if (!ROLE_SETS[mode]) throw new Error('不支持的模式: ' + mode);
@@ -104,8 +110,13 @@ class Game {
   start() {
     if (this.started) return;
     this.started = true;
-    for (const p of this.players) this.draw(p, 4);
-    this.current = 0;
+    for (const p of this.players) this.draw(p, 4, true);
+    if (this.mode === 'doudizhu' || this.mode === 'doudizhu_ai') {
+      const li = this.players.findIndex(p => p.role === 'landlord');
+      this.current = li >= 0 ? li : 0;
+    } else {
+      this.current = 0;
+    }
     this.turn = 1;
     const firstText = this.mode === 'duel'
       ? '游戏开始，你先手'
@@ -127,6 +138,30 @@ class Game {
     this.events.push(ev);
     if (this.events.length > 60) this.events.shift();
     return ev;
+  }
+
+  runPhaseSkills(phase) {
+    const p = this.currentPlayer();
+    if (!p || !p.general) return;
+    for (const sid of (p.general.skills || [])) {
+      const t = PHASE_SKILLS[sid];
+      if (!t || t.phase !== phase) continue;
+      if (sid === 'guanxing') {
+        if (!this.hasSkill(p, 'guanxing')) continue;
+        if (t.locked) {
+          const n = this.players.filter(q => q.alive).length < 4 ? 3 : 5;
+          const cards = this.deck.splice(0, Math.min(n, this.deck.length));
+          this.gxAuto = { playerId: p.id, cards };
+        } else {
+          this.pending = { type: 'guanxing', playerId: p.id, stage: 'ask' };
+          this.gxResume = 'begin';
+          return;
+        }
+      } else if (sid === 'biyue') {
+        this.draw(p, 1);
+        this.pushLog(`${p.name} 发动【闭月】摸一张牌`);
+      }
+    }
   }
 
   onPhaseStart(phase) {
@@ -180,7 +215,7 @@ class Game {
     return this.deck.pop();
   }
 
-  draw(p, n) {
+  draw(p, n, silent) {
     const cards = [];
     for (let i = 0; i < n; i++) {
       const c = this.drawCard();
@@ -188,8 +223,8 @@ class Game {
       p.hand.push(c);
       cards.push(c);
     }
-    if (cards.length) { this.pauseUntil = Math.max(this.pauseUntil || 0, Date.now() + 2500); this.pauseReason = 'draw'; }
-    if (cards.length) this.pushEvent('draw', { playerId: p.id, count: cards.length, cards: cards.map(c => ({ id: c.id, name: c.name, suit: c.suit, number: c.number, color: c.color, type: c.type, art: c.art })) });
+    if (cards.length && !silent) { this.pauseUntil = Math.max(this.pauseUntil || 0, Date.now() + 2500); this.pauseReason = 'draw'; }
+    if (cards.length && !silent) this.pushEvent('draw', { playerId: p.id, count: cards.length, cards: cards.map(c => ({ id: c.id, name: c.name, suit: c.suit, number: c.number, color: c.color, type: c.type, art: c.art })) });
     return cards;
   }
 
@@ -254,10 +289,9 @@ class Game {
     p.skillSealed = false;
     this.phase = 'prepare';
     this.onPhaseStart('prepare');
-    if (this.hasSkill(p, 'guanxing') && !this._gxSkip) {
-      this.pending = { type: 'guanxing', playerId: p.id, stage: 'ask' };
-      this.gxResume = 'begin';
-      return;
+    if (!this._gxSkip) {
+      this.runPhaseSkills('prepare');
+      if (this.pending && this.pending.type === 'guanxing') return;
     }
     this._gxSkip = false;
     this.phase = 'judge';
@@ -376,10 +410,7 @@ class Game {
     // 【酒】的加伤只在本回合有效，未使用的到下回合失效
     for (const q of this.players) q.flags.jiu = false;
     const p = this.currentPlayer();
-    if (p && p.alive && this.hasSkill(p, 'biyue')) {
-      this.draw(p, 1);
-      this.pushLog(`${p.name} 发动【闭月】摸一张牌`);
-    }
+    if (p && p.alive) this.runPhaseSkills('end');
     const next = this.nextAliveIndex(this.current);
     this.current = next;
     this.turn++;
