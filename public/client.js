@@ -866,7 +866,7 @@ function onTimerExpired() {
   if (!s) return;
   const me = myId(s);
   const p = s.pending;
-  if (p && p.playerId === me) {
+  if (p && (p.playerId === me || (p.allowed || []).includes(me))) {
     switch (p.type) {
       case 'discard': {
         const ids = s.you.hand.slice(0, p.count || 0).map(c => c.id);
@@ -914,7 +914,7 @@ function syncTimers() {
   if (myPending) {
     if (ui.timerKind !== 'pending') {
       ui.timerKind = 'pending';
-      ui.timerDeadline = Date.now() + 20000;
+      ui.timerDeadline = Date.now() + (s.pending && s.pending.type === 'wuxie' ? 10000 : 20000);
       ui.timerAutoDone = false;
     }
     startPlayTimerTick();
@@ -1236,7 +1236,7 @@ function hpFishHtml(hp, max) {
   const cls = hp >= max ? 'full' : hp === 1 ? 'last' : 'hurt';
   const empty = '<span class="hp-fish empty"></span>'.repeat(Math.max(0, max - hp));
   const filled = `<span class="hp-fish ${cls}"></span>`.repeat(Math.max(0, hp));
-  return `<span class="hp-fish-col">${empty}${filled}</span>`;
+  return `<span class="hp-fish-col">${filled}${empty}</span>`;
 }
 
 function generalCardHtml(p, s, extra = '') {
@@ -1252,7 +1252,7 @@ function generalCardHtml(p, s, extra = '') {
     || !!(selected && playActions(selected).some(a => a.needsTarget));
   const hp = Math.max(0, p.hp);
   const eq = p.equips || {};
-  const eqRow = (slot, c, label, range) => `<div class="gc-equip ${slot}${c && ui.yijueStage === 'card' ? ' pickable' : ''}${c && s.pending && s.pending.type === 'guanshi' ? ' gs-pickable' : ''}${c && ui.yijueCard === c.id ? ' selected' : ''}" data-equip-slot="${slot}"${c ? ` data-equip-id="${c.id}" onclick="window.__pickEquip && window.__pickEquip('${c.id}', event)"` : ''}>${
+  const eqRow = (slot, c, label, range) => `<div class="gc-equip ${slot}${c && p.id === meId && ui.yijueStage === 'card' ? ' pickable' : ''}${c && s.pending && s.pending.type === 'guanshi' ? ' gs-pickable' : ''}${c && ui.yijueCard === c.id ? ' selected' : ''}" data-equip-slot="${slot}"${c ? ` data-equip-id="${c.id}" onclick="window.__pickEquip && window.__pickEquip('${c.id}', event)"` : ''}>${
     c ? `<b>${label}${c.name}</b>${range && c.range ? `<span>${c.range}</span>` : ''}` : ''
   }</div>`;
   const eqHtml = `<div class="gc-equips">
@@ -1951,6 +1951,11 @@ document.addEventListener('click', (e) => {
     const card = s.you.hand.find(c => c.id === id);
     if (ui.zhangba) {
       if (!card) return;
+      if (card.type === 'equip') {
+        // 点装备牌时退出“丈八当杀”选牌模式，按正常装备使用
+        ui.zhangba = false;
+        ui.zhangbaCards = [];
+      } else {
       if (ui.zhangbaCards.includes(id)) ui.zhangbaCards = ui.zhangbaCards.filter(x => x !== id);
       else if (ui.zhangbaCards.length < 2) ui.zhangbaCards.push(id);
       if (ui.zhangbaCards.length === 2) {
@@ -1959,6 +1964,7 @@ document.addEventListener('click', (e) => {
       }
       renderLocal();
       return;
+      }
     }
     if (s.phase === 'play' && s.currentPlayer === myId(s) && !s.pending && card) {
       if (ui.selectedCard === id) {
@@ -2843,6 +2849,7 @@ setInterval(() => {
     else if (p.type === 'tuxi_pick') sendAction({ type: 'respond', index: 0 });
   }
 }, 100);
+
 
 
 

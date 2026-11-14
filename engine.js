@@ -891,7 +891,7 @@ class Game {
 
   startWuxie(source, card, trick) {
     const eligible = this.players
-      .filter(x => x.alive && x.hand.some(c => c.key === 'wuxie'))
+      .filter(x => x.alive && x.id !== source.id && x.hand.some(c => c.key === 'wuxie'))
       .map(x => x.id);
     if (!eligible.length) {
       this.resolveTrick({ sourceId: source.id, cardId: card.id, cardRef: card, trick, canceled: false });
@@ -912,8 +912,9 @@ class Game {
   }
 
   askWuxieAgain(lastPlayer) {
+    const src = this.pending ? this.pending.sourceId : null;
     const eligible = this.players
-      .filter(x => x.alive && x.hand.some(c => c.key === 'wuxie'))
+      .filter(x => x.alive && x.id !== src && x.hand.some(c => c.key === 'wuxie'))
       .map(x => x.id);
     const pending = this.pending;
     if (!eligible.length) {
