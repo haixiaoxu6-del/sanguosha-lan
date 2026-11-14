@@ -140,6 +140,7 @@ function applyState(ns) {
     document.body.classList.toggle('gx-open', !!(ns.pending && ns.pending.type === 'guanxing'));
     if (!(ns.pending && ns.pending.type === 'qianxun')) { ui.qxAskUntil = 0; }
     if (!(ns.pending && ns.pending.type === 'biyue_ask')) { ui.byAskUntil = 0; }
+    if (!(ns.pending && ns.pending.type === 'wuxie')) { ui.wxUntil = 0; }
     if (!(ns.pending && ns.pending.type === 'lianying')) { ui.lyAskUntil = 0; ui.lySel = []; }
     if (!(ns.pending && ns.pending.type === 'guanxing' && ns.pending.stage === 'ask')) ui.gxAskUntil = 0;
     document.body.classList.toggle('tuxi-open', !!(ns.pending && String(ns.pending.type).startsWith('tuxi')));
@@ -1118,7 +1119,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v250</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v251</div>
   </div></div>`;
 }
 
@@ -1184,7 +1185,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v250</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v251</div>
     <div class="faction-cols">
       ${[['蜀','shu'],['魏','wei'],['吴','wu'],['群','qun']].map(([cn, key]) => {
         const gs = list.filter(x => x.faction === cn);
@@ -1220,7 +1221,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v250</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v251</div>
   </div></div>`;
 }
 
@@ -1636,7 +1637,7 @@ function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
   const body = _controlsHtml(s, you, current, pending, myPending, isMyTurn);
   if (pending && myPending) {
     if (String(pending.type || '').startsWith('tuxi') || (pending.type === 'guanxing' && pending.stage === 'ask')
-      || pending.type === 'biyue_ask' || pending.type === 'qianxun' || pending.type === 'lianying') return body;
+      || pending.type === 'biyue_ask' || pending.type === 'qianxun' || pending.type === 'lianying' || pending.type === 'wuxie') return body;
     const bar = `<div class="play-timer"><div class="pt-fill" id="ptFill"></div><div class="pt-text">${escapeHtml(pending.prompt || '')}</div></div>`;
     return `<div class="pending-wrap">${bar}${body}</div>`;
   }
@@ -1646,9 +1647,7 @@ function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
 function _controlsHtml(s, you, current, pending, myPending, isMyTurn) {
   if (s.gameOver) return '';
   if (pending && (pending.type === 'biyue_ask' || pending.type === 'qianxun' || pending.type === 'lianying')) return '';
-  if (pending && pending.type === 'wuxie') {
-    return `<div class="btn-row" style="justify-content:center"><button class="btn ghost" data-wuxie-pass>不出无懈</button></div>`;
-  }
+  if (pending && pending.type === 'wuxie') return '';
   if (pending && (pending.type === 'guanxing' || String(pending.type).startsWith('tuxi'))) return '';
   if (pending && myPending) {
     if (pending.type === 'discard') {
@@ -2854,7 +2853,12 @@ document.addEventListener('click', (e) => {
       return;
     }
   }
-  if (e.target.closest('[data-wuxie-pass]')) { sendAction({ type: 'respond', pass: true }); return; }
+  if (e.target.closest('[data-wx-play]')) {
+    const wx = (ui.state.you.hand || []).find(x => x.key === 'wuxie');
+    if (wx) sendAction({ type: 'respond', cardId: wx.id });
+    return;
+  }
+  if (e.target.closest('[data-wx-pass]') || e.target.closest('[data-wuxie-pass]')) { sendAction({ type: 'respond', pass: true }); return; }
   if (e.target.closest('[data-by-accept]')) { sendAction({ type: 'respond', accept: true }); return; }
   if (e.target.closest('[data-by-decline]')) { sendAction({ type: 'respond', accept: false }); return; }
   if (e.target.closest('[data-qx-accept]')) { sendAction({ type: 'respond', accept: true }); return; }
@@ -2963,6 +2967,12 @@ function askBarHtml(s) {
     if (!ui.byAskUntil) ui.byAskUntil = Date.now() + 20000;
     return `<div class="ask-bar"><div class="ask-text">是否发动【闭月】？</div><div class="ask-timer"><div id="byFill" class="ask-fill" style="width:100%"></div></div><div class="ask-btns"><button class="btn primary" data-by-accept>确定</button><button class="btn ghost" data-by-decline>取消</button></div></div>`;
   }
+  if (p.type === "wuxie") {
+    if (!ui.wxUntil) ui.wxUntil = Date.now() + 10000;
+    const has = (s.you.hand || []).some(x => x.key === 'wuxie');
+    const playBtn = has ? `<button class="btn primary" data-wx-play>打出无懈</button>` : '';
+    return `<div class="ask-bar"><div class="ask-text">是否使用【无懈可击】？</div><div class="ask-timer"><div id="wxFill" class="ask-fill" style="width:100%"></div></div><div class="ask-btns">${playBtn}<button class="btn ghost" data-wx-pass>不出无懈</button></div></div>`;
+  }
   if (p.type === "qianxun") {
     if (!ui.qxAskUntil) ui.qxAskUntil = Date.now() + 20000;
     return `<div class="ask-bar"><div class="ask-text">是否发动【谦逊】？</div><div class="ask-timer"><div id="qxFill" class="ask-fill" style="width:100%"></div></div><div class="ask-btns"><button class="btn primary" data-qx-accept>确定</button><button class="btn ghost" data-qx-decline>取消</button></div></div>`;
@@ -3064,4 +3074,18 @@ document.addEventListener('click', (e) => {
 
 
 
+
+
+
+setInterval(() => {
+  if (!ui.wxUntil) return;
+  const el = document.getElementById('wxFill');
+  const left = ui.wxUntil - Date.now();
+  if (el) el.style.width = Math.max(0, Math.min(100, left / 100)) + '%';
+  if (left <= 0) {
+    ui.wxUntil = 0;
+    const s = ui.state;
+    if (s && s.pending && s.pending.type === 'wuxie') sendAction({ type: 'respond', pass: true });
+  }
+}, 100);
 
