@@ -1683,3 +1683,14 @@ body.gx-open .pending-wrap { display: none !important; }
 .gx-box { width: 620px; max-width: 94vw; }
 
 .deck-count { left: 64px; top: 64px; }
+
+/* 当前回合玩家：红色烈焰流光边框 */
+.gc-wrap { position: relative; }
+.gc-wrap.current::before { content: ''; position: absolute; inset: -4px; border-radius: 12px; z-index: -1;
+  background: conic-gradient(from 0deg, #5a0f12, #ffb3b3, #e23b3b, #5a0f12, #ffb3b3, #e23b3b, #5a0f12);
+  animation: turnSpin 5s linear infinite; }
+.gc-wrap.current::after { content: ''; position: absolute; inset: -3px; border-radius: 12px; z-index: -2;
+  box-shadow: 0 0 24px 6px rgba(240,80,80,.55), 0 0 52px 14px rgba(180,20,20,.28);
+  animation: turnPulse 1.8s ease-in-out infinite; }
+@keyframes turnSpin { to { transform: rotate(360deg); } }
+@keyframes turnPulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }

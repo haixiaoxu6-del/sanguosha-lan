@@ -3,7 +3,11 @@
 // 1v1 简单 AI：优先级出牌 + 响应；不偷看玩家手牌
 function aiAct(game) {
   let ai = null;
-  if (game.pending && game.pending.playerId) {
+  if (game.pending && game.pending.type === 'wuxie' && game.pending.allowed) {
+    const q = game.pending.allowed.map(id => game.findPlayer(id)).find(x => x && x.isAI && x.alive);
+    if (q) ai = q;
+  }
+  if (!ai && game.pending && game.pending.playerId) {
     const q = game.findPlayer(game.pending.playerId);
     if (q && q.isAI) ai = q;
   }
@@ -32,6 +36,8 @@ function aiAct(game) {
         game.respond(ai.id, { top: ids, bottom: [] });
         return;
       }
+
+      if (pend.type === 'wuxie') { game.respond(ai.id, { pass: true }); return; }
 
       if (pend.type === 'draw_ack') { game.respond(ai.id, {}); return; }
 
@@ -151,8 +157,14 @@ function aiAct(game) {
     if (!game.currentPlayer() || game.currentPlayer().id !== ai.id) break;
     if (game.phase !== 'play') break;
 
-    const human = game.players.find(p => p.role === 'player');
-    const target = human && human.alive ? human : null;
+    // 敌人：不同阵营的存活角色；农民优先打地主，否则打血量最低的
+    let enemies = game.players.filter(p => p.alive && p.id !== ai.id && p.role !== ai.role);
+    if (ai.role === 'farmer') {
+      enemies.sort((x, y) => (x.role === 'landlord' ? -1 : 0) - (y.role === 'landlord' ? -1 : 0) || x.hp - y.hp);
+    } else {
+      enemies.sort((x, y) => x.hp - y.hp);
+    }
+    const target = enemies[0] || null;
 
     const tryPlay = (card, as, targetId) => {
       if (!card) return false;
@@ -195,7 +207,7 @@ function aiAct(game) {
       }
       // 3. 杀（含武圣/龙胆转化）
       const canShaLimit = ai.general.skills.includes('paoxiao') || ai.general.skills.includes('re_paoxiao')
-        || (ai.equips && ai.equips.weapon && ai.equips.weapon.key === 'zhuge') || ai.flags.shaUsed < 1;
+        || (ai.equips && ai.equips.weapon && ai.equips.weapon.key === 'zhuge') || ai.flags.shaUsed < (game.shaLimitOf ? game.shaLimitOf(ai) : (ai.role === 'landlord' ? 2 : 1));
       if (canShaLimit) {
         const sha = ai.hand.find(c => game.canUseAs(ai, c, 'sha'));
         if (tryPlay(sha, 'sha', target.id)) continue;

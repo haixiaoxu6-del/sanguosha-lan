@@ -123,7 +123,6 @@ class Game {
       : this.mode === 'duel_pvp'
         ? `游戏开始，${this.currentPlayer().name} 先手`
         : '游戏开始，地主先手';
-    this.pushLog(firstText);
     this.beginTurn();
   }
 
@@ -162,6 +161,10 @@ class Game {
         this.pushLog(`${p.name} 发动【闭月】摸一张牌`);
       }
     }
+  }
+
+  shaLimitOf(p) {
+    return (p && p.role === 'landlord' && (this.mode === 'doudizhu' || this.mode === 'doudizhu_ai')) ? 2 : 1;
   }
 
   onPhaseStart(phase) {
@@ -268,8 +271,10 @@ class Game {
 
   // ---------------- 回合流程 ----------------
   nextAliveIndex(from) {
+    // 斗地主类：逆时针（座位号递减）
+    const dir = (this.mode === 'doudizhu' || this.mode === 'doudizhu_ai') ? -1 : 1;
     for (let i = 1; i <= this.n; i++) {
-      const idx = (from + i) % this.n;
+      const idx = ((from + dir * i) % this.n + this.n) % this.n;
       if (this.players[idx].alive) return idx;
     }
     return from;
@@ -398,7 +403,7 @@ class Game {
       this.gxAllBottom = false;
       const gn = this.players.filter(q => q.alive).length < 4 ? 3 : 5;
       const gcards = this.deck.splice(0, Math.min(gn, this.deck.length));
-      this.pending = { type: 'guanxing', playerId: gxp.id, cards: gcards };
+      this.pending = { type: 'guanxing', playerId: gxp.id, stage: 'cards', cards: gcards };
       this.gxResume = 'end';
       return;
     }
@@ -543,7 +548,7 @@ class Game {
       const target = action.targetId ? this.findPlayer(action.targetId) : null;
       if (!target || !target.alive || target.id === p.id) return err('请选择一名其他角色');
       if (this.distance(p, target) > 3) return err('目标不在攻击范围内');
-      if (!this.shaUnlimited(p) && p.flags.shaUsed >= 1) return err('本回合已经使用过【杀】');
+      if (!this.shaUnlimited(p) && p.flags.shaUsed >= this.shaLimitOf(p)) return err('本回合的【杀】次数已用完');
       p.hand.splice(p.hand.findIndex(c => c.id === c1.id), 1);
       p.hand.splice(p.hand.findIndex(c => c.id === c2.id), 1);
       this.discard.push(c1, c2);
@@ -625,7 +630,7 @@ class Game {
       if (!target || !target.alive || target.id === p.id) return err('请选择一名其他角色');
       if (this.hasSkill(target, 'kongcheng') && target.hand.length === 0) return err('【空城】：不能成为【杀】的目标');
       if (this.distance(p, target) > 3) return err('目标不在攻击范围内');
-      if (!this.hasSkill(p, 'paoxiao') && p.flags.shaUsed >= 1) return err('本回合已经使用过【杀】');
+      if (!this.hasSkill(p, 'paoxiao') && p.flags.shaUsed >= this.shaLimitOf(p)) return err('本回合的【杀】次数已用完');
       p.hand.splice(p.hand.findIndex(c => c.id === c1.id), 1);
       p.hand.splice(p.hand.findIndex(c => c.id === c2.id), 1);
       this.discard.push(c1, c2);
@@ -672,7 +677,7 @@ class Game {
       if (!target || !target.alive || target.id === p.id) return err('请选择一名其他角色');
       if (this.hasSkill(target, 'kongcheng') && target.hand.length === 0) return err('【空城】：不能成为【杀】的目标');
       const range = (p.equips && p.equips.weapon && p.equips.weapon.range) || 1;
-      if (!this.shaUnlimited(p) && p.flags.shaUsed >= 1) return err('本回合已经使用过【杀】');
+      if (!this.shaUnlimited(p) && p.flags.shaUsed >= this.shaLimitOf(p)) return err('本回合的【杀】次数已用完');
       const noRange = (this.hasSkill(p, 're_paoxiao') && p.flags.shaUsed >= 1)
         || (this.hasSkill(p, 're_wusheng') && card.suit === 'diamond');
       if (!noRange && this.distance(p, target) > range) return err('目标不在攻击范围内');
@@ -816,31 +821,87 @@ class Game {
       this.startWuxie(p, card, { useAs, targetId: useAs === 'shandian' ? p.id : target.id });
       return ok();
     }
+    if (useAs === 'nanman' || useAs === 'wanjian') {
+      const tq = this.othersInSeatOrder(p).filter(q => {
+        if (q.equips && q.equips.armor && q.equips.armor.key === 'tengjia') {
+          this.pushLog(`${q.name} 的【藤甲】使【${useAs === 'nanman' ? '南蛮入侵' : '万箭齐发'}】无效`);
+          return false;
+        }
+        return true;
+      });
+      this.discard.push(card);
+      this.startAoe(p, card, useAs, tq);
+      return ok();
+    }
     this.discard.push(card);
     this.startWuxie(p, card, { useAs, targetId: target ? target.id : null, victimId: action.victimId || null, targetIds: targets.map(x => x.id) });
     return ok();
   }
 
+  startAoe(source, card, useAs, targets) {
+    this.aoe = { sourceId: source.id, card, cardId: card.id, useAs, remaining: targets.map(t => t.id) };
+    this.aoeNext();
+  }
+
+  aoeNext() {
+    const a = this.aoe;
+    if (!a) return;
+    let tid = null;
+    while (a.remaining.length) {
+      const id = a.remaining.shift();
+      const q = this.findPlayer(id);
+      if (q && q.alive) { tid = id; break; }
+    }
+    if (!tid) {
+      this.aoe = null;
+      if (a.card && !this.discard.some(c => c.id === a.card.id)) this.discard.push(a.card);
+      return;
+    }
+    this.startWuxie(this.findPlayer(a.sourceId), a.card, { useAs: a.useAs, targetId: tid, aoe: true });
+  }
+
   startWuxie(source, card, trick) {
-    // 只询问手里确实有【无懈可击】的其他玩家；没人有就直接结算
-    const queue = this.othersInSeatOrder(source)
+    const eligible = this.players
       .filter(x => x.alive && x.hand.some(c => c.key === 'wuxie'))
       .map(x => x.id);
-    if (queue.length === 0) {
+    if (!eligible.length) {
       this.resolveTrick({ sourceId: source.id, cardId: card.id, cardRef: card, trick, canceled: false });
       return;
     }
     this.pending = {
       type: 'wuxie',
-      playerId: queue[0],
+      playerId: null,
+      allowed: eligible,
       sourceId: source.id,
       cardId: card.id,
       cardRef: card,
-      queue,
-      index: 0,
-      canceled: false,
       trick,
+      wuxieCount: 0,
+      canceled: false,
       prompt: `是否对【${card.name}】使用【无懈可击】？`,
+    };
+  }
+
+  askWuxieAgain(lastPlayer) {
+    const eligible = this.players
+      .filter(x => x.alive && x.hand.some(c => c.key === 'wuxie'))
+      .map(x => x.id);
+    const pending = this.pending;
+    if (!eligible.length) {
+      this.resolveTrick({ sourceId: pending.sourceId, cardId: pending.cardId, cardRef: pending.cardRef, trick: pending.trick, canceled: pending.wuxieCount % 2 === 1 });
+      return;
+    }
+    this.pending = {
+      type: 'wuxie',
+      playerId: null,
+      allowed: eligible,
+      sourceId: lastPlayer.id,
+      cardId: pending.cardId,
+      cardRef: pending.cardRef,
+      trick: pending.trick,
+      wuxieCount: pending.wuxieCount,
+      canceled: false,
+      prompt: `是否对${lastPlayer.name}的【无懈可击】使用【无懈可击】？`,
     };
   }
 
@@ -852,6 +913,12 @@ class Game {
     const target = trick.targetId ? this.findPlayer(trick.targetId) : null;
 
     if (pend.canceled) {
+      if (trick && trick.aoe) {
+        const t = this.findPlayer(trick.targetId);
+        this.pushLog(`【无懈可击】抵消了对 ${t ? t.name : '目标'} 的【${card ? card.name : '锦囊'}】`);
+        this.aoeNext();
+        return;
+      }
       this.pushLog(`【${card ? card.name : '锦囊'}】被【无懈可击】抵消`);
       if (card && !this.discard.some(c => c.id === card.id)) this.discard.push(card);
       return;
@@ -978,7 +1045,22 @@ class Game {
     }
     if (trick.useAs === 'nanman' || trick.useAs === 'wanjian') {
       const cardName = trick.useAs === 'nanman' ? '南蛮入侵' : '万箭齐发';
-      // 藤甲：南蛮/万箭对其无效，直接跳过响应与伤害
+      if (trick.aoe) {
+        const t = this.findPlayer(trick.targetId);
+        if (t && t.alive) {
+          this.pending = {
+            type: trick.useAs,
+            playerId: t.id,
+            sourceId: source.id,
+            cardId: card ? card.id : null,
+            aoe: true,
+            prompt: `${t.name} 请出【${trick.useAs === 'nanman' ? '杀' : '闪'}】`,
+          };
+        } else {
+          this.aoeNext();
+        }
+        return;
+      }
       const queue = this.othersInSeatOrder(source).filter(q => {
         if (q.equips && q.equips.armor && q.equips.armor.key === 'tengjia') {
           this.pushLog(`${q.name} 的【藤甲】使【${cardName}】无效`);
@@ -1074,7 +1156,7 @@ class Game {
   _respond(playerId, action) {
     if (!this.pending) return err('现在没有需要响应的牌');
     const pend = this.pending;
-    if (pend.playerId !== playerId) return err('还没轮到你响应');
+    if (pend.playerId !== playerId && !(pend.allowed || []).includes(playerId)) return err('还没轮到你响应');
     const p = this.findPlayer(playerId);
     if (!p || !p.alive) return err('角色已阵亡');
     if (p.yijueSealed && action.cardId) return err('被【义绝】封印，不能使用或打出手牌');
@@ -1361,41 +1443,23 @@ class Game {
     }
 
     if (pend.type === 'wuxie') {
+      const allowed = pend.allowed || [];
       if (action.pass) {
-        pend.index++;
-        while (pend.index < pend.queue.length) {
-          const q = this.findPlayer(pend.queue[pend.index]);
-          if (q && q.alive) break;
-          pend.index++;
-        }
-        if (pend.index >= pend.queue.length) {
-          pend.canceled = ((pend.wuxieCount || 0) % 2) === 1;
-          this.resolveTrick(pend);
-        } else {
-          pend.playerId = pend.queue[pend.index];
-          const q = this.findPlayer(pend.playerId);
-          const cname = pend.cardRef ? pend.cardRef.name : '锦囊';
-          pend.prompt = `${q.name} 是否对【${cname}】使用【无懈可击】？`;
+        pend.allowed = allowed.filter(id => id !== p.id);
+        if (!pend.allowed.length) {
+          this.resolveTrick({ sourceId: pend.sourceId, cardId: pend.cardId, cardRef: pend.cardRef, trick: pend.trick, canceled: (pend.wuxieCount || 0) % 2 === 1 });
         }
         return ok();
       }
+      if (!allowed.includes(p.id)) return err('还没轮到你响应');
       const card = p.hand.find(c => c.id === action.cardId);
       if (!card || card.key !== 'wuxie') return err('请选择【无懈可击】');
       p.hand.splice(p.hand.indexOf(card), 1);
       this.discard.push(card);
       this.pushLog(`${p.name} 使用【无懈可击】`);
-      const used = (pend.wuxieCount || 0) + 1;
-      const q2 = this.othersInSeatOrder(p).filter(x => x.alive && x.hand.some(c => c.key === 'wuxie')).map(x => x.id);
-      if (q2.length) {
-        this.pending = {
-          type: 'wuxie', playerId: q2[0], sourceId: p.id, cardId: pend.cardId, cardRef: pend.cardRef,
-          queue: q2, index: 0, canceled: false, trick: pend.trick, wuxieCount: used,
-          prompt: `是否对${p.name}的【无懈可击】使用【无懈可击】？`,
-        };
-      } else {
-        pend.canceled = used % 2 === 1;
-        this.resolveTrick(pend);
-      }
+      this.pushEvent('card', { playerId: p.id, card: { id: card.id, name: card.name, suit: card.suit, number: card.number, color: card.color, type: card.type, art: card.art } });
+      pend.wuxieCount = (pend.wuxieCount || 0) + 1;
+      this.askWuxieAgain(p);
       return ok();
     }
 
@@ -1524,6 +1588,7 @@ class Game {
         this.pending = null;
         this.pushLog(`${p.name} 没有出【${needCard}】`);
         this.damage(p, 1, this.findPlayer(pend.sourceId), this.findCardById(pend.cardId), parent);
+        if (pend.aoe && !this.pending) this.aoeNext();
         return ok();
       }
       const card = p.hand.find(c => c.id === action.cardId);
@@ -1533,6 +1598,7 @@ class Game {
       this.pushLog(`${p.name} 打出【${needCard}】`);
       this.pushEvent(needCard === '杀' ? 'sha' : 'shan', { playerId: p.id, response: true });
       this.pending = this.advanceQueue(pend);
+      if (pend.aoe && !this.pending) this.aoeNext();
       return ok();
     }
 
@@ -1540,6 +1606,7 @@ class Game {
   }
 
   advanceQueue(pend) {
+    if (!pend.queue) return null;
     pend.index++;
     while (pend.index < pend.queue.length) {
       const q = this.findPlayer(pend.queue[pend.index]);
@@ -1752,7 +1819,7 @@ class Game {
         yijueUsed: you.flags.yijueUsed,
         yijueSealed: !!you.yijueSealed,
       } : null,
-      pending: this.pending ? (this.pending.playerId === playerId
+      pending: this.pending ? ((this.pending.playerId === playerId || (this.pending.allowed || []).includes(playerId))
         ? {
             type: this.pending.type,
             playerId: this.pending.playerId,
