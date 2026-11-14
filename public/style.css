@@ -1789,3 +1789,7 @@ body.tuxi-open .gc-wrap.gc-self .gc { outline: none; box-shadow: none; cursor: d
 /* 突袭手牌窗口：牌背与手牌区同尺寸 */
 .back-card { width: 96px !important; height: 134px !important; border-width: 2px !important; }
 .tuxi-hand { gap: 14px !important; }
+
+/* 阴阳鱼用 SVG 绘制，坐标固定 */
+.gc-side-hp { position: absolute !important; left: 0; right: 0; top: 116px !important; bottom: auto !important; height: auto !important; display: block !important; text-align: center; }
+.gc-side-hp .hp-svg { display: inline-block; }

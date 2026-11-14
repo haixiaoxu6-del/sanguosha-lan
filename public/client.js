@@ -1114,7 +1114,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v232</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v233</div>
   </div></div>`;
 }
 
@@ -1180,7 +1180,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v232</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v233</div>
     <div class="faction-cols">
       ${[['蜀','shu'],['魏','wei'],['吴','wu'],['群','qun']].map(([cn, key]) => {
         const gs = list.filter(x => x.faction === cn);
@@ -1216,7 +1216,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v232</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v233</div>
   </div></div>`;
 }
 
@@ -1233,14 +1233,15 @@ function skillName(id) {
 }
 
 function hpFishHtml(hp, max) {
-  const cls = hp >= max ? 'full' : hp === 1 ? 'last' : 'hurt';
-  const slots = [];
+  const h = max * 19;
+  let svg = `<svg class="hp-svg" width="18" height="${h}" viewBox="0 0 18 ${h}" xmlns="http://www.w3.org/2000/svg">`;
   for (let i = 0; i < max; i++) {
     const filled = i >= max - hp;
-    const c2 = filled ? cls : 'empty';
-    slots.push(`<span class="hp-fish ${c2}" style="position:absolute;left:50%;top:${i * 19}px;transform:translateX(-50%);margin:0"></span>`);
+    const color = !filled ? '#1b1b1b' : (hp >= max ? '#4dff8a' : (hp === 1 ? '#ff4a4a' : '#ffd84a'));
+    const y = i * 19 + 1;
+    svg += `<g transform="translate(1 ${y}) scale(0.5)"><path fill="${color}" fill-rule="evenodd" d="M16 2c8.5 0 14 6.5 14 14 0 9-7 15-16 15-3.5 0-7-1-9.5-3l-5 2 2-5C2 23 2 19 3 15 4.5 7 9.5 2 16 2z"/></g>`;
   }
-  return `<span class="hp-fish-col" style="position:relative;display:block;width:100%;height:${max * 19}px">${slots.join('')}</span>`;
+  return svg + '</svg>';
 }
 
 function generalCardHtml(p, s, extra = '') {
@@ -2854,6 +2855,7 @@ setInterval(() => {
     else if (p.type === 'tuxi_pick') sendAction({ type: 'respond', index: 0 });
   }
 }, 100);
+
 
 
 
