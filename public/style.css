@@ -1794,8 +1794,8 @@ body.tuxi-open .gc-wrap.gc-self .gc { outline: none; box-shadow: none; cursor: d
 .gc-side-hp { position: absolute !important; left: 0; right: 0; top: 116px !important; bottom: auto !important; height: auto !important; display: block !important; text-align: center; }
 .gc-side-hp .hp-svg { display: inline-block; }
 
-.ask-bar { position: fixed; left: 50%; bottom: 250px; transform: translateX(-50%); z-index: 130;
-  width: min(900px, 92vw); display: flex; flex-direction: column; align-items: center; gap: 6px;
+.ask-bar { position: fixed; left: 50%; bottom: 320px; transform: translateX(-50%); z-index: 130;
+  width: min(760px, 92vw); display: flex; flex-direction: column; align-items: center; gap: 6px;
   background: none; border: 0; box-shadow: none; padding: 0; }
 .ask-bar .ask-text { color: #f0cf8e; font-size: 15px; text-shadow: 0 1px 3px #000; }
 .ask-bar .ask-row { display: flex; align-items: center; gap: 12px; width: 100%; }
