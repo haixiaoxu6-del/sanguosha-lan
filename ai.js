@@ -46,6 +46,13 @@ function aiAct(game) {
         return;
       }
 
+      if (pend.type === 'qianxun') { game.respond(ai.id, { accept: true }); return; }
+      if (pend.type === 'lianying') {
+        const ids = [ai.id].concat(game.players.filter(x => x.alive && x.id !== ai.id && x.role === ai.role).map(x => x.id)).slice(0, pend.x);
+        game.respond(ai.id, { targetIds: ids });
+        return;
+      }
+
       if (pend.type === 'tuxi_ask') { game.respond(ai.id, { accept: true }); return; }
       if (pend.type === 'tuxi_targets') {
         const foes = game.players.filter(x => x.alive && x.id !== ai.id && x.role !== ai.role && x.hand.length > 0).slice(0, 2);

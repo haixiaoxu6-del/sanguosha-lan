@@ -360,9 +360,11 @@ class Game {
     p.flags.yijueTarget = null;
     p.yijueSealed = false;
     p.skillSealed = false;
+    const resumeJudge = this._resumeJudge;
+    this._resumeJudge = false;
     this.phase = 'prepare';
     this.onPhaseStart('prepare');
-    if (!this._gxSkip) {
+    if (!resumeJudge && !this._gxSkip) {
       this.runPhaseSkills('prepare');
       if (this.pending && this.pending.type === 'guanxing') return;
     }
@@ -375,6 +377,11 @@ class Game {
     let skipDraw = false;
     let skipPlay = false;
     let lastJudgment = null;
+    if (!resumeJudge && p.judge.length && this.hasSkill(p, 'qianxun')) {
+      this.pending = { type: 'qianxun', playerId: p.id, prompt: '是否发动【谦逊】？' };
+      this.qianxunJudge = true;
+      return;
+    }
     for (const card of [...p.judge]) {
       if (!['bingliang', 'lebu', 'shandian'].includes(card.key)) continue;
       const jc = this.drawCard();
@@ -1180,6 +1187,7 @@ class Game {
     if (!card) return err('目标没有这张牌');
     this.lastReveal = { seq: ++this.revealSeq, playerId: target.id, card: { id: card.id, name: card.name, suit: card.suit, number: card.number, color: card.color, type: card.type, art: card.art } };
     this.removeFromPlayer(target, card);
+    this.checkLianying(target, 1);
     if (this.pending.mode === 'guohe') {
       this.discard.push(card);
       this.pushLog(`${p.name} 对 ${target.name} 使用【过河拆桥】，弃置了【${card.name}】`);
@@ -1520,6 +1528,12 @@ class Game {
       const qp = this.findPlayer(pend.playerId);
       if (action.accept) this.qianxunHide(qp);
       this.pending = null;
+      if (this.qianxunJudge) {
+        this.qianxunJudge = false;
+        this._resumeJudge = true;
+        this.beginTurn();
+        return ok();
+      }
       const cp = this.qianxunPend;
       this.qianxunPend = null;
       if (cp) { cp.trick.skipQianxun = true; this.resolveTrick(cp); }
