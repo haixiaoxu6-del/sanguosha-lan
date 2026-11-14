@@ -138,6 +138,7 @@ function applyState(ns) {
     const ack = !!(ns.pending && ns.pending.type === 'draw_ack');
     document.body.classList.toggle('draw-ack', ack);
     document.body.classList.toggle('gx-open', !!(ns.pending && ns.pending.type === 'guanxing'));
+    if (!(ns.pending && ns.pending.type === 'guanxing' && ns.pending.stage === 'ask')) ui.gxAskUntil = 0;
     document.body.classList.toggle('tuxi-open', !!(ns.pending && String(ns.pending.type).startsWith('tuxi')));
   } catch (e) {}
   if (ns.lastJudgment && ns.lastJudgment.seq > (ui.judgmentSeen || 0)) {
@@ -1114,7 +1115,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v233</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v234</div>
   </div></div>`;
 }
 
@@ -1180,7 +1181,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v233</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v234</div>
     <div class="faction-cols">
       ${[['蜀','shu'],['魏','wei'],['吴','wu'],['群','qun']].map(([cn, key]) => {
         const gs = list.filter(x => x.faction === cn);
@@ -1216,7 +1217,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v233</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v234</div>
   </div></div>`;
 }
 
@@ -1650,6 +1651,11 @@ function _controlsHtml(s, you, current, pending, myPending, isMyTurn) {
     }
     if (pending.type === 'hanbing' && s.hanbing) {
       return `<div class="control-box waiting"><div class="prompt">${escapeHtml(pending.prompt || '寒冰剑')}</div></div>`;
+    }
+
+    if (pending.type === 'guanxing' && pending.stage === 'ask') {
+      if (!ui.gxAskUntil) ui.gxAskUntil = Date.now() + 20000;
+      return `<div class="btn-row" style="justify-content:center"><button class="btn primary" data-gx-accept>发动观星</button><button class="btn ghost" data-gx-decline>取消</button></div><div style="height:16px;background:#3a2a18;border-radius:8px;overflow:hidden;margin-top:10px;width:100%"><div id="gxAskFill" style="height:100%;width:100%;background:linear-gradient(90deg,#e06a28,#f2a24a);transition:width .1s linear"></div></div>`;
     }
 
     if (pending.type === 'tuxi_ask') {
@@ -2634,11 +2640,7 @@ function guanxingHtml(s) {
   if (ui.kaiUntil && Date.now() < ui.kaiUntil) return '';
   const p = s.pending;
   if (!p || p.type !== 'guanxing' || p.playerId !== myId(s)) return '';
-  if (p.stage === 'ask') {
-    return `<div class="gx-overlay"><div class="gx-box"><div class="gx-title">是否发动【观星】？</div>
-      <div class="gx-foot">观看牌堆顶的牌，并决定放回牌堆顶或牌堆底</div>
-      <div class="gx-ask"><button class="btn primary" data-gx-accept>发动</button><button class="btn ghost" data-gx-decline>取消</button></div></div></div>`;
-  }
+  if (p.stage === 'ask') return '';
   if (!p.cards) return '';
   gxEnsure();
   const byId = new Map((p.cards || []).map(c => [c.id, c]));
@@ -2874,4 +2876,18 @@ setInterval(() => {
 
 
 
+
+
+
+setInterval(() => {
+  if (!ui.gxAskUntil) return;
+  const fill = document.getElementById('gxAskFill');
+  const left = ui.gxAskUntil - Date.now();
+  if (fill) fill.style.width = Math.max(0, Math.min(100, left / 200)) + '%';
+  if (left <= 0) {
+    ui.gxAskUntil = 0;
+    const s = ui.state;
+    if (s && s.pending && s.pending.type === 'guanxing' && s.pending.stage === 'ask') sendAction({ type: 'respond', accept: false });
+  }
+}, 100);
 
