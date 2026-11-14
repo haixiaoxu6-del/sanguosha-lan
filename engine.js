@@ -234,7 +234,7 @@ class Game {
       p.hand.push(c);
       cards.push(c);
     }
-    if (cards.length && !silent) { this.pauseUntil = Math.max(this.pauseUntil || 0, Date.now() + 2500); this.pauseReason = 'draw'; }
+    if (cards.length && !silent) { this.pauseUntil = Math.max(this.pauseUntil || 0, Date.now() + 1500); this.pauseReason = 'draw'; }
     if (cards.length && !silent) this.pushEvent('draw', { playerId: p.id, count: cards.length, cards: cards.map(c => ({ id: c.id, name: c.name, suit: c.suit, number: c.number, color: c.color, type: c.type, art: c.art })) });
     return cards;
   }
@@ -322,7 +322,9 @@ class Game {
   forcePassWuxie() {
     const pend = this.pending;
     if (!pend || pend.type !== 'wuxie') return false;
-    return !!(this.respond(pend.playerId, { pass: true }) || {}).ok;
+    const first = (pend.allowed || [])[0];
+    if (!first) return false;
+    return !!(this.respond(first, { pass: true }) || {}).ok;
   }
 
   startTurnDraw(p, count) {
@@ -994,37 +996,22 @@ class Game {
       this.resolveTrick({ sourceId: source.id, cardId: card.id, cardRef: card, trick, canceled: false });
       return;
     }
-    this.wuxieCtx = {
-      sourceId: source.id, cardId: card.id, cardRef: card, trick,
-      wuxieCount: 0, queue: eligible,
-    };
-    this.askNextWuxie();
+    this.openWuxie(eligible, source.id, card, trick, 0);
   }
 
-  askNextWuxie() {
-    const ctx = this.wuxieCtx;
-    if (!ctx) return;
-    while (ctx.queue.length) {
-      const id = ctx.queue.shift();
-      const q = this.findPlayer(id);
-      if (!q || !q.alive) continue;
-      if (!q.hand.some(c => c.key === 'wuxie')) continue;
-      const name = ctx.cardRef ? ctx.cardRef.name : '锦囊';
-      this.pending = {
-        type: 'wuxie',
-        playerId: id,
-        sourceId: ctx.sourceId,
-        cardId: ctx.cardId,
-        cardRef: ctx.cardRef,
-        trick: ctx.trick,
-        wuxieCount: ctx.wuxieCount,
-        prompt: ctx.wuxieCount > 0 ? '是否对【无懈可击】使用【无懈可击】？' : `是否对【${name}】使用【无懈可击】？`,
-      };
-      return;
-    }
-    const canceled = ctx.wuxieCount % 2 === 1;
-    this.wuxieCtx = null;
-    this.resolveTrick({ sourceId: ctx.sourceId, cardId: ctx.cardId, cardRef: ctx.cardRef, trick: ctx.trick, canceled });
+  openWuxie(allowed, sourceId, card, trick, count) {
+    const name = card ? card.name : '锦囊';
+    this.pending = {
+      type: 'wuxie',
+      playerId: null,
+      allowed,
+      sourceId,
+      cardId: card ? card.id : null,
+      cardRef: card,
+      trick,
+      wuxieCount: count,
+      prompt: count > 0 ? '是否对【无懈可击】使用【无懈可击】？' : `是否对【${name}】使用【无懈可击】？`,
+    };
   }
 
   resolveTrick(pend) {
@@ -1697,12 +1684,14 @@ class Game {
     }
 
     if (pend.type === 'wuxie') {
-      if (pend.playerId !== p.id) return err('还没轮到你响应');
-      const ctx = this.wuxieCtx;
-      this.pending = null;
-      if (!ctx) return ok();
+      const allowed = pend.allowed || [];
+      if (!allowed.includes(p.id)) return err('还没轮到你响应');
       if (action.pass) {
-        this.askNextWuxie();
+        pend.allowed = allowed.filter(id => id !== p.id);
+        if (!pend.allowed.length) {
+          this.pending = null;
+          this.resolveTrick({ sourceId: pend.sourceId, cardId: pend.cardId, cardRef: pend.cardRef, trick: pend.trick, canceled: (pend.wuxieCount || 0) % 2 === 1 });
+        }
         return ok();
       }
       const card = p.hand.find(c => c.id === action.cardId);
@@ -1711,11 +1700,16 @@ class Game {
       this.discard.push(card);
       this.pushLog(`${p.name} 使用【无懈可击】`);
       this.pushEvent('card', { playerId: p.id, card: { id: card.id, name: card.name, suit: card.suit, number: card.number, color: card.color, type: card.type, art: card.art } });
-      ctx.wuxieCount += 1;
-      ctx.queue = this.players
+      const count = (pend.wuxieCount || 0) + 1;
+      const next = this.players
         .filter(x => x.alive && x.id !== p.id && x.hand.some(c => c.key === 'wuxie'))
         .map(x => x.id);
-      this.askNextWuxie();
+      if (!next.length) {
+        this.pending = null;
+        this.resolveTrick({ sourceId: pend.sourceId, cardId: pend.cardId, cardRef: pend.cardRef, trick: pend.trick, canceled: count % 2 === 1 });
+      } else {
+        this.openWuxie(next, pend.sourceId, pend.cardRef, pend.trick, count);
+      }
       return ok();
     }
 
@@ -2086,10 +2080,10 @@ class Game {
         yijueSealed: !!you.yijueSealed,
         qianxunCount: (you.qianxunCards || []).length,
       } : null,
-      pending: this.pending ? ((this.pending.playerId === playerId || (this.pending.allowed || []).includes(playerId))
+      pending: this.pending ? (((this.pending.playerId === playerId || (this.pending.allowed || []).includes(playerId)))
         ? {
             type: this.pending.type,
-            playerId: this.pending.playerId,
+            playerId: (this.pending.playerId || playerId),
             prompt: this.pending.prompt,
             count: this.pending.count,
             dyingId: this.pending.dyingId,
