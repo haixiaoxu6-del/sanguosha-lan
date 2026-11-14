@@ -1795,9 +1795,10 @@ body.tuxi-open .gc-wrap.gc-self .gc { outline: none; box-shadow: none; cursor: d
 .gc-side-hp .hp-svg { display: inline-block; }
 
 .ask-bar { position: fixed; left: 50%; bottom: 320px; transform: translateX(-50%); z-index: 130;
-  width: min(760px, 92vw); display: flex; flex-direction: column; align-items: center; gap: 6px;
+  width: min(760px, 92vw); display: flex; flex-direction: column; align-items: center; gap: 10px;
   background: none; border: 0; box-shadow: none; padding: 0; }
 .ask-bar .ask-text { color: #f0cf8e; font-size: 15px; text-shadow: 0 1px 3px #000; }
-.ask-bar .ask-row { display: flex; align-items: center; gap: 12px; width: 100%; }
+.ask-bar .ask-btns { display: flex; gap: 16px; justify-content: center; width: 100%; }
+.ask-bar .ask-btns .btn { min-width: 150px; }
 .ask-bar .ask-timer { flex: 1; height: 14px; background: #3a2a18; border-radius: 7px; overflow: hidden; }
 .ask-bar .ask-fill { height: 100%; width: 100%; background: linear-gradient(90deg,#e06a28,#f2a24a); transition: width .1s linear; }
