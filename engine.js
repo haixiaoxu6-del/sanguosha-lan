@@ -1240,6 +1240,7 @@ class Game {
     const noUse = !!(before && ['pick', 'wugu', 'yijue', 'huogong', 'yajiao', 'yajiao_discard'].includes(before.type));
     const played = (p && action && action.cardId) ? (p.hand.find(c => c.id === action.cardId) || null) : null;
     const res = this._respond(playerId, action);
+    if (res && res.ok) this.flushLianying();
     if (res && res.ok && played && outside && !noUse && !this.pending) {
       this.maybeYajiao(p, played);
     }
@@ -2040,6 +2041,7 @@ class Game {
             count: this.pending.count,
             dyingId: this.pending.dyingId,
             stage: this.pending.stage,
+            x: this.pending.x,
             targetId: this.pending.targetId,
             total: this.pending.total,
             cards: this.pending.cards ? this.pending.cards.map(c => ({ id: c.id, name: c.name, suit: c.suit, number: c.number, color: c.color, type: c.type })) : undefined,
