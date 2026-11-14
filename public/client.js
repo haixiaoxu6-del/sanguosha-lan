@@ -1115,7 +1115,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v234</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v235</div>
   </div></div>`;
 }
 
@@ -1181,7 +1181,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v234</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v235</div>
     <div class="faction-cols">
       ${[['蜀','shu'],['魏','wei'],['吴','wu'],['群','qun']].map(([cn, key]) => {
         const gs = list.filter(x => x.faction === cn);
@@ -1217,7 +1217,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v234</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v235</div>
   </div></div>`;
 }
 
@@ -1638,6 +1638,10 @@ function controlsHtml(s, you, current, pending, myPending, isMyTurn) {
 
 function _controlsHtml(s, you, current, pending, myPending, isMyTurn) {
   if (s.gameOver) return '';
+  if (pending && pending.type === 'guanxing' && pending.stage === 'ask') {
+    if (!ui.gxAskUntil) ui.gxAskUntil = Date.now() + 20000;
+    return `<div class="btn-row" style="justify-content:center"><button class="btn primary" data-gx-accept>发动观星</button><button class="btn ghost" data-gx-decline>取消</button></div><div style="height:16px;background:#3a2a18;border-radius:8px;overflow:hidden;margin-top:10px;width:100%"><div id="gxAskFill" style="height:100%;width:100%;background:linear-gradient(90deg,#e06a28,#f2a24a);transition:width .1s linear"></div></div>`;
+  }
   if (pending && myPending) {
     if (pending.type === 'discard') {
       return `<div class="control-box">
@@ -2890,4 +2894,5 @@ setInterval(() => {
     if (s && s.pending && s.pending.type === 'guanxing' && s.pending.stage === 'ask') sendAction({ type: 'respond', accept: false });
   }
 }, 100);
+
 
