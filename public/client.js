@@ -135,6 +135,7 @@ function applyState(ns) {
     }
     const ack = !!(ns.pending && ns.pending.type === 'draw_ack');
     document.body.classList.toggle('draw-ack', ack);
+    document.body.classList.toggle('gx-open', !!(ns.pending && ns.pending.type === 'guanxing'));
   } catch (e) {}
   if (ns.lastJudgment && ns.lastJudgment.seq > (ui.judgmentSeen || 0)) {
     ui.judgeShownAt = Date.now();
@@ -1111,7 +1112,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v193</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v194</div>
   </div></div>`;
 }
 
@@ -1177,7 +1178,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v193</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v194</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1206,7 +1207,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v193</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v194</div>
   </div></div>`;
 }
 
@@ -2553,7 +2554,13 @@ window.__pickEquip = function (id, e) {
 
 function guanxingHtml(s) {
   const p = s.pending;
-  if (!p || p.type !== 'guanxing' || p.playerId !== myId(s) || !p.cards) return '';
+  if (!p || p.type !== 'guanxing' || p.playerId !== myId(s)) return '';
+  if (p.stage === 'ask') {
+    return `<div class="gx-overlay"><div class="gx-box"><div class="gx-title">是否发动【观星】？</div>
+      <div class="gx-foot">观看牌堆顶的牌，并决定放回牌堆顶或牌堆底</div>
+      <div class="gx-ask"><button class="btn primary" data-gx-accept>发动</button><button class="btn ghost" data-gx-decline>取消</button></div></div></div>`;
+  }
+  if (!p.cards) return '';
   const bottom = ui.gxBottom || [];
   return `<div class="gx-overlay"><div class="gx-box">
     <div class="gx-title">观星：将牌置于牌堆顶或牌堆底</div>
@@ -2564,6 +2571,8 @@ function guanxingHtml(s) {
 }
 
 document.addEventListener('click', (e) => {
+  if (e.target.closest('[data-gx-accept]')) { sendAction({ type: 'respond', accept: true }); return; }
+  if (e.target.closest('[data-gx-decline]')) { sendAction({ type: 'respond', accept: false }); return; }
   const gx = e.target.closest('[data-gx-id]');
   if (gx) {
     const id = gx.dataset.gxId;
@@ -2595,4 +2604,5 @@ document.addEventListener('click', (e) => {
   ui.side = sb.dataset.side === 'farmer' ? 'farmer' : 'landlord';
   render();
 }, true);
+
 

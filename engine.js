@@ -255,9 +255,7 @@ class Game {
     this.phase = 'prepare';
     this.onPhaseStart('prepare');
     if (this.hasSkill(p, 'guanxing') && !this._gxSkip) {
-      const n = this.players.filter(q => q.alive).length < 4 ? 3 : 5;
-      const cards = this.deck.splice(0, Math.min(n, this.deck.length));
-      this.pending = { type: 'guanxing', playerId: p.id, cards };
+      this.pending = { type: 'guanxing', playerId: p.id, stage: 'ask' };
       this.gxResume = 'begin';
       return;
     }
@@ -1291,6 +1289,18 @@ class Game {
     }
 
     if (pend.type === 'guanxing') {
+      if (pend.stage === 'ask') {
+        this.pending = null;
+        if (!action.accept) {
+          this._gxSkip = true;
+          this.beginTurn();
+          return ok();
+        }
+        const n = this.players.filter(q => q.alive).length < 4 ? 3 : 5;
+        const cards = this.deck.splice(0, Math.min(n, this.deck.length));
+        this.pending = { type: 'guanxing', playerId: pend.playerId, stage: 'cards', cards };
+        return ok();
+      }
       const top = (action.top || []).map(id => pend.cards.find(c => c.id === id)).filter(Boolean);
       const bottom = (action.bottom || []).map(id => pend.cards.find(c => c.id === id)).filter(Boolean);
       this.deck.unshift(...top);

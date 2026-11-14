@@ -1658,3 +1658,6 @@ body.draw-ack .pending-wrap, body.draw-ack .prompt, body.draw-ack .prompt-action
 .gx-foot { color: #a8946f; font-size: 12px; text-align: center; margin: 10px 0; }
 
 .side-row { display: flex; gap: 12px; justify-content: center; margin-bottom: 14px; }
+
+.gx-ask { display: flex; gap: 12px; justify-content: center; }
+body.gx-open .pending-wrap { display: none !important; }

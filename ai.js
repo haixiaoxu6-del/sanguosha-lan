@@ -27,7 +27,8 @@ function aiAct(game) {
       }
 
       if (pend.type === 'guanxing') {
-        const ids = pend.cards.map(c => c.id);
+        if (pend.stage === 'ask') { game.respond(ai.id, { accept: true }); return; }
+        const ids = (pend.cards || []).map(c => c.id);
         game.respond(ai.id, { top: ids, bottom: [] });
         return;
       }

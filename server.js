@@ -348,9 +348,17 @@ setInterval(() => {
   for (const room of rooms.values()) {
     if ((room.mode !== 'duel' && room.mode !== 'doudizhu_ai') || !room.game || room.game.gameOver) continue;
     if (room.game.pauseUntil && Date.now() < room.game.pauseUntil) continue;
-    const ai = room.game.players.find(p => p.isAI && p.alive);
-    if (!ai) continue;
     const pend = room.game.pending;
+    let ai = null;
+    if (pend && pend.playerId) {
+      const q = room.game.findPlayer(pend.playerId);
+      if (q && q.isAI && q.alive) ai = q;
+    }
+    if (!ai) {
+      const c = room.game.currentPlayer();
+      if (c && c.isAI && c.alive) ai = c;
+    }
+    if (!ai) continue;
     if (pend && pend.playerId === ai.id) {
       const sig = `${pend.type}|${pend.playerId}|${pend.cardId || ''}|${pend.targetId || ''}`;
       if (room._aiSig === sig) room._aiStuck = (room._aiStuck || 0) + 1;
