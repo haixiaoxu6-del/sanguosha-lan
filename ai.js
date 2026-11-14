@@ -2,7 +2,15 @@
 
 // 1v1 简单 AI：优先级出牌 + 响应；不偷看玩家手牌
 function aiAct(game) {
-  const ai = game.players.find(p => p.role === 'ai');
+  let ai = null;
+  if (game.pending && game.pending.playerId) {
+    const q = game.findPlayer(game.pending.playerId);
+    if (q && q.isAI) ai = q;
+  }
+  if (!ai) {
+    const c = game.currentPlayer();
+    if (c && c.isAI) ai = c;
+  }
   if (!ai || !ai.alive) return;
 
   let guard = 0;
@@ -16,6 +24,12 @@ function aiAct(game) {
       if (ai.yijueSealed && ['shan', 'duel', 'nanman', 'wanjian', 'tao', 'wuxie', 'huogong', 'jiedao'].includes(pend.type)) {
         game.respond(ai.id, { pass: true });
         continue;
+      }
+
+      if (pend.type === 'guanxing') {
+        const ids = pend.cards.map(c => c.id);
+        game.respond(ai.id, { top: ids, bottom: [] });
+        return;
       }
 
       if (pend.type === 'draw_ack') { game.respond(ai.id, {}); return; }

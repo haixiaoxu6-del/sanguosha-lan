@@ -67,6 +67,16 @@ const GENERALS = [
     portrait: 're_guanyu.jpg',
   },
   {
+    id: 're_zhugeliang', name: '界诸葛亮', faction: '蜀', gender: 'male', hp: 3,
+    skills: ['guanxing', 'kongcheng'],
+    desc: '观星：准备阶段，你可以观看牌堆顶的五张牌（若存活角色数小于4则改为三张），然后将这些牌以任意顺序置于牌堆顶或牌堆底。若你将这些牌均置于牌堆底，则结束阶段你可以再发动一次【观星】。空城：锁定技，若你没有手牌，你不能成为【杀】或【决斗】的目标。',
+    skillDescs: {
+      guanxing: '准备阶段，你可以观看牌堆顶的五张牌（若存活角色数小于4则改为三张），然后将这些牌以任意顺序置于牌堆顶或牌堆底。若你将这些牌均置于牌堆底，则结束阶段你可以再发动一次【观星】。',
+      kongcheng: '锁定技，若你没有手牌，你不能成为【杀】或【决斗】的目标。',
+    },
+    portrait: 're_zhugeliang.jpg',
+  },
+  {
     id: 're_zhangfei', name: '界张飞', faction: '蜀', gender: 'male', hp: 4,
     skills: ['re_paoxiao', 'liyong'],
     desc: '咆哮：锁定技，你使用【杀】无次数限制；若你于当前出牌阶段使用过【杀】，则你于此阶段使用【杀】无距离限制。厉勇：锁定技，当你于出牌阶段使用的【杀】被【闪】抵消后，你本阶段下一次使用【杀】指定的目标角色本回合非锁定技失效，且此【杀】不能被响应、伤害值+1；此【杀】造成伤害后，若目标角色未死亡，你失去1点体力。',
@@ -93,6 +103,7 @@ const ROLE_SETS = {
   doudizhu: ['landlord', 'farmer', 'farmer'],
   duel: ['player', 'ai'],
   duel_pvp: ['player', 'player'],
+  doudizhu_ai: ['landlord', 'farmer', 'farmer'],
 };
 
 const ROLE_CN = {
@@ -103,6 +114,7 @@ const ROLE_CN = {
 };
 
 const MODES = [
+  { id: 'doudizhu_ai', name: '人机斗地主', players: 1, enabled: true, desc: '1 真人 + 2 AI，可选地主/农民' },
   { id: 'doudizhu', name: '斗地主', players: 3, enabled: true, desc: '1 地主 vs 2 农民' },
   { id: 'duel_pvp', name: '1v1 联机', players: 2, enabled: true, desc: '两个真人单挑' },
   { id: 'duel', name: '人机对战', players: 2, enabled: true, desc: '1v1 打 AI' },

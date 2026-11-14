@@ -15,6 +15,7 @@ const ui = {
   name: localStorage.getItem('sgs_name') || '',
   code: '',
   modes: [
+    { id: 'doudizhu_ai', name: '人机斗地主', players: 1, enabled: true, desc: '1 真人 + 2 AI，可选地主/农民' },
     { id: 'doudizhu', name: '斗地主', players: 3, enabled: true, desc: '1 地主 vs 2 农民' },
     { id: 'duel_pvp', name: '1v1 联机', players: 2, enabled: true, desc: '两个真人单挑' },
     { id: 'duel', name: '人机对战', players: 2, enabled: true, desc: '1v1 打 AI' },
@@ -571,6 +572,7 @@ async function startGame(generalId) {
 
   const body = { room: ui.room, player: ui.playerId };
   if (generalId) body.generalId = generalId;
+  if (ui.state && ui.state.mode === 'doudizhu_ai') body.side = ui.side || 'landlord';
 
   let r;
   try {
@@ -1109,7 +1111,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v188</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v193</div>
   </div></div>`;
 }
 
@@ -1152,6 +1154,12 @@ function generalHtml() {
   const selected = list.find(g => g.id === chosenId);
   const locked = isPvp && !!myGenId;
 
+  const isDdz = s.mode === 'doudizhu_ai';
+  const sideBlock = isDdz ? `
+    <div class="side-row">
+      <button class="btn ${ui.side !== 'farmer' ? 'primary' : 'ghost'}" data-side="landlord">当地主</button>
+      <button class="btn ${ui.side === 'farmer' ? 'primary' : 'ghost'}" data-side="farmer">当农民</button>
+    </div>` : '';
   const roomBlock = isPvp ? `
     <div class="room-code">房间号：<b>${s.room}</b></div>
     <div class="copy-row"><button class="btn ghost" data-action="copy">复制邀请链接</button></div>
@@ -1162,13 +1170,14 @@ function generalHtml() {
     <div class="lobby-hint">${s.players.length}/2 人${oppGen ? ` · 对手已选 ${escapeHtml(oppGen.name)}` : ' · 等待对手加入/选择'}</div>` : '';
 
   return `<div class="lobby"><div class="lobby-card" style="width:min(820px,100%)">
-    <h1>${isPvp ? '1v1 联机' : '选择武将'}</h1>
-    <p class="tagline">${isPvp ? '双方各选一个武将，选完自动开始' : '你先选，AI 从剩下的随机选'}</p>
+    <h1>${isDdz ? '人机斗地主' : (isPvp ? '1v1 联机' : '选择武将')}</h1>
+    <p class="tagline">${isDdz ? '选择阵营和武将，其余两个位置由 AI 随机选将' : (isPvp ? '双方各选一个武将，选完自动开始' : '你先选，AI 从剩下的随机选')}</p>
+    ${sideBlock}
     ${ui.error ? `<div class="error">${escapeHtml(ui.error)}</div>` : ''}
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v188</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v193</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1197,7 +1206,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v188</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v193</div>
   </div></div>`;
 }
 
@@ -1209,7 +1218,7 @@ function skillName(id) {
   return ({
     wusheng: '武圣', paoxiao: '咆哮', longdan: '龙胆', yingzi: '英姿',
     re_wusheng: '武圣', re_paoxiao: '咆哮', re_longdan: '龙胆',
-    liyong: '厉勇', yijue: '义绝', yajiao: '涯角',
+    liyong: '厉勇', yijue: '义绝', yajiao: '涯角', guanxing: '观星', kongcheng: '空城',
   })[id] || id;
 }
 
@@ -1308,6 +1317,7 @@ function tableGameHtml() {
         <div class="dz-hand">${you.hand.map(c => cardHtml(c, s)).join('') || '<div class="empty">没有手牌</div>'}</div>
         <div class="dz-skill-col">
           ${(me.general.skills || []).map(x => { const used = (x === 'yijue' && s.you && s.you.yijueUsed); return `<button class="skill-btn ${ui.activeSkill === x || (x === 'yijue' && ui.yijueStage) ? 'active' : ''} ${used ? 'used' : ''}" data-skill-act="${x}" ${used ? 'disabled' : ''}>${skillName(x)}${used ? '（已用）' : ''}</button>`; }).join('')}
+          ${(me.equips && me.equips.weapon && me.equips.weapon.key === 'zhangba' && s.phase === 'play' && s.currentPlayer === myId(s) && me.hand.length >= 2) ? `<button class="skill-btn ${ui.zhangba ? 'active' : ''}" data-action="zhangba">丈八蛇矛</button>` : ''}
         </div>
         ${generalCardHtml(me, s, 'gc-self')}
       </section>
@@ -1315,6 +1325,7 @@ function tableGameHtml() {
     <footer class="hint">${you.general.desc}</footer>
     ${judgmentHtml(s)}
     ${wuguHtml(s)}
+    ${guanxingHtml(s)}
   </div>`;
 }
 
@@ -1735,7 +1746,7 @@ function _controlsHtml(s, you, current, pending, myPending, isMyTurn) {
       <div class="play-timer"><div class="pt-fill" id="ptFill"></div><div class="pt-text">${ui.zhangba ? '丈八蛇矛：请点选两张手牌' : tip}</div></div>
       ${fangtianPick ? `<button class="btn primary" data-action="fangtian-confirm">确定目标（${ui.pendingAction.fangtianIds.length}）</button>` : ''}
       ${fireOpt ? '<button class="btn ghost" data-action="fire-sha">火【杀】</button>' : ''}
-      ${zhangba ? '<button class="btn ghost" data-action="zhangba">丈八蛇矛</button>' : ''}
+
       <button class="btn endplay-text" data-action="end-play">结束出牌</button>
     </div>`;
   }
@@ -2534,4 +2545,54 @@ window.__pickEquip = function (id, e) {
   render();
 };
 
+
+
+
+
+
+
+function guanxingHtml(s) {
+  const p = s.pending;
+  if (!p || p.type !== 'guanxing' || p.playerId !== myId(s) || !p.cards) return '';
+  const bottom = ui.gxBottom || [];
+  return `<div class="gx-overlay"><div class="gx-box">
+    <div class="gx-title">观星：将牌置于牌堆顶或牌堆底</div>
+    <div class="gx-cards">${p.cards.map(c => `<div class="gx-card ${bottom.includes(c.id) ? 'bot' : ''}" data-gx-id="${c.id}">${cardHtml(c, s)}<div class="gx-tag">${bottom.includes(c.id) ? '牌堆底' : '牌堆顶'}</div></div>`).join('')}</div>
+    <div class="gx-foot">点击牌切换「顶/底」；牌堆顶按从左到右的顺序放置</div>
+    <button class="btn primary big" data-gx-confirm>确定</button>
+  </div></div>`;
+}
+
+document.addEventListener('click', (e) => {
+  const gx = e.target.closest('[data-gx-id]');
+  if (gx) {
+    const id = gx.dataset.gxId;
+    ui.gxBottom = ui.gxBottom || [];
+    ui.gxBottom = ui.gxBottom.includes(id) ? ui.gxBottom.filter(x => x !== id) : ui.gxBottom.concat(id);
+    render();
+    return;
+  }
+  if (e.target.closest('[data-gx-confirm]')) {
+    const s = ui.state;
+    if (!s || !s.pending || s.pending.type !== 'guanxing') return;
+    const bottom = ui.gxBottom || [];
+    const cards = s.pending.cards || [];
+    sendAction({
+      type: 'respond',
+      top: cards.filter(c => !bottom.includes(c.id)).map(c => c.id),
+      bottom: cards.filter(c => bottom.includes(c.id)).map(c => c.id),
+    });
+    ui.gxBottom = [];
+    return;
+  }
+}, true);
+
+
+
+document.addEventListener('click', (e) => {
+  const sb = e.target.closest('[data-side]');
+  if (!sb) return;
+  ui.side = sb.dataset.side === 'farmer' ? 'farmer' : 'landlord';
+  render();
+}, true);
 

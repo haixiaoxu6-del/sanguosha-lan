@@ -23,6 +23,8 @@ class Game {
       id: info.id,
       name: info.name,
       generalId: info.generalId || null,
+      isAI: !!info.isAI,
+      preRole: info.preRole || null,
       seat: i,
       role: null,
       general: null,
@@ -65,6 +67,13 @@ class Game {
       return;
     }
     // 斗地主：0 号位地主，1/2 号位农民（players 已打乱）
+    if (this.mode === 'doudizhu_ai') {
+      for (const p of this.players) {
+        p.isAI = !!p.isAI;
+        p.role = p.preRole || (p.isAI ? 'farmer' : 'landlord');
+      }
+      return;
+    }
     this.players[0].role = 'landlord';
     for (let i = 1; i < this.n; i++) this.players[i].role = 'farmer';
   }
@@ -74,7 +83,7 @@ class Game {
     for (let i = 0; i < this.n; i++) {
       const p = this.players[i];
       let g = null;
-      if ((this.mode === 'duel' || this.mode === 'duel_pvp') && p.generalId) {
+      if ((this.mode === 'duel' || this.mode === 'duel_pvp' || this.mode === 'doudizhu_ai') && p.generalId && !p.isAI) {
         g = GENERALS.find(x => x.id === p.generalId) || null;
       }
       if (!g) {
@@ -118,6 +127,11 @@ class Game {
     this.events.push(ev);
     if (this.events.length > 60) this.events.shift();
     return ev;
+  }
+
+  onPhaseStart(phase) {
+    const p = this.currentPlayer();
+    this.pushEvent('phase', { phase, playerId: p ? p.id : null });
   }
 
   currentPlayer() { return this.players[this.current]; }
@@ -238,7 +252,18 @@ class Game {
     p.flags.yijueTarget = null;
     p.yijueSealed = false;
     p.skillSealed = false;
+    this.phase = 'prepare';
+    this.onPhaseStart('prepare');
+    if (this.hasSkill(p, 'guanxing') && !this._gxSkip) {
+      const n = this.players.filter(q => q.alive).length < 4 ? 3 : 5;
+      const cards = this.deck.splice(0, Math.min(n, this.deck.length));
+      this.pending = { type: 'guanxing', playerId: p.id, cards };
+      this.gxResume = 'begin';
+      return;
+    }
+    this._gxSkip = false;
     this.phase = 'judge';
+    this.onPhaseStart('judge');
 
     let skipDraw = false;
     let skipPlay = false;
@@ -301,6 +326,7 @@ class Game {
     if (lastJudgment) this.lastJudgment = lastJudgment;
 
     this.phase = 'draw';
+    this.onPhaseStart('draw');
     if (skipDraw) {
       this.pushLog(`${p.name} 跳过摸牌阶段`);
     } else {
@@ -313,6 +339,7 @@ class Game {
         this.pushEvent('draw', { playerId: p.id, count: cards.length, cards: cards.map(c => ({ id: c.id, name: c.name, suit: c.suit, number: c.number, color: c.color, type: c.type, art: c.art })) });
         this.pending = { type: 'draw_ack', playerId: p.id, prompt: '' };
         this.phase = 'play';
+        this.onPhaseStart('play');
         return;
       }
       this.draw(p, drawCount);
@@ -322,14 +349,28 @@ class Game {
     if (skipPlay) {
       this.pushLog(`${p.name} 跳过出牌阶段`);
       this.phase = 'discard';
+      this.onPhaseStart('discard');
       this.checkDiscard();
       return;
     }
     this.phase = 'play';
+    this.onPhaseStart('play');
   }
 
   endTurn() {
     if (this.gameOver) return;
+    this.phase = 'end';
+    this.onPhaseStart('end');
+    const gxp = this.currentPlayer();
+    if (this.gxAllBottom && gxp && this.hasSkill(gxp, 'guanxing') && this.gxResume !== 'end') {
+      this.gxAllBottom = false;
+      const gn = this.players.filter(q => q.alive).length < 4 ? 3 : 5;
+      const gcards = this.deck.splice(0, Math.min(gn, this.deck.length));
+      this.pending = { type: 'guanxing', playerId: gxp.id, cards: gcards };
+      this.gxResume = 'end';
+      return;
+    }
+    this.gxAllBottom = false;
     // 【厉勇】“本回合非锁定技失效”随本回合结束到期
     for (const q of this.players) q.skillSealed = false;
     // 【义绝】的封印与红桃杀加伤持续到本回合结束
@@ -350,6 +391,8 @@ class Game {
   checkDiscard() {
     const p = this.currentPlayer();
     if (!p) return;
+    this.phase = 'discard';
+    this.onPhaseStart('discard');
     if (p.hand.length > p.hp) {
       this.pending = {
         type: 'discard',
@@ -551,6 +594,7 @@ class Game {
       if (!p.equips || !p.equips.weapon || p.equips.weapon.key !== 'zhangba') return err('没有装备【丈八蛇矛】');
       const target = action.targetId ? this.findPlayer(action.targetId) : null;
       if (!target || !target.alive || target.id === p.id) return err('请选择一名其他角色');
+      if (this.hasSkill(target, 'kongcheng') && target.hand.length === 0) return err('【空城】：不能成为【杀】的目标');
       if (this.distance(p, target) > 3) return err('目标不在攻击范围内');
       if (!this.hasSkill(p, 'paoxiao') && p.flags.shaUsed >= 1) return err('本回合已经使用过【杀】');
       p.hand.splice(p.hand.findIndex(c => c.id === c1.id), 1);
@@ -597,6 +641,7 @@ class Game {
     // 目标/使用条件校验
     if (useAs === 'sha') {
       if (!target || !target.alive || target.id === p.id) return err('请选择一名其他角色');
+      if (this.hasSkill(target, 'kongcheng') && target.hand.length === 0) return err('【空城】：不能成为【杀】的目标');
       const range = (p.equips && p.equips.weapon && p.equips.weapon.range) || 1;
       if (!this.shaUnlimited(p) && p.flags.shaUsed >= 1) return err('本回合已经使用过【杀】');
       const noRange = (this.hasSkill(p, 're_paoxiao') && p.flags.shaUsed >= 1)
@@ -604,6 +649,7 @@ class Game {
       if (!noRange && this.distance(p, target) > range) return err('目标不在攻击范围内');
     } else if (useAs === 'juedou') {
       if (!target || !target.alive || target.id === p.id) return err('请选择一名其他角色');
+      if (this.hasSkill(target, 'kongcheng') && target.hand.length === 0) return err('【空城】：不能成为【决斗】的目标');
     } else if (useAs === 'guohe') {
       if (!target || !target.alive || target.id === p.id) return err('请选择一名其他角色');
       if (this.cardCount(target) === 0) return err('目标没有牌');
@@ -1241,6 +1287,24 @@ class Game {
         cardId: card.id, boost: false, queue: [],
         prompt: `${victim.name} 请出【闪】`,
       };
+      return ok();
+    }
+
+    if (pend.type === 'guanxing') {
+      const top = (action.top || []).map(id => pend.cards.find(c => c.id === id)).filter(Boolean);
+      const bottom = (action.bottom || []).map(id => pend.cards.find(c => c.id === id)).filter(Boolean);
+      this.deck.unshift(...top);
+      this.deck.push(...bottom);
+      this.gxAllBottom = bottom.length === pend.cards.length && pend.cards.length > 0;
+      this.pending = null;
+      if (this.gxResume === 'end') {
+        this.gxResume = 'begin';
+        this.gxAllBottom = false;
+        this.endTurn();
+      } else {
+        this._gxSkip = true;
+        this.beginTurn();
+      }
       return ok();
     }
 

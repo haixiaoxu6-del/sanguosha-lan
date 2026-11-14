@@ -1646,3 +1646,15 @@ body.draw-ack .pending-wrap, body.draw-ack .prompt, body.draw-ack .prompt-action
 
 /* 义绝可选装备：恢复点击（装备栏容器默认 pointer-events:none） */
 .gc-equip.pickable { pointer-events: auto; cursor: pointer; }
+
+/* 观星 */
+.gx-overlay { position: fixed; inset: 0; z-index: 210; display: flex; align-items: center; justify-content: center; background: rgba(10,6,3,.6); }
+.gx-box { background: #1d140d; border: 1px solid #8a6a3a; border-radius: 12px; padding: 18px 20px; box-shadow: 0 12px 40px rgba(0,0,0,.6); max-width: 92vw; }
+.gx-title { color: #f0cf8e; font-size: 18px; margin-bottom: 12px; text-align: center; }
+.gx-cards { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.gx-card { position: relative; cursor: pointer; transform: scale(.85); transform-origin: top center; }
+.gx-card.bot { outline: 2px solid #6ea8ff; box-shadow: 0 0 14px rgba(110,168,255,.6); }
+.gx-card .gx-tag { text-align: center; color: #cbb184; font-size: 12px; margin-top: 6px; }
+.gx-foot { color: #a8946f; font-size: 12px; text-align: center; margin: 10px 0; }
+
+.side-row { display: flex; gap: 12px; justify-content: center; margin-bottom: 14px; }

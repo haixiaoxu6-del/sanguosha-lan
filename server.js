@@ -56,7 +56,7 @@ class Room {
     this.players = [];
     this.game = null;
     this.started = false;
-    this.selecting = mode === 'duel' || mode === 'duel_pvp';
+    this.selecting = mode === 'duel' || mode === 'duel_pvp' || mode === 'doudizhu_ai';
     this.createdAt = Date.now();
   }
 
@@ -165,6 +165,10 @@ const server = http.createServer(async (req, res) => {
 
       const code = makeCode();
       const room = new Room(code, mode, null);
+      if (mode === 'doudizhu_ai') {
+        room.players.push({ id: 'ai_' + uid(), name: 'AI 小杀', isAI: true, connected: true, generalId: null });
+        room.players.push({ id: 'ai_' + uid(), name: 'AI 小闪', isAI: true, connected: true, generalId: null });
+      }
       const p = room.add((body.name || '玩家').trim());
       room.hostId = p.id;
       rooms.set(code, room);
@@ -240,7 +244,22 @@ const server = http.createServer(async (req, res) => {
       if (room.started) return json(res, 400, { ok: false, error: '游戏已经开始' });
 
       console.log('[start] enter', code, p.id, room.mode, room.players.length, body.generalId || '');
-      if (room.mode === 'doudizhu') {
+      if (room.mode === 'doudizhu_ai') {
+        const generalId = String(body.generalId || '');
+        const humanGen = GENERALS.find(g => g.id === generalId);
+        if (!humanGen) return json(res, 400, { ok: false, error: '请选择武将' });
+        const side = body.side === 'landlord' ? 'landlord' : 'farmer';
+        const human = room.players.find(x => !x.isAI);
+        const ais = room.players.filter(x => x.isAI);
+        if (!human || ais.length < 2) return json(res, 400, { ok: false, error: '房间配置异常' });
+        const roles = side === 'landlord' ? ['farmer', 'farmer'] : ['landlord', 'farmer'];
+        room.game = new Game([
+          { id: human.id, name: human.name, generalId: humanGen.id, preRole: side, isAI: false },
+          { id: ais[0].id, name: ais[0].name, preRole: roles[0], isAI: true },
+          { id: ais[1].id, name: ais[1].name, preRole: roles[1], isAI: true },
+        ], 'doudizhu_ai');
+        room.selecting = false;
+      } else if (room.mode === 'doudizhu') {
         if (room.players.length < 3) return json(res, 400, { ok: false, error: '至少需要 3 人' });
         room.game = new Game(
           room.players.map(x => ({ id: x.id, name: x.name })),
@@ -327,9 +346,9 @@ const server = http.createServer(async (req, res) => {
 // 只靠“玩家操作后触发一次 AI”会卡在“等待 AI 响应…”。
 setInterval(() => {
   for (const room of rooms.values()) {
-    if (room.mode !== 'duel' || !room.game || room.game.gameOver) continue;
+    if ((room.mode !== 'duel' && room.mode !== 'doudizhu_ai') || !room.game || room.game.gameOver) continue;
     if (room.game.pauseUntil && Date.now() < room.game.pauseUntil) continue;
-    const ai = room.game.players.find(p => p.role === 'ai');
+    const ai = room.game.players.find(p => p.isAI && p.alive);
     if (!ai) continue;
     const pend = room.game.pending;
     if (pend && pend.playerId === ai.id) {
