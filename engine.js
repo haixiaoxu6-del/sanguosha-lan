@@ -2091,6 +2091,7 @@ class Game {
             count: this.pending.count,
             dyingId: this.pending.dyingId,
             stage: this.pending.stage,
+            allowed: this.pending.allowed,
             x: this.pending.x,
             targetId: this.pending.targetId,
             total: this.pending.total,
