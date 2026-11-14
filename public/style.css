@@ -1681,3 +1681,5 @@ body.gx-open .pending-wrap { display: none !important; }
 .gx-timer { flex: 1; height: 16px; background: #3a2a18; border-radius: 8px; overflow: hidden; }
 .gx-fill { height: 100%; background: linear-gradient(90deg,#e06a28,#f2a24a); transition: width .1s linear; }
 .gx-box { width: 620px; max-width: 94vw; }
+
+.deck-count { left: 64px; top: 64px; }
