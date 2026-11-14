@@ -1113,7 +1113,7 @@ function lobbyHtml() {
     <button class="btn big" data-action="join">加入房间</button>
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-top:12px">连接中…</div>' : ''}
     <div class="rules"><b>斗地主：</b>3 人，1 地主 2 农民；地主 +1 血、先手、多摸 1 张；地主死农民胜，两个农民死地主胜。<br><b>1v1 联机：</b>2 个真人，各选一个武将，先 0 血输；建房后把房间号发给朋友。<br><b>人机对战：</b>你先选将，AI 从剩下随机选，1v1，先 0 血输。</div>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v206</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v208</div>
   </div></div>`;
 }
 
@@ -1179,7 +1179,7 @@ function generalHtml() {
     ${ui.connecting ? '<div class="sub" style="text-align:center;margin-bottom:8px;color:#e8b45a">网络断开，正在重连…</div>' : ''}
     ${ui.startStatus ? `<div class="sub" style="text-align:center;margin-bottom:8px">${escapeHtml(ui.startStatus)}</div>` : ''}
     ${roomBlock}
-    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v206</div>
+    <div class="sub" style="text-align:center;margin-bottom:8px;opacity:.45">地址：${location.origin} · v208</div>
     <div class="general-grid">
       ${list.map(g => {
         const taken = isPvp && oppGenId === g.id;
@@ -1208,7 +1208,7 @@ function generalHtml() {
     }</button>
     <div style="height:10px"></div>
     <button class="btn ghost big" data-action="leave">返回大厅</button>
-    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v206</div>
+    <div class="sub" style="text-align:center;margin-top:10px;opacity:.45">v208</div>
   </div></div>`;
 }
 
@@ -1244,7 +1244,7 @@ function generalCardHtml(p, s, extra = '') {
     || !!(selected && playActions(selected).some(a => a.needsTarget));
   const hp = Math.max(0, p.hp);
   const eq = p.equips || {};
-  const eqRow = (slot, c, label, range) => `<div class="gc-equip ${slot}${c && ui.yijueStage === 'card' ? ' pickable' : ''}${c && ui.yijueCard === c.id ? ' selected' : ''}" data-equip-slot="${slot}"${c ? ` data-equip-id="${c.id}" onclick="window.__pickEquip && window.__pickEquip('${c.id}', event)"` : ''}>${
+  const eqRow = (slot, c, label, range) => `<div class="gc-equip ${slot}${c && ui.yijueStage === 'card' ? ' pickable' : ''}${c && s.pending && s.pending.type === 'guanshi' ? ' gs-pickable' : ''}${c && ui.yijueCard === c.id ? ' selected' : ''}" data-equip-slot="${slot}"${c ? ` data-equip-id="${c.id}" onclick="window.__pickEquip && window.__pickEquip('${c.id}', event)"` : ''}>${
     c ? `<b>${label}${c.name}</b>${range && c.range ? `<span>${c.range}</span>` : ''}` : ''
   }</div>`;
   const eqHtml = `<div class="gc-equips">
@@ -1329,6 +1329,7 @@ function tableGameHtml() {
     ${judgmentHtml(s)}
     ${wuguHtml(s)}
     ${guanxingHtml(s)}
+    ${farmerRewardHtml(s)}
   </div>`;
 }
 
@@ -1500,7 +1501,7 @@ function playActions(card) {
   const acts = [];
   const canSha = canUseAsSha(card);
   const zhuge = you.equips && you.equips.weapon && you.equips.weapon.key === 'zhuge';
-  const shaAllowed = you.general.skills.includes('paoxiao') || you.general.skills.includes('re_paoxiao') || zhuge || you.shaUsed < 1;
+  const shaAllowed = you.general.skills.includes('paoxiao') || you.general.skills.includes('re_paoxiao') || zhuge || you.shaUsed < (you.role === 'landlord' ? 2 : 1);
   const fangtian = !!(you.equips && you.equips.weapon && you.equips.weapon.key === 'fangtian' && card.key === 'sha' && you.hand.length === 1);
   const a = ui.activeSkill;
   let shaLabel = fangtian ? '出【杀】（方天画戟·双目标）' : '出【杀】';
@@ -2701,4 +2702,41 @@ setInterval(() => {
 
 
 
+
+
+
+// 贯石斧：装备区也可点击弃置
+document.addEventListener('click', (e) => {
+  const eq = e.target.closest('.gc-equip.gs-pickable[data-equip-id]');
+  if (!eq) return;
+  if (!ui.state || !ui.state.pending || ui.state.pending.type !== 'guanshi') return;
+  e.stopPropagation();
+  const id = eq.dataset.equipId;
+  if (ui.discardSet.has(id)) ui.discardSet.delete(id);
+  else if (ui.discardSet.size < (ui.state.pending.count || 2)) ui.discardSet.add(id);
+  render();
+}, true);
+
+
+
+function farmerRewardHtml(s) {
+  const p = s.pending;
+  if (!p || p.type !== 'farmer_reward' || p.playerId !== myId(s)) return '';
+  const you = s.you;
+  const canHeal = you.hp < you.maxHp;
+  return `<div class="gx-overlay"><div class="gx-box" style="width:420px">
+    <div class="gx-title">农民阵亡补偿</div>
+    <div class="gx-foot">选择一项：摸两张牌，或回复1点体力</div>
+    <div class="gx-ask">
+      <button class="btn primary" data-fr="draw">摸两张牌</button>
+      <button class="btn ${canHeal ? 'primary' : 'ghost'}" data-fr="heal" ${canHeal ? '' : 'disabled'}>回复1点体力</button>
+    </div>
+  </div></div>`;
+}
+
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-fr]');
+  if (!b) return;
+  sendAction({ type: 'respond', choice: b.dataset.fr === 'heal' ? 'heal' : 'draw' });
+}, true);
 

@@ -1431,6 +1431,21 @@ class Game {
       return ok();
     }
 
+    if (pend.type === 'farmer_reward') {
+      const healIt = action.choice === 'heal' && p.hp < p.maxHp;
+      if (healIt) {
+        p.hp = Math.min(p.maxHp, p.hp + 1);
+        this.pushLog(`${p.name} 选择回复1点体力`);
+      } else {
+        this.draw(p, 2);
+        this.pushLog(`${p.name} 选择摸两张牌`);
+      }
+      this.pending = null;
+      const cur0 = this.currentPlayer();
+      if (cur0 && !cur0.alive) this.endTurn();
+      return ok();
+    }
+
     if (pend.type === 'draw_ack') {
       const pd = this.pendingDraw;
       if (pd && pd.playerId === p.id) {
@@ -1728,23 +1743,25 @@ class Game {
     player.judge = [];
     this.pushLog(`${player.name} 阵亡（${ROLE_CN[player.role]}）`);
 
-    // 斗地主：一个农民阵亡，另一个农民摸 2 张
-    if (this.mode === 'doudizhu' && player.role === 'farmer') {
+    // 斗地主：一个农民阵亡，另一个农民选择摸两张牌或回复1点体力
+    let farmerReward = null;
+    if ((this.mode === 'doudizhu' || this.mode === 'doudizhu_ai') && player.role === 'farmer') {
       const other = this.players.find(x => x.alive && x.role === 'farmer' && x.id !== player.id);
       if (other) {
-        this.draw(other, 2);
-        this.pushLog(`${other.name} 农民阵亡补偿，摸两张牌`);
+        farmerReward = other;
+        this.pending = { type: 'farmer_reward', playerId: other.id, prompt: '农民阵亡补偿：摸两张牌 或 回复1点体力' };
+        this.pushLog(`${other.name} 获得农民阵亡补偿，请选择`);
       }
     }
 
     this.checkWin();
+    if (this.gameOver) return;
+    if (this.pending) return;
 
-    if (!this.gameOver) {
-      const cur = this.currentPlayer();
-      if (cur && !cur.alive) {
-        this.pending = null;
-        this.endTurn();
-      }
+    const cur = this.currentPlayer();
+    if (cur && !cur.alive) {
+      this.pending = null;
+      this.endTurn();
     }
   }
 

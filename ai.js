@@ -37,7 +37,19 @@ function aiAct(game) {
         return;
       }
 
-      if (pend.type === 'wuxie') { game.respond(ai.id, { pass: true }); return; }
+      if (pend.type === 'wuxie') {
+        const t = pend.trick && pend.trick.targetId ? game.findPlayer(pend.trick.targetId) : null;
+        const ally = t && (t.id === ai.id || t.role === ai.role);
+        const wx = ai.hand.find(c => c.key === 'wuxie');
+        if (wx && ally) game.respond(ai.id, { cardId: wx.id });
+        else game.respond(ai.id, { pass: true });
+        return;
+      }
+
+      if (pend.type === 'farmer_reward') {
+        game.respond(ai.id, { choice: ai.hp < ai.maxHp ? 'heal' : 'draw' });
+        return;
+      }
 
       if (pend.type === 'draw_ack') { game.respond(ai.id, {}); return; }
 

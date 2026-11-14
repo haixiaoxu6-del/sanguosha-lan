@@ -359,7 +359,7 @@ setInterval(() => {
       if (c && c.isAI && c.alive) ai = c;
     }
     if (!ai) continue;
-    if (pend && pend.playerId === ai.id) {
+    if (pend && (pend.playerId === ai.id || (pend.allowed || []).includes(ai.id))) {
       const sig = `${pend.type}|${pend.playerId}|${pend.cardId || ''}|${pend.targetId || ''}`;
       if (room._aiSig === sig) room._aiStuck = (room._aiStuck || 0) + 1;
       else { room._aiSig = sig; room._aiStuck = 0; }
