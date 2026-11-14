@@ -322,9 +322,7 @@ class Game {
   forcePassWuxie() {
     const pend = this.pending;
     if (!pend || pend.type !== 'wuxie') return false;
-    this.pending = null;
-    this.resolveTrick({ sourceId: pend.sourceId, cardId: pend.cardId, cardRef: pend.cardRef, trick: pend.trick, canceled: (pend.wuxieCount || 0) % 2 === 1 });
-    return true;
+    return !!(this.respond(pend.playerId, { pass: true }) || {}).ok;
   }
 
   startTurnDraw(p, count) {
@@ -996,42 +994,37 @@ class Game {
       this.resolveTrick({ sourceId: source.id, cardId: card.id, cardRef: card, trick, canceled: false });
       return;
     }
-    this.pending = {
-      type: 'wuxie',
-      playerId: null,
-      allowed: eligible,
-      sourceId: source.id,
-      cardId: card.id,
-      cardRef: card,
-      trick,
-      wuxieCount: 0,
-      canceled: false,
-      prompt: `是否对【${card.name}】使用【无懈可击】？`,
+    this.wuxieCtx = {
+      sourceId: source.id, cardId: card.id, cardRef: card, trick,
+      wuxieCount: 0, queue: eligible,
     };
+    this.askNextWuxie();
   }
 
-  askWuxieAgain(lastPlayer) {
-    const src = this.pending ? this.pending.sourceId : null;
-    const eligible = this.players
-      .filter(x => x.alive && x.id !== src && x.hand.some(c => c.key === 'wuxie'))
-      .map(x => x.id);
-    const pending = this.pending;
-    if (!eligible.length) {
-      this.resolveTrick({ sourceId: pending.sourceId, cardId: pending.cardId, cardRef: pending.cardRef, trick: pending.trick, canceled: pending.wuxieCount % 2 === 1 });
+  askNextWuxie() {
+    const ctx = this.wuxieCtx;
+    if (!ctx) return;
+    while (ctx.queue.length) {
+      const id = ctx.queue.shift();
+      const q = this.findPlayer(id);
+      if (!q || !q.alive) continue;
+      if (!q.hand.some(c => c.key === 'wuxie')) continue;
+      const name = ctx.cardRef ? ctx.cardRef.name : '锦囊';
+      this.pending = {
+        type: 'wuxie',
+        playerId: id,
+        sourceId: ctx.sourceId,
+        cardId: ctx.cardId,
+        cardRef: ctx.cardRef,
+        trick: ctx.trick,
+        wuxieCount: ctx.wuxieCount,
+        prompt: ctx.wuxieCount > 0 ? '是否对【无懈可击】使用【无懈可击】？' : `是否对【${name}】使用【无懈可击】？`,
+      };
       return;
     }
-    this.pending = {
-      type: 'wuxie',
-      playerId: null,
-      allowed: eligible,
-      sourceId: lastPlayer.id,
-      cardId: pending.cardId,
-      cardRef: pending.cardRef,
-      trick: pending.trick,
-      wuxieCount: pending.wuxieCount,
-      canceled: false,
-      prompt: `是否对${lastPlayer.name}的【无懈可击】使用【无懈可击】？`,
-    };
+    const canceled = ctx.wuxieCount % 2 === 1;
+    this.wuxieCtx = null;
+    this.resolveTrick({ sourceId: ctx.sourceId, cardId: ctx.cardId, cardRef: ctx.cardRef, trick: ctx.trick, canceled });
   }
 
   resolveTrick(pend) {
@@ -1704,23 +1697,25 @@ class Game {
     }
 
     if (pend.type === 'wuxie') {
-      const allowed = pend.allowed || [];
+      if (pend.playerId !== p.id) return err('还没轮到你响应');
+      const ctx = this.wuxieCtx;
+      this.pending = null;
+      if (!ctx) return ok();
       if (action.pass) {
-        pend.allowed = allowed.filter(id => id !== p.id);
-        if (!pend.allowed.length) {
-          this.resolveTrick({ sourceId: pend.sourceId, cardId: pend.cardId, cardRef: pend.cardRef, trick: pend.trick, canceled: (pend.wuxieCount || 0) % 2 === 1 });
-        }
+        this.askNextWuxie();
         return ok();
       }
-      if (!allowed.includes(p.id)) return err('还没轮到你响应');
       const card = p.hand.find(c => c.id === action.cardId);
       if (!card || card.key !== 'wuxie') return err('请选择【无懈可击】');
       p.hand.splice(p.hand.indexOf(card), 1);
       this.discard.push(card);
       this.pushLog(`${p.name} 使用【无懈可击】`);
       this.pushEvent('card', { playerId: p.id, card: { id: card.id, name: card.name, suit: card.suit, number: card.number, color: card.color, type: card.type, art: card.art } });
-      pend.wuxieCount = (pend.wuxieCount || 0) + 1;
-      this.askWuxieAgain(p);
+      ctx.wuxieCount += 1;
+      ctx.queue = this.players
+        .filter(x => x.alive && x.id !== p.id && x.hand.some(c => c.key === 'wuxie'))
+        .map(x => x.id);
+      this.askNextWuxie();
       return ok();
     }
 
