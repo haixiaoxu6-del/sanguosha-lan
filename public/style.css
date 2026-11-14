@@ -1757,3 +1757,8 @@ body.tuxi-open .gc-wrap.gc-self .gc { outline: none; box-shadow: none; cursor: d
 .gc-side-top { height: 108px; min-height: 108px; overflow: hidden; }
 .gc-side-hp { position: absolute; left: 0; right: 0; top: 116px; display: flex; justify-content: center; margin: 0; }
 .gc-side-hand { position: absolute; left: 0; right: 0; bottom: 6px; margin: 0; }
+
+/* 阴阳鱼：改为块级紧凑堆叠，避免 flex 拉伸导致间距随血量变化 */
+.gc-side-hp { display: block !important; height: auto !important; }
+.gc-side-hp .hp-fish-col { display: block !important; }
+.gc-side-hp .hp-fish { display: block !important; margin: 0 auto 1px !important; flex: none !important; }
