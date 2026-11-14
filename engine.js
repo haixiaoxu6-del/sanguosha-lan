@@ -319,6 +319,14 @@ class Game {
     }
   }
 
+  forcePassWuxie() {
+    const pend = this.pending;
+    if (!pend || pend.type !== 'wuxie') return false;
+    this.pending = null;
+    this.resolveTrick({ sourceId: pend.sourceId, cardId: pend.cardId, cardRef: pend.cardRef, trick: pend.trick, canceled: (pend.wuxieCount || 0) % 2 === 1 });
+    return true;
+  }
+
   startTurnDraw(p, count) {
     if (process.env.DSH_DEBUG) console.log('[startTurnDraw]', count, 'picks', this._tuxiPicks);
     const cards = [];

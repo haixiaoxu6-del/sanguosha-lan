@@ -349,6 +349,15 @@ setInterval(() => {
     if ((room.mode !== 'duel' && room.mode !== 'doudizhu_ai') || !room.game || room.game.gameOver) continue;
     if (room.game.pauseUntil && Date.now() < room.game.pauseUntil) continue;
     const pend = room.game.pending;
+    if (pend && pend.type === 'wuxie') {
+      if (!pend._since) pend._since = Date.now();
+      if (Date.now() - pend._since > 10000) {
+        console.error('[wuxie] timeout, force pass');
+        room.game.forcePassWuxie();
+        room.broadcast();
+        continue;
+      }
+    }
     if (pend && pend.playerId) {
       const owner = room.game.findPlayer(pend.playerId);
       if (!owner || !owner.alive) { room.game.pending = null; room.broadcast(); continue; }
